@@ -59,6 +59,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/admin/admissions", label: "Admissions", icon: Users },
       { to: "/admin/beds", label: "Beds & rooms", icon: Building2 },
       { to: "/admin/compliance", label: "Compliance", icon: Shield },
+      { to: "/admin/data", label: "Facility data", icon: ClipboardList },
       { to: "/admin/reports", label: "Reports", icon: BarChart3 },
       { to: "/admin/settings", label: "Settings", icon: Settings },
     ],

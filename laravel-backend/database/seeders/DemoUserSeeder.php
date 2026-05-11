@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Facility;
 use App\Models\User;
+use App\Services\TenantProvisioningService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -104,6 +105,16 @@ class DemoUserSeeder extends Seeder
             $user->syncRoles([$spatieRole]);
 
             $this->command->info("✓ {$portal}: {$email} → role {$spatieRole}");
+        }
+
+        // Provision master data snapshots into both demo facilities so the
+        // facility-side endpoints have something to read. Idempotent — only
+        // inserts rows that don't already exist for the facility.
+        $provisioner = app(TenantProvisioningService::class);
+        foreach ([$facility, $sisterFacility] as $f) {
+            $created = $provisioner->provision($f);
+            $total = array_sum($created);
+            $this->command->info("✓ provisioned {$f->name}: {$total} master snapshots");
         }
     }
 }

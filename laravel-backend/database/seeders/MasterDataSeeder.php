@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\CmsFTag;
+use App\Models\CredentialTemplate;
 use App\Models\LevelOfCare;
 use App\Models\Payer;
 use App\Models\State;
@@ -21,6 +23,8 @@ class MasterDataSeeder extends Seeder
         $this->seedStates();
         $this->seedPayers();
         $this->seedLevelsOfCare();
+        $this->seedCmsFTags();
+        $this->seedCredentialTemplates();
     }
 
     private function seedStates(): void
@@ -105,5 +109,88 @@ class MasterDataSeeder extends Seeder
         }
 
         $this->command->info("✓ levels_of_care (" . count($levels) . ")");
+    }
+
+    /**
+     * CMS F-tag deficiency codes most-cited at SNF surveys. Source:
+     * CMS State Operations Manual Appendix PP. This is the
+     * top-of-mind subset — full list is ~180 codes.
+     */
+    private function seedCmsFTags(): void
+    {
+        $ftags = [
+            ['F550', 'Resident Rights / Dignity', 'resident_rights'],
+            ['F600', 'Free from Abuse and Neglect', 'abuse_neglect'],
+            ['F605', 'Free from Misappropriation/Exploitation', 'abuse_neglect'],
+            ['F607', 'Develop/Implement Abuse/Neglect Policies', 'abuse_neglect'],
+            ['F608', 'Reporting of Alleged Violations', 'abuse_neglect'],
+            ['F609', 'Reporting Reasonable Suspicion of a Crime', 'abuse_neglect'],
+            ['F656', 'Develop/Implement Comprehensive Care Plan', 'care_planning'],
+            ['F657', 'Care Plan Timing and Revision', 'care_planning'],
+            ['F676', 'Activities of Daily Living (ADLs)', 'quality_of_life'],
+            ['F677', 'ADL Care Provided for Dependent Residents', 'quality_of_life'],
+            ['F679', 'Activities Meet Interest/Needs of Each Resident', 'quality_of_life'],
+            ['F684', 'Quality of Care', 'quality_of_care'],
+            ['F686', 'Treatment/Services to Prevent/Heal Pressure Ulcers', 'quality_of_care'],
+            ['F689', 'Free of Accident Hazards / Supervision / Devices', 'quality_of_care'],
+            ['F690', 'Bowel/Bladder Incontinence, Catheter, UTI', 'quality_of_care'],
+            ['F692', 'Nutrition / Hydration Status Maintenance', 'quality_of_care'],
+            ['F695', 'Respiratory / Tracheostomy Care and Suctioning', 'quality_of_care'],
+            ['F697', 'Pain Management', 'quality_of_care'],
+            ['F698', 'Dialysis', 'quality_of_care'],
+            ['F699', 'Trauma Informed Care', 'quality_of_care'],
+            ['F725', 'Sufficient Nursing Staff', 'staffing'],
+            ['F726', 'Competent Nursing Staff', 'staffing'],
+            ['F740', 'Behavioral Health Services', 'behavioral_health'],
+            ['F758', 'Free from Unnecessary Psychotropic Meds / PRN Use', 'pharmacy'],
+            ['F761', 'Label/Store Drugs and Biologicals', 'pharmacy'],
+            ['F812', 'Food Procurement, Store/Prepare/Serve - Sanitary', 'dietary'],
+            ['F813', 'Personal Food Policy', 'dietary'],
+            ['F814', 'Dispose Garbage and Refuse Properly', 'dietary'],
+            ['F880', 'Infection Prevention & Control', 'infection_control'],
+            ['F881', 'Antibiotic Stewardship Program', 'infection_control'],
+            ['F884', 'Reporting - National Healthcare Safety Network', 'infection_control'],
+            ['F921', 'Safe/Functional/Sanitary/Comfortable Environment', 'environment'],
+        ];
+
+        foreach ($ftags as [$code, $title, $category]) {
+            CmsFTag::updateOrCreate(
+                ['code' => $code],
+                ['title' => $title, 'category' => $category, 'is_active' => true]
+            );
+        }
+
+        $this->command->info("✓ cms_f_tags (" . count($ftags) . ")");
+    }
+
+    private function seedCredentialTemplates(): void
+    {
+        $credentials = [
+            ['RN',   'Registered Nurse',         24, true],
+            ['LPN',  'Licensed Practical Nurse', 24, true],
+            ['CNA',  'Certified Nursing Assistant', 24, true],
+            ['MA',   'Medical Assistant',        24, true],
+            ['NP',   'Nurse Practitioner',       24, true],
+            ['PA',   'Physician Assistant',      24, true],
+            ['MD',   'Physician (MD/DO)',        24, true],
+            ['SW',   'Social Worker (LCSW/LSW)', 24, true],
+            ['DT',   'Dietitian (RD/RDN)',       24, true],
+            ['CMA',  'Certified Medication Aide', 12, true],
+        ];
+
+        foreach ($credentials as [$code, $name, $renewal, $needsLicense]) {
+            CredentialTemplate::updateOrCreate(
+                ['facility_id' => null, 'code' => $code],
+                [
+                    'source' => 'master',
+                    'name' => $name,
+                    'renewal_months' => $renewal,
+                    'requires_state_license' => $needsLicense,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $this->command->info("✓ credential_templates (" . count($credentials) . ")");
     }
 }

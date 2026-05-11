@@ -63,6 +63,37 @@ const CONFIGS: MasterDataConfig[] = [
       { name: "is_active", label: "Active", type: "checkbox" },
     ],
   },
+  {
+    type: "cms-f-tags",
+    title: "CMS F-tags",
+    subtitle: "Federal nursing-home survey deficiency codes. Universal — same for every facility.",
+    fields: [
+      { name: "code", label: "Code", type: "text", required: true, placeholder: "F600" },
+      { name: "title", label: "Title", type: "text", required: true },
+      { name: "category", label: "Category", type: "text" },
+      { name: "severity_max", label: "Max severity", type: "text", showInTable: false },
+      { name: "description", label: "Description", type: "textarea", showInTable: false },
+      { name: "is_active", label: "Active", type: "checkbox" },
+    ],
+  },
+  {
+    type: "credential-templates",
+    title: "Credential templates",
+    subtitle: "Licensure types staff may hold (RN, LPN, CNA, etc.) with renewal cycles.",
+    fields: [
+      { name: "code", label: "Code", type: "text", required: true, placeholder: "RN" },
+      { name: "name", label: "Name", type: "text", required: true },
+      {
+        name: "renewal_months",
+        label: "Renewal (months)",
+        type: "number",
+        placeholder: "24",
+      },
+      { name: "requires_state_license", label: "State license", type: "checkbox" },
+      { name: "description", label: "Description", type: "textarea", showInTable: false },
+      { name: "is_active", label: "Active", type: "checkbox" },
+    ],
+  },
 ]
 
 export function MasterDataPage() {

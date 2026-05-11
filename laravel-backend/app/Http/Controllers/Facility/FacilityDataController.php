@@ -1,53 +1,34 @@
 <?php
 
-namespace App\Http\Controllers\SuperAdmin;
+namespace App\Http\Controllers\Facility;
 
 use App\Http\Controllers\Controller;
-use App\Models\CmsFTag;
 use App\Models\CredentialTemplate;
 use App\Models\LevelOfCare;
 use App\Models\Payer;
-use App\Models\State;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Generic super-admin CRUD for master data types. Each type has a config
- * row defining its Eloquent model + validation rules + queryable
- * fields. New types are added by extending TYPE_CONFIGS, no new
- * controller required.
+ * Facility-side reads of the provisioned master snapshots + any custom rows
+ * the facility has added. Scoped by the FacilityScope middleware (which
+ * pulls facility_id from the X-Facility-Id header or the authenticated
+ * user's active_facility_id).
  *
- * Routes:
- *   GET    /api/superadmin/master-data/{type}
- *   POST   /api/superadmin/master-data/{type}
- *   PUT    /api/superadmin/master-data/{type}/{id}
- *   DELETE /api/superadmin/master-data/{type}/{id}
+ * Editing rules:
+ *   - source='master' rows: only is_active may be toggled
+ *   - source='custom' rows: full CRUD
  */
-class MasterDataController extends Controller
+class FacilityDataController extends Controller
 {
     /**
-     * @var array<string, array{model: class-string<Model>, rules: array<string, array<int, string>>, master_only: bool}>
+     * @var array<string, array{model: class-string<Model>, rules: array<string, array<int, string>>}>
      */
     private const TYPE_CONFIGS = [
-        'states' => [
-            'model' => State::class,
-            'master_only' => true,
-            'rules' => [
-                'code' => ['required', 'string', 'size:2'],
-                'name' => ['required', 'string', 'max:120'],
-                'ombudsman_phone' => ['nullable', 'string', 'max:30'],
-                'ombudsman_email' => ['nullable', 'email', 'max:191'],
-                'regulator_name' => ['nullable', 'string', 'max:191'],
-                'regulator_url' => ['nullable', 'url', 'max:255'],
-                'notes' => ['nullable', 'string'],
-                'is_active' => ['boolean'],
-            ],
-        ],
         'payers' => [
             'model' => Payer::class,
-            'master_only' => false,
             'rules' => [
                 'name' => ['required', 'string', 'max:191'],
                 'type' => ['required', 'in:medicare_a,medicare_b,medicare_advantage,medicaid,ltc_insurance,private_pay,va,other'],
@@ -58,7 +39,6 @@ class MasterDataController extends Controller
         ],
         'levels-of-care' => [
             'model' => LevelOfCare::class,
-            'master_only' => false,
             'rules' => [
                 'code' => ['required', 'string', 'max:60'],
                 'name' => ['required', 'string', 'max:120'],
@@ -67,21 +47,8 @@ class MasterDataController extends Controller
                 'is_active' => ['boolean'],
             ],
         ],
-        'cms-f-tags' => [
-            'model' => CmsFTag::class,
-            'master_only' => true,
-            'rules' => [
-                'code' => ['required', 'string', 'max:10'],
-                'title' => ['required', 'string', 'max:191'],
-                'description' => ['nullable', 'string'],
-                'category' => ['nullable', 'string', 'max:60'],
-                'severity_max' => ['nullable', 'string', 'max:2'],
-                'is_active' => ['boolean'],
-            ],
-        ],
         'credential-templates' => [
             'model' => CredentialTemplate::class,
-            'master_only' => false,
             'rules' => [
                 'code' => ['required', 'string', 'max:60'],
                 'name' => ['required', 'string', 'max:120'],
@@ -93,33 +60,34 @@ class MasterDataController extends Controller
         ],
     ];
 
-    public function index(string $type): JsonResponse
+    public function index(Request $request, string $type): JsonResponse
     {
         $config = $this->config($type);
+        $facilityId = $request->attributes->get('facility_id');
+
         /** @var class-string<Model> $modelClass */
         $modelClass = $config['model'];
 
-        $query = $modelClass::query();
-        if (! $config['master_only']) {
-            $query->whereNull('facility_id')->where('source', 'master');
-        }
-        $query->orderBy('name');
+        $rows = $modelClass::query()
+            ->where('facility_id', $facilityId)
+            ->orderBy('source') // master first (alphabetically before custom)
+            ->orderBy('name')
+            ->get();
 
-        return response()->json(['data' => $query->get()]);
+        return response()->json(['data' => $rows]);
     }
 
     public function store(Request $request, string $type): JsonResponse
     {
         $config = $this->config($type);
+        $facilityId = $request->attributes->get('facility_id');
+
         $data = $request->validate($config['rules']);
+        $data['facility_id'] = $facilityId;
+        $data['source'] = 'custom'; // facility-side creates are always custom
 
         /** @var class-string<Model> $modelClass */
         $modelClass = $config['model'];
-
-        if (! $config['master_only']) {
-            $data['source'] = 'master';
-            $data['facility_id'] = null;
-        }
 
         $row = $modelClass::create($data);
 
@@ -129,33 +97,39 @@ class MasterDataController extends Controller
     public function update(Request $request, string $type, string $id): JsonResponse
     {
         $config = $this->config($type);
+        $facilityId = $request->attributes->get('facility_id');
+
         /** @var class-string<Model> $modelClass */
         $modelClass = $config['model'];
-        $row = $modelClass::findOrFail($id);
 
-        // Master endpoint can only edit master rows.
-        if (! $config['master_only'] && ($row->facility_id !== null || $row->source !== 'master')) {
-            throw ValidationException::withMessages([
-                'id' => 'This endpoint only edits master rows.',
-            ]);
+        $row = $modelClass::where('facility_id', $facilityId)->findOrFail($id);
+
+        if ($row->source === 'master') {
+            // Only is_active is mutable on master snapshots.
+            $data = $request->validate(['is_active' => ['required', 'boolean']]);
+            $row->update($data);
+        } else {
+            $rules = $this->rulesForUpdate($config['rules']);
+            $data = $request->validate($rules);
+            $row->update($data);
         }
-
-        $data = $request->validate($this->rulesForUpdate($config['rules']));
-        $row->update($data);
 
         return response()->json(['data' => $row->fresh()]);
     }
 
-    public function destroy(string $type, string $id): JsonResponse
+    public function destroy(Request $request, string $type, string $id): JsonResponse
     {
         $config = $this->config($type);
+        $facilityId = $request->attributes->get('facility_id');
+
         /** @var class-string<Model> $modelClass */
         $modelClass = $config['model'];
-        $row = $modelClass::findOrFail($id);
 
-        if (! $config['master_only'] && ($row->facility_id !== null || $row->source !== 'master')) {
+        $row = $modelClass::where('facility_id', $facilityId)->findOrFail($id);
+
+        if ($row->source === 'master') {
             throw ValidationException::withMessages([
-                'id' => 'This endpoint only deletes master rows.',
+                'id' => 'Master snapshots cannot be deleted. Toggle is_active instead.',
             ]);
         }
 
@@ -165,20 +139,18 @@ class MasterDataController extends Controller
     }
 
     /**
-     * @return array{model: class-string<Model>, rules: array<string, array<int, string>>, master_only: bool}
+     * @return array{model: class-string<Model>, rules: array<string, array<int, string>>}
      */
     private function config(string $type): array
     {
         if (! isset(self::TYPE_CONFIGS[$type])) {
-            abort(404, "Unknown master data type: {$type}");
+            abort(404, "Unknown facility data type: {$type}");
         }
 
         return self::TYPE_CONFIGS[$type];
     }
 
     /**
-     * Make all rules nullable on update so partial updates work (PATCH-like).
-     *
      * @param  array<string, array<int, string>>  $rules
      * @return array<string, array<int, string>>
      */

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Facility\FacilityDataController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
@@ -39,7 +40,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{type}/{id}', [MasterDataController::class, 'destroy']);
         });
 
-    Route::middleware('facility.scope')->group(function () {
-        // Facility-scoped endpoints — added in Phase 2.2+
+    Route::prefix('facility')->middleware('facility.scope')->group(function () {
+        Route::get('/data/{type}', [FacilityDataController::class, 'index']);
+        Route::post('/data/{type}', [FacilityDataController::class, 'store']);
+        Route::put('/data/{type}/{id}', [FacilityDataController::class, 'update']);
+        Route::delete('/data/{type}/{id}', [FacilityDataController::class, 'destroy']);
     });
 });
