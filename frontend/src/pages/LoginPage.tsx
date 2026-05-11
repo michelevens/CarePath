@@ -9,6 +9,7 @@ import {
   Briefcase,
   Shield,
   Loader2,
+  ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -34,42 +35,75 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
 
 const DEMO_PASSWORD = "demo1234"
 
+type LoginUiState =
+  | { phase: "credentials" }
+  | { phase: "two_factor"; challengeId: string }
+
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login } = useAuth()
+  const { login, completeTwoFactor } = useAuth()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState<string | null>(null)
+  const [ui, setUi] = useState<LoginUiState>({ phase: "credentials" })
 
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+
+  const apiErrorMessage = (err: unknown, fallback: string) => {
+    const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+    return (
+      e.response?.data?.errors?.email?.[0] ??
+      e.response?.data?.errors?.code?.[0] ??
+      e.response?.data?.errors?.challenge_id?.[0] ??
+      e.response?.data?.message ??
+      fallback
+    )
+  }
+
+  const goToPortal = (portal: string | null) => {
+    navigate(from && from !== "/login" ? from : `/${portal ?? ""}`, {
+      replace: true,
+    })
+  }
 
   const signIn = async (e: string, p: string, source: string) => {
     setError(null)
     setSubmitting(source)
     try {
-      const user = await login(e, p)
-      navigate(from && from !== "/login" ? from : `/${user.portal ?? ""}`, {
-        replace: true,
-      })
+      const result = await login(e, p)
+      if (result.kind === "two_factor_required") {
+        setUi({ phase: "two_factor", challengeId: result.challengeId })
+      } else {
+        goToPortal(result.user.portal)
+      }
     } catch (err) {
-      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
-      const msg =
-        axiosErr.response?.data?.errors?.email?.[0] ??
-        axiosErr.response?.data?.message ??
-        "Sign-in failed. Check your credentials."
-      setError(msg)
+      setError(apiErrorMessage(err, "Sign-in failed. Check your credentials."))
     } finally {
       setSubmitting(null)
     }
   }
 
-  const onFormSubmit = (e: FormEvent) => {
+  const onCredentialsSubmit = (e: FormEvent) => {
     e.preventDefault()
     void signIn(email, password, "form")
+  }
+
+  if (ui.phase === "two_factor") {
+    return (
+      <TwoFactorStep
+        challengeId={ui.challengeId}
+        onSuccess={(portal) => goToPortal(portal)}
+        onBack={() => {
+          setUi({ phase: "credentials" })
+          setError(null)
+        }}
+        completeTwoFactor={completeTwoFactor}
+      />
+    )
   }
 
   return (
@@ -81,7 +115,7 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Welcome back to CarePath.
             </p>
-            <form onSubmit={onFormSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
+            <form onSubmit={onCredentialsSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Email</label>
                 <input
@@ -123,7 +157,10 @@ export function LoginPage() {
               >
                 Forgot password?
               </Link>
-              <Link to="/signup" className="text-muted-foreground underline hover:text-foreground">
+              <Link
+                to="/signup"
+                className="text-muted-foreground underline hover:text-foreground"
+              >
                 Create an account
               </Link>
             </div>
@@ -173,6 +210,130 @@ export function LoginPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function TwoFactorStep({
+  challengeId,
+  onSuccess,
+  onBack,
+  completeTwoFactor,
+}: {
+  challengeId: string
+  onSuccess: (portal: string | null) => void
+  onBack: () => void
+  completeTwoFactor: (input: {
+    challengeId: string
+    code?: string
+    recoveryCode?: string
+  }) => Promise<{ portal: string | null }>
+}) {
+  const [mode, setMode] = useState<"code" | "recovery">("code")
+  const [code, setCode] = useState("")
+  const [recoveryCode, setRecoveryCode] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      const user = await completeTwoFactor({
+        challengeId,
+        code: mode === "code" ? code : undefined,
+        recoveryCode: mode === "recovery" ? recoveryCode : undefined,
+      })
+      onSuccess(user.portal)
+    } catch (err) {
+      const e = err as {
+        response?: { data?: { errors?: Record<string, string[]>; message?: string } }
+      }
+      setError(
+        e.response?.data?.errors?.code?.[0] ??
+          e.response?.data?.errors?.challenge_id?.[0] ??
+          e.response?.data?.message ??
+          "Invalid code."
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
+      <Card className="w-full max-w-md">
+        <CardContent className="p-8">
+          <ShieldCheck className="h-8 w-8" />
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+            Two-factor required
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {mode === "code"
+              ? "Enter the 6-digit code from your authenticator app."
+              : "Enter one of your saved recovery codes."}
+          </p>
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            {mode === "code" ? (
+              <input
+                type="text"
+                required
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="123456"
+                autoFocus
+                className="w-full rounded-md border bg-background px-3 py-3 text-center font-mono text-2xl tracking-widest outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            ) : (
+              <input
+                type="text"
+                required
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value)}
+                placeholder="xxxxxxxxxx-xxxxxxxxxx"
+                autoFocus
+                className="w-full rounded-md border bg-background px-3 py-2 font-mono text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            )}
+            {error && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={submitting || (mode === "code" ? code.length !== 6 : !recoveryCode)}
+            >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Verify
+            </Button>
+          </form>
+          <div className="mt-6 flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-muted-foreground underline hover:text-foreground"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode(mode === "code" ? "recovery" : "code")
+                setError(null)
+              }}
+              className="text-muted-foreground underline hover:text-foreground"
+            >
+              {mode === "code" ? "Use a recovery code" : "Use authenticator app"}
+            </button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

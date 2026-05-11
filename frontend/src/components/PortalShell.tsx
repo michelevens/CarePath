@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Outlet, NavLink, useNavigate } from "react-router-dom"
+import { Outlet, NavLink, Link, useNavigate } from "react-router-dom"
 import {
   Home,
   Users,
@@ -10,6 +10,7 @@ import {
   Settings,
   HeartHandshake,
   Shield,
+  ShieldCheck,
   LogOut,
   MailWarning,
 } from "lucide-react"
@@ -141,7 +142,7 @@ export function PortalShell({ portal }: { portal: Portal }) {
             ))}
           </nav>
         </div>
-        <div className="border-t p-3 space-y-2">
+        <div className="border-t p-3 space-y-1">
           {user && (
             <div className="px-3 py-2 text-xs">
               <div className="font-medium text-foreground">{user.name}</div>
@@ -153,6 +154,19 @@ export function PortalShell({ portal }: { portal: Portal }) {
               )}
             </div>
           )}
+          <Button
+            asChild
+            variant="ghost"
+            className="w-full justify-start gap-3 text-muted-foreground"
+          >
+            <Link to="/settings/security">
+              <ShieldCheck className="h-4 w-4" />
+              Security
+              {user?.two_factor_enabled && (
+                <span className="ml-auto text-xs">●</span>
+              )}
+            </Link>
+          </Button>
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground"

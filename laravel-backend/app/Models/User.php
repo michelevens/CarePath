@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password', 'active_facility_id'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -25,6 +25,36 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
+        ];
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return ! is_null($this->two_factor_confirmed_at);
+    }
+
+    /**
+     * Serialize the user for the auth API surface (login, me, register).
+     */
+    public function toAuthPayload(): array
+    {
+        $this->loadMissing('activeFacility');
+
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'email_verified' => (bool) $this->email_verified_at,
+            'two_factor_enabled' => $this->hasTwoFactorEnabled(),
+            'portal' => $this->portalRole(),
+            'active_facility' => $this->activeFacility ? [
+                'id' => $this->activeFacility->id,
+                'name' => $this->activeFacility->name,
+                'slug' => $this->activeFacility->slug,
+            ] : null,
         ];
     }
 

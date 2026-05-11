@@ -38,7 +38,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => $this->userPayload($user),
+            'user' => $user->toAuthPayload(),
         ], 201);
     }
 
@@ -69,12 +69,32 @@ class AuthController extends Controller
         RateLimiter::clear($throttleKey);
 
         $user = $request->user() ?? User::where('email', $credentials['email'])->firstOrFail();
+
+        if ($user->hasTwoFactorEnabled()) {
+            // Don't issue an API token yet — second step required.
+            $challengeId = Str::random(40);
+            cache()->put(
+                '2fa_challenge:'.$challengeId,
+                ['user_id' => $user->id],
+                now()->addMinutes(5)
+            );
+
+            // Log this user out of the password guard — we never want the
+            // password check alone to count as a valid session.
+            Auth::logout();
+
+            return response()->json([
+                'two_factor_required' => true,
+                'challenge_id' => $challengeId,
+            ]);
+        }
+
         $deviceName = $credentials['device_name'] ?? ($request->userAgent() ?: 'web');
         $token = $user->createToken($deviceName)->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => $this->userPayload($user),
+            'user' => $user->toAuthPayload(),
         ]);
     }
 
@@ -88,7 +108,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => $this->userPayload($request->user()),
+            'user' => $request->user()->toAuthPayload(),
         ]);
     }
 
@@ -120,7 +140,7 @@ class AuthController extends Controller
             event(new Verified($user));
         }
 
-        return response()->json(['ok' => true, 'user' => $this->userPayload($user)]);
+        return response()->json(['ok' => true, 'user' => $user->toAuthPayload()]);
     }
 
     public function resendVerification(Request $request): JsonResponse
@@ -161,7 +181,6 @@ class AuthController extends Controller
 
         Password::sendResetLink(['email' => $data['email']]);
 
-        // Always 200 — don't disclose whether email exists.
         return response()->json(['ok' => true]);
     }
 
@@ -179,7 +198,6 @@ class AuthController extends Controller
                 'remember_token' => Str::random(60),
             ])->save();
 
-            // Revoke all existing tokens — force re-login everywhere after reset.
             $user->tokens()->delete();
         });
 
@@ -190,23 +208,5 @@ class AuthController extends Controller
         }
 
         return response()->json(['ok' => true]);
-    }
-
-    private function userPayload(User $user): array
-    {
-        $user->load('activeFacility');
-
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'email_verified' => (bool) $user->email_verified_at,
-            'portal' => $user->portalRole(),
-            'active_facility' => $user->activeFacility ? [
-                'id' => $user->activeFacility->id,
-                'name' => $user->activeFacility->name,
-                'slug' => $user->activeFacility->slug,
-            ] : null,
-        ];
     }
 }

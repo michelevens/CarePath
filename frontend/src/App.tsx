@@ -7,6 +7,7 @@ import { SignupPage } from "@/pages/SignupPage"
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
 import { VerifyEmailPage } from "@/pages/VerifyEmailPage"
+import { SecuritySettingsPage } from "@/pages/SecuritySettingsPage"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { FamilyDashboard } from "@/portals/family/FamilyDashboard"
@@ -40,6 +41,16 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+      {/* Authenticated, portal-agnostic */}
+      <Route
+        path="/settings/security"
+        element={
+          <ProtectedRoute>
+            <SecuritySettingsPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Portals — gated by ProtectedRoute */}
       {PORTALS.map(({ path, Dashboard }) => (

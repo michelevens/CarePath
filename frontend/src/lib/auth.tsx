@@ -15,6 +15,7 @@ export interface AuthUser {
   name: string
   email: string
   email_verified: boolean
+  two_factor_enabled: boolean
   portal: Portal | null
   active_facility: {
     id: string
@@ -23,10 +24,19 @@ export interface AuthUser {
   } | null
 }
 
+export type LoginResult =
+  | { kind: "authenticated"; user: AuthUser }
+  | { kind: "two_factor_required"; challengeId: string }
+
 interface AuthContextValue {
   user: AuthUser | null
   loading: boolean
-  login: (email: string, password: string) => Promise<AuthUser>
+  login: (email: string, password: string) => Promise<LoginResult>
+  completeTwoFactor: (input: {
+    challengeId: string
+    code?: string
+    recoveryCode?: string
+  }) => Promise<AuthUser>
   logout: () => Promise<void>
   register: (input: {
     name: string
@@ -57,12 +67,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const login = async (email: string, password: string): Promise<AuthUser> => {
-    const res = await api.post<{ token: string; user: AuthUser }>("/auth/login", {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    const res = await api.post<
+      | { token: string; user: AuthUser }
+      | { two_factor_required: true; challenge_id: string }
+    >("/auth/login", {
       email,
       password,
       device_name: navigator.userAgent.slice(0, 60),
     })
+
+    if ("two_factor_required" in res.data) {
+      return { kind: "two_factor_required", challengeId: res.data.challenge_id }
+    }
+
+    tokenStore.set(res.data.token)
+    setUser(res.data.user)
+    return { kind: "authenticated", user: res.data.user }
+  }
+
+  const completeTwoFactor: AuthContextValue["completeTwoFactor"] = async ({
+    challengeId,
+    code,
+    recoveryCode,
+  }) => {
+    const res = await api.post<{ token: string; user: AuthUser }>(
+      "/auth/2fa/challenge",
+      {
+        challenge_id: challengeId,
+        code: code || undefined,
+        recovery_code: recoveryCode || undefined,
+        device_name: navigator.userAgent.slice(0, 60),
+      }
+    )
     tokenStore.set(res.data.token)
     setUser(res.data.user)
     return res.data.user
@@ -99,7 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, register, refreshUser, resendVerification }}
+      value={{
+        user,
+        loading,
+        login,
+        completeTwoFactor,
+        logout,
+        register,
+        refreshUser,
+        resendVerification,
+      }}
     >
       {children}
     </AuthContext.Provider>
