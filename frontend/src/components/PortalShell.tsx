@@ -13,15 +13,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-
-type Portal =
-  | "family"
-  | "resident"
-  | "staff"
-  | "admin"
-  | "network"
-  | "referral"
-  | "superadmin"
+import { useAuth, type Portal } from "@/lib/auth"
 
 interface NavItem {
   to: string
@@ -96,7 +88,13 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
 
 export function PortalShell({ portal }: { portal: Portal }) {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const config = NAV_CONFIG[portal]
+
+  const handleSignOut = async () => {
+    await logout()
+    navigate("/login", { replace: true })
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -129,11 +127,22 @@ export function PortalShell({ portal }: { portal: Portal }) {
             ))}
           </nav>
         </div>
-        <div className="border-t p-3">
+        <div className="border-t p-3 space-y-2">
+          {user && (
+            <div className="px-3 py-2 text-xs">
+              <div className="font-medium text-foreground">{user.name}</div>
+              <div className="truncate text-muted-foreground">{user.email}</div>
+              {user.active_facility && (
+                <div className="mt-1 text-muted-foreground">
+                  {user.active_facility.name}
+                </div>
+              )}
+            </div>
+          )}
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground"
-            onClick={() => navigate("/login")}
+            onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
             Sign out

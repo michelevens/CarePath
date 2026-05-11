@@ -5,6 +5,7 @@ import { FacilityDetailPage } from "@/pages/FacilityDetailPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
 import { PortalShell } from "@/components/PortalShell"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { FamilyDashboard } from "@/portals/family/FamilyDashboard"
 import { ResidentDashboard } from "@/portals/resident/ResidentDashboard"
 import { StaffDashboard } from "@/portals/staff/StaffDashboard"
@@ -14,38 +15,40 @@ import { ReferralDashboard } from "@/portals/referral/ReferralDashboard"
 import { SuperAdminDashboard } from "@/portals/superadmin/SuperAdminDashboard"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 
+const PORTALS = [
+  { path: "family", Dashboard: FamilyDashboard },
+  { path: "resident", Dashboard: ResidentDashboard },
+  { path: "staff", Dashboard: StaffDashboard },
+  { path: "admin", Dashboard: AdminDashboard },
+  { path: "network", Dashboard: NetworkDashboard },
+  { path: "referral", Dashboard: ReferralDashboard },
+  { path: "superadmin", Dashboard: SuperAdminDashboard },
+] as const
+
 function App() {
   return (
     <Routes>
-      {/* Public — Airbnb/Zillow-style marketplace */}
+      {/* Public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/facility/:slug" element={<FacilityDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
 
-      {/* Portals — each gets its own shell */}
-      <Route path="/family" element={<PortalShell portal="family" />}>
-        <Route index element={<FamilyDashboard />} />
-      </Route>
-      <Route path="/resident" element={<PortalShell portal="resident" />}>
-        <Route index element={<ResidentDashboard />} />
-      </Route>
-      <Route path="/staff" element={<PortalShell portal="staff" />}>
-        <Route index element={<StaffDashboard />} />
-      </Route>
-      <Route path="/admin" element={<PortalShell portal="admin" />}>
-        <Route index element={<AdminDashboard />} />
-      </Route>
-      <Route path="/network" element={<PortalShell portal="network" />}>
-        <Route index element={<NetworkDashboard />} />
-      </Route>
-      <Route path="/referral" element={<PortalShell portal="referral" />}>
-        <Route index element={<ReferralDashboard />} />
-      </Route>
-      <Route path="/superadmin" element={<PortalShell portal="superadmin" />}>
-        <Route index element={<SuperAdminDashboard />} />
-      </Route>
+      {/* Portals — gated by ProtectedRoute */}
+      {PORTALS.map(({ path, Dashboard }) => (
+        <Route
+          key={path}
+          path={`/${path}`}
+          element={
+            <ProtectedRoute portal={path}>
+              <PortalShell portal={path} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
+        </Route>
+      ))}
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

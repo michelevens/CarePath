@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router-dom"
+import { useState, type FormEvent } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   HeartHandshake,
   User,
@@ -7,9 +8,11 @@ import {
   BarChart3,
   Briefcase,
   Shield,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { useAuth } from "@/lib/auth"
 
 interface DemoAccount {
   portal: string
@@ -20,72 +23,53 @@ interface DemoAccount {
 }
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    portal: "family",
-    label: "Family member",
-    email: "family.demo@carepath.io",
-    description: "Adult child managing care for a parent",
-    icon: HeartHandshake,
-  },
-  {
-    portal: "resident",
-    label: "Resident",
-    email: "resident.demo@carepath.io",
-    description: "Resident logging into their own portal",
-    icon: User,
-  },
-  {
-    portal: "staff",
-    label: "Facility staff",
-    email: "staff.demo@carepath.io",
-    description: "Nurse / aide working a shift",
-    icon: Stethoscope,
-  },
-  {
-    portal: "admin",
-    label: "Facility admin",
-    email: "admin.demo@carepath.io",
-    description: "Administrator / Director of Nursing",
-    icon: Building2,
-  },
-  {
-    portal: "network",
-    label: "Network operator",
-    email: "network.demo@carepath.io",
-    description: "Multi-facility corporate view",
-    icon: BarChart3,
-  },
-  {
-    portal: "referral",
-    label: "Referral partner",
-    email: "referral.demo@carepath.io",
-    description: "Hospital case manager / discharge planner",
-    icon: Briefcase,
-  },
-  {
-    portal: "superadmin",
-    label: "Super admin",
-    email: "superadmin.demo@carepath.io",
-    description: "CarePath team — tenant provisioning + master data",
-    icon: Shield,
-  },
+  { portal: "family",     label: "Family member",     email: "family.demo@carepath.io",     description: "Adult child managing care for a parent",     icon: HeartHandshake },
+  { portal: "resident",   label: "Resident",          email: "resident.demo@carepath.io",   description: "Resident logging into their own portal",     icon: User },
+  { portal: "staff",      label: "Facility staff",    email: "staff.demo@carepath.io",      description: "Nurse / aide working a shift",               icon: Stethoscope },
+  { portal: "admin",      label: "Facility admin",    email: "admin.demo@carepath.io",      description: "Administrator / Director of Nursing",       icon: Building2 },
+  { portal: "network",    label: "Network operator",  email: "network.demo@carepath.io",    description: "Multi-facility corporate view",              icon: BarChart3 },
+  { portal: "referral",   label: "Referral partner",  email: "referral.demo@carepath.io",   description: "Hospital case manager / discharge planner", icon: Briefcase },
+  { portal: "superadmin", label: "Super admin",       email: "superadmin.demo@carepath.io", description: "CarePath team — tenant provisioning",        icon: Shield },
 ]
 
 const DEMO_PASSWORD = "demo1234"
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login } = useAuth()
 
-  const enterDemo = (account: DemoAccount) => {
-    localStorage.setItem(
-      "carepath_demo_user",
-      JSON.stringify({
-        email: account.email,
-        portal: account.portal,
-        label: account.label,
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState<string | null>(null)
+
+  const from =
+    (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+
+  const signIn = async (e: string, p: string, source: string) => {
+    setError(null)
+    setSubmitting(source)
+    try {
+      const user = await login(e, p)
+      navigate(from && from !== "/login" ? from : `/${user.portal ?? ""}`, {
+        replace: true,
       })
-    )
-    navigate(`/${account.portal}`)
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const msg =
+        axiosErr.response?.data?.errors?.email?.[0] ??
+        axiosErr.response?.data?.message ??
+        "Sign-in failed. Check your credentials."
+      setError(msg)
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
+  const onFormSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    void signIn(email, password, "form")
   }
 
   return (
@@ -97,11 +81,14 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Welcome back to CarePath.
             </p>
-            <form className="mt-6 grid gap-4 md:grid-cols-2">
+            <form onSubmit={onFormSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Email</label>
                 <input
                   type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -109,10 +96,23 @@ export function LoginPage() {
                 <label className="text-sm font-medium">Password</label>
                 <input
                   type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <Button type="submit" className="md:col-span-2">
+              {error && (
+                <div className="md:col-span-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="md:col-span-2"
+                disabled={submitting !== null}
+              >
+                {submitting === "form" && <Loader2 className="h-4 w-4 animate-spin" />}
                 Sign in
               </Button>
             </form>
@@ -130,21 +130,29 @@ export function LoginPage() {
             <div className="flex items-baseline justify-between">
               <h2 className="text-lg font-semibold">Demo accounts</h2>
               <span className="text-xs text-muted-foreground">
-                Password: <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{DEMO_PASSWORD}</code>
+                Password:{" "}
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono">
+                  {DEMO_PASSWORD}
+                </code>
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Click any role to enter that portal as a demo user. No auth
-              required while we're in scaffold mode.
+              One-click sign-in for any role. Real Sanctum auth — these create
+              actual tokens server-side.
             </p>
             <div className="mt-5 grid gap-2 md:grid-cols-2">
               {DEMO_ACCOUNTS.map((acct) => (
                 <button
                   key={acct.portal}
-                  onClick={() => enterDemo(acct)}
-                  className="group flex items-start gap-3 rounded-md border bg-card p-3 text-left transition-colors hover:border-foreground hover:bg-accent"
+                  onClick={() => signIn(acct.email, DEMO_PASSWORD, acct.portal)}
+                  disabled={submitting !== null}
+                  className="group flex items-start gap-3 rounded-md border bg-card p-3 text-left transition-colors hover:border-foreground hover:bg-accent disabled:opacity-50"
                 >
-                  <acct.icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  {submitting === acct.portal ? (
+                    <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+                  ) : (
+                    <acct.icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium">{acct.label}</div>
                     <div className="truncate text-xs text-muted-foreground">
