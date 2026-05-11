@@ -46,7 +46,7 @@ class DemoUserSeeder extends Seeder
         ];
 
         foreach ($accounts as [$portal, $email, $name, $facilityRole]) {
-            $user = User::firstOrCreate(
+            $user = User::updateOrCreate(
                 ['email' => $email],
                 [
                     'name' => $name,
