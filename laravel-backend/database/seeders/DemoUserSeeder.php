@@ -1,0 +1,69 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Facility;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
+class DemoUserSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $facility = Facility::firstOrCreate(
+            ['slug' => 'sunset-manor'],
+            [
+                'name' => 'Sunset Manor',
+                'type' => 'assisted_living',
+                'address_line_1' => '1234 E Camelback Rd',
+                'city' => 'Phoenix',
+                'state' => 'AZ',
+                'zip' => '85016',
+                'phone' => '+1-602-555-0142',
+                'email' => 'hello@sunsetmanor.example',
+                'medicaid_certified' => true,
+                'medicare_certified' => true,
+                'cms_five_star_overall' => 5,
+                'cms_five_star_health_inspection' => 5,
+                'cms_five_star_staffing' => 4,
+                'cms_five_star_quality' => 5,
+                'total_beds' => 125,
+                'price_from_cents' => 450000,
+                'is_active' => true,
+            ]
+        );
+
+        $accounts = [
+            ['family',     'family.demo@carepath.io',     'Demo Family',     null],
+            ['resident',   'resident.demo@carepath.io',   'Margaret Chen',   null],
+            ['staff',      'staff.demo@carepath.io',      'Demo Staff',      'staff'],
+            ['admin',      'admin.demo@carepath.io',      'Demo Admin',      'admin'],
+            ['network',    'network.demo@carepath.io',    'Demo Network',    'network'],
+            ['referral',   'referral.demo@carepath.io',   'Demo Referral',   'referral'],
+            ['superadmin', 'superadmin.demo@carepath.io', 'Demo Super Admin', null],
+        ];
+
+        foreach ($accounts as [$portal, $email, $name, $facilityRole]) {
+            $user = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => Hash::make('demo1234'),
+                    'email_verified_at' => now(),
+                    'active_facility_id' => $facilityRole ? $facility->id : null,
+                ]
+            );
+
+            if ($facilityRole) {
+                DB::table('facility_user')->updateOrInsert(
+                    ['facility_id' => $facility->id, 'user_id' => $user->id],
+                    ['role' => $facilityRole, 'created_at' => now(), 'updated_at' => now()]
+                );
+            }
+
+            $this->command->info("✓ {$portal}: {$email} / demo1234");
+        }
+    }
+}
