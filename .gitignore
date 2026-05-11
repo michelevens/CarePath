@@ -1,0 +1,34 @@
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/*.log
+
+# Backend
+laravel-backend/vendor
+laravel-backend/node_modules
+laravel-backend/.env
+laravel-backend/.env.backup
+laravel-backend/.phpunit.result.cache
+laravel-backend/storage/*.key
+laravel-backend/storage/logs/*
+!laravel-backend/storage/logs/.gitkeep
+laravel-backend/storage/framework/cache/data/*
+laravel-backend/storage/framework/sessions/*
+laravel-backend/storage/framework/views/*
+laravel-backend/storage/framework/testing/*
+laravel-backend/bootstrap/cache/*.php
+laravel-backend/public/storage
+laravel-backend/public/hot
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea
+.vscode
+*.swp
+deploy.yml.pending
