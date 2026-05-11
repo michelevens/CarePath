@@ -5,7 +5,7 @@ import path from 'node:path'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/',
+  base: '/CarePath/',
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
