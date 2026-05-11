@@ -17,6 +17,7 @@ import { AdminDashboard } from "@/portals/admin/AdminDashboard"
 import { NetworkDashboard } from "@/portals/network/NetworkDashboard"
 import { ReferralDashboard } from "@/portals/referral/ReferralDashboard"
 import { SuperAdminDashboard } from "@/portals/superadmin/SuperAdminDashboard"
+import { MasterDataPage } from "@/portals/superadmin/MasterDataPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 
 const PORTALS = [
@@ -64,6 +65,9 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
+          {path === "superadmin" && (
+            <Route path="master-data" element={<MasterDataPage />} />
+          )}
         </Route>
       ))}
 

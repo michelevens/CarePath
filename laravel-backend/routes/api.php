@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,7 +30,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
     });
 
+    Route::prefix('superadmin/master-data')
+        ->middleware('role:super_admin')
+        ->group(function () {
+            Route::get('/{type}', [MasterDataController::class, 'index']);
+            Route::post('/{type}', [MasterDataController::class, 'store']);
+            Route::put('/{type}/{id}', [MasterDataController::class, 'update']);
+            Route::delete('/{type}/{id}', [MasterDataController::class, 'destroy']);
+        });
+
     Route::middleware('facility.scope')->group(function () {
-        // Facility-scoped endpoints — added in Phase 2+
+        // Facility-scoped endpoints — added in Phase 2.2+
     });
 });
