@@ -35,17 +35,18 @@ class DemoUserSeeder extends Seeder
             ]
         );
 
+        // [portal, email, name, facility_pivot_role, spatie_role]
         $accounts = [
-            ['family',     'family.demo@carepath.io',     'Demo Family',     null],
-            ['resident',   'resident.demo@carepath.io',   'Margaret Chen',   null],
-            ['staff',      'staff.demo@carepath.io',      'Demo Staff',      'staff'],
-            ['admin',      'admin.demo@carepath.io',      'Demo Admin',      'admin'],
-            ['network',    'network.demo@carepath.io',    'Demo Network',    'network'],
-            ['referral',   'referral.demo@carepath.io',   'Demo Referral',   'referral'],
-            ['superadmin', 'superadmin.demo@carepath.io', 'Demo Super Admin', null],
+            ['family',     'family.demo@carepath.io',     'Demo Family',      null,        'family_member'],
+            ['resident',   'resident.demo@carepath.io',   'Margaret Chen',    null,        'resident'],
+            ['staff',      'staff.demo@carepath.io',      'Demo Staff',       'staff',     'facility_staff'],
+            ['admin',      'admin.demo@carepath.io',      'Demo Admin',       'admin',     'facility_admin'],
+            ['network',    'network.demo@carepath.io',    'Demo Network',     'network',   'network_admin'],
+            ['referral',   'referral.demo@carepath.io',   'Demo Referral',    'referral',  'referral_partner'],
+            ['superadmin', 'superadmin.demo@carepath.io', 'Demo Super Admin', null,        'super_admin'],
         ];
 
-        foreach ($accounts as [$portal, $email, $name, $facilityRole]) {
+        foreach ($accounts as [$portal, $email, $name, $facilityRole, $spatieRole]) {
             $user = User::updateOrCreate(
                 ['email' => $email],
                 [
@@ -68,7 +69,9 @@ class DemoUserSeeder extends Seeder
                 );
             }
 
-            $this->command->info("✓ {$portal}: {$email} / demo1234");
+            $user->syncRoles([$spatieRole]);
+
+            $this->command->info("✓ {$portal}: {$email} → role {$spatieRole}");
         }
     }
 }

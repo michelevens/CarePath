@@ -10,6 +10,15 @@ export type Portal =
   | "referral"
   | "superadmin"
 
+export type Role =
+  | "super_admin"
+  | "network_admin"
+  | "facility_admin"
+  | "facility_staff"
+  | "referral_partner"
+  | "family_member"
+  | "resident"
+
 export interface AuthUser {
   id: number
   name: string
@@ -17,6 +26,8 @@ export interface AuthUser {
   email_verified: boolean
   two_factor_enabled: boolean
   portal: Portal | null
+  roles: Role[]
+  permissions: string[]
   active_facility: {
     id: string
     name: string
@@ -156,4 +167,15 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error("useAuth must be used within AuthProvider")
   return ctx
+}
+
+export function hasRole(user: AuthUser | null, ...roles: Role[]): boolean {
+  if (!user) return false
+  return roles.some((r) => user.roles.includes(r))
+}
+
+export function can(user: AuthUser | null, permission: string): boolean {
+  if (!user) return false
+  if (user.roles.includes("super_admin")) return true
+  return user.permissions.includes(permission)
 }

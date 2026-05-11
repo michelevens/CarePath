@@ -12,13 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'active_facility_id'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     protected function casts(): array
     {
@@ -41,7 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function toAuthPayload(): array
     {
-        $this->loadMissing('activeFacility');
+        $this->loadMissing('activeFacility', 'roles', 'permissions');
 
         return [
             'id' => $this->id,
@@ -50,6 +51,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified' => (bool) $this->email_verified_at,
             'two_factor_enabled' => $this->hasTwoFactorEnabled(),
             'portal' => $this->portalRole(),
+            'roles' => $this->roles->pluck('name')->all(),
+            'permissions' => $this->getAllPermissions()->pluck('name')->all(),
             'active_facility' => $this->activeFacility ? [
                 'id' => $this->activeFacility->id,
                 'name' => $this->activeFacility->name,
@@ -69,16 +72,26 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Returns the user's effective role string for the current portal/facility.
-     * Falls back to the email-based demo role pattern until spatie/permission
-     * is fully wired up in Phase 1.3.
+     * Returns the portal slug the user should land in, derived from their
+     * primary spatie role. Falls back to email prefix only for legacy/demo
+     * accounts created before Phase 1.4 — once a user has any role assigned,
+     * the spatie role wins.
      */
     public function portalRole(): ?string
     {
-        if ($facility = $this->activeFacility) {
-            $pivot = $facility->users()->where('users.id', $this->id)->first()?->pivot;
-            if ($pivot?->role) {
-                return $pivot->role;
+        $roleToPortal = [
+            'super_admin' => 'superadmin',
+            'network_admin' => 'network',
+            'facility_admin' => 'admin',
+            'facility_staff' => 'staff',
+            'referral_partner' => 'referral',
+            'family_member' => 'family',
+            'resident' => 'resident',
+        ];
+
+        foreach ($roleToPortal as $role => $portal) {
+            if ($this->hasRole($role)) {
+                return $portal;
             }
         }
 
