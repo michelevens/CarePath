@@ -18,6 +18,7 @@ import { NetworkDashboard } from "@/portals/network/NetworkDashboard"
 import { ReferralDashboard } from "@/portals/referral/ReferralDashboard"
 import { SuperAdminDashboard } from "@/portals/superadmin/SuperAdminDashboard"
 import { MasterDataPage } from "@/portals/superadmin/MasterDataPage"
+import { AuditLogPage } from "@/portals/superadmin/AuditLogPage"
 import { FacilityDataPage } from "@/portals/admin/FacilityDataPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 
@@ -67,7 +68,10 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           {path === "superadmin" && (
-            <Route path="master-data" element={<MasterDataPage />} />
+            <>
+              <Route path="master-data" element={<MasterDataPage />} />
+              <Route path="audit" element={<AuditLogPage />} />
+            </>
           )}
           {path === "admin" && (
             <Route path="data" element={<FacilityDataPage />} />

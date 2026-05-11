@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasMasterAndCustom;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payer extends Model
 {
-    use HasMasterAndCustom, HasUuids;
+    use Auditable, HasMasterAndCustom, HasUuids;
 
     protected $fillable = [
         'facility_id',

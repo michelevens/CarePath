@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Facility\FacilityDataController;
+use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
@@ -31,13 +32,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
     });
 
-    Route::prefix('superadmin/master-data')
+    Route::prefix('superadmin')
         ->middleware('role:super_admin')
         ->group(function () {
-            Route::get('/{type}', [MasterDataController::class, 'index']);
-            Route::post('/{type}', [MasterDataController::class, 'store']);
-            Route::put('/{type}/{id}', [MasterDataController::class, 'update']);
-            Route::delete('/{type}/{id}', [MasterDataController::class, 'destroy']);
+            Route::get('/master-data/{type}', [MasterDataController::class, 'index']);
+            Route::post('/master-data/{type}', [MasterDataController::class, 'store']);
+            Route::put('/master-data/{type}/{id}', [MasterDataController::class, 'update']);
+            Route::delete('/master-data/{type}/{id}', [MasterDataController::class, 'destroy']);
+
+            Route::get('/audit-log', [AuditLogController::class, 'index']);
         });
 
     Route::prefix('facility')->middleware('facility.scope')->group(function () {
