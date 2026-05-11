@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { FacilitySwitcher } from "@/components/FacilitySwitcher"
 import { useAuth, type Portal } from "@/lib/auth"
 
 interface NavItem {
@@ -147,13 +148,9 @@ export function PortalShell({ portal }: { portal: Portal }) {
             <div className="px-3 py-2 text-xs">
               <div className="font-medium text-foreground">{user.name}</div>
               <div className="truncate text-muted-foreground">{user.email}</div>
-              {user.active_facility && (
-                <div className="mt-1 text-muted-foreground">
-                  {user.active_facility.name}
-                </div>
-              )}
             </div>
           )}
+          <FacilitySwitcher />
           <Button
             asChild
             variant="ghost"

@@ -19,6 +19,13 @@ export type Role =
   | "family_member"
   | "resident"
 
+export interface FacilityMembership {
+  id: string
+  name: string
+  slug: string
+  role: string | null
+}
+
 export interface AuthUser {
   id: number
   name: string
@@ -33,6 +40,7 @@ export interface AuthUser {
     name: string
     slug: string
   } | null
+  facilities: FacilityMembership[]
 }
 
 export type LoginResult =
@@ -57,6 +65,7 @@ interface AuthContextValue {
   }) => Promise<AuthUser>
   refreshUser: () => Promise<void>
   resendVerification: () => Promise<void>
+  switchFacility: (facilityId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -145,6 +154,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.post("/auth/resend-verification")
   }
 
+  const switchFacility = async (facilityId: string) => {
+    const res = await api.post<{ user: AuthUser }>("/me/active-facility", {
+      facility_id: facilityId,
+    })
+    setUser(res.data.user)
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -156,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         refreshUser,
         resendVerification,
+        switchFacility,
       }}
     >
       {children}

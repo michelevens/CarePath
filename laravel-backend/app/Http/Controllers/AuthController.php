@@ -112,6 +112,31 @@ class AuthController extends Controller
         ]);
     }
 
+    public function setActiveFacility(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'facility_id' => ['required', 'uuid'],
+        ]);
+
+        $user = $request->user();
+        $isMember = $user->facilities()->where('facilities.id', $data['facility_id'])->exists();
+
+        // Super admins can switch into any facility; everyone else needs a
+        // facility_user pivot row.
+        if (! $isMember && ! $user->hasRole('super_admin')) {
+            throw ValidationException::withMessages([
+                'facility_id' => 'You do not have access to that facility.',
+            ]);
+        }
+
+        $user->active_facility_id = $data['facility_id'];
+        $user->save();
+
+        return response()->json([
+            'user' => $user->fresh()->toAuthPayload(),
+        ]);
+    }
+
     public function verifyEmail(Request $request): JsonResponse
     {
         $data = $request->validate([

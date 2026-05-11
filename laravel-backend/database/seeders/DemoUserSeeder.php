@@ -35,6 +35,29 @@ class DemoUserSeeder extends Seeder
             ]
         );
 
+        $sisterFacility = Facility::firstOrCreate(
+            ['slug' => 'willow-creek-snf'],
+            [
+                'name' => 'Willow Creek Skilled Nursing',
+                'type' => 'snf',
+                'address_line_1' => '892 N Central Ave',
+                'city' => 'Phoenix',
+                'state' => 'AZ',
+                'zip' => '85004',
+                'phone' => '+1-602-555-0188',
+                'email' => 'hello@willowcreek.example',
+                'medicaid_certified' => true,
+                'medicare_certified' => true,
+                'cms_five_star_overall' => 4,
+                'cms_five_star_health_inspection' => 4,
+                'cms_five_star_staffing' => 4,
+                'cms_five_star_quality' => 4,
+                'total_beds' => 80,
+                'price_from_cents' => 820000,
+                'is_active' => true,
+            ]
+        );
+
         // [portal, email, name, facility_pivot_role, spatie_role]
         $accounts = [
             ['family',     'family.demo@carepath.io',     'Demo Family',      null,        'family_member'],
@@ -67,6 +90,15 @@ class DemoUserSeeder extends Seeder
                     ['facility_id' => $facility->id, 'user_id' => $user->id],
                     ['role' => $facilityRole, 'created_at' => now(), 'updated_at' => now()]
                 );
+
+                // Give admin + network demo accounts membership in both
+                // facilities so the switcher has something to switch between.
+                if (in_array($spatieRole, ['facility_admin', 'network_admin'], true)) {
+                    DB::table('facility_user')->updateOrInsert(
+                        ['facility_id' => $sisterFacility->id, 'user_id' => $user->id],
+                        ['role' => $facilityRole, 'created_at' => now(), 'updated_at' => now()]
+                    );
+                }
             }
 
             $user->syncRoles([$spatieRole]);

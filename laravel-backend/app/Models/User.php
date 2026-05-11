@@ -42,7 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function toAuthPayload(): array
     {
-        $this->loadMissing('activeFacility', 'roles', 'permissions');
+        $this->loadMissing('activeFacility', 'facilities', 'roles', 'permissions');
 
         return [
             'id' => $this->id,
@@ -58,6 +58,12 @@ class User extends Authenticatable implements MustVerifyEmail
                 'name' => $this->activeFacility->name,
                 'slug' => $this->activeFacility->slug,
             ] : null,
+            'facilities' => $this->facilities->map(fn ($f) => [
+                'id' => $f->id,
+                'name' => $f->name,
+                'slug' => $f->slug,
+                'role' => $f->pivot->role ?? null,
+            ])->values()->all(),
         ];
     }
 

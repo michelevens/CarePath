@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/auth/resend-verification', [AuthController::class, 'resendVerification']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/me/active-facility', [AuthController::class, 'setActiveFacility']);
 
     Route::prefix('auth/2fa')->group(function () {
         Route::post('/enable', [TwoFactorController::class, 'enable']);
