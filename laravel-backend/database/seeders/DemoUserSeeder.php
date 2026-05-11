@@ -53,6 +53,11 @@ class DemoUserSeeder extends Seeder
                     'password' => Hash::make('demo1234'),
                     'email_verified_at' => now(),
                     'active_facility_id' => $facilityRole ? $facility->id : null,
+                    // Demo accounts always reset to 2FA-off so the one-click
+                    // demo login buttons stay frictionless across deploys.
+                    'two_factor_secret' => null,
+                    'two_factor_recovery_codes' => null,
+                    'two_factor_confirmed_at' => null,
                 ]
             );
 
