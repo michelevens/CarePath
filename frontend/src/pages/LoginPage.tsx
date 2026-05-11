@@ -116,12 +116,17 @@ export function LoginPage() {
                 Sign in
               </Button>
             </form>
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              New to CarePath?{" "}
-              <Link to="/signup" className="font-medium text-foreground underline">
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <Link
+                to="/forgot-password"
+                className="text-muted-foreground underline hover:text-foreground"
+              >
+                Forgot password?
+              </Link>
+              <Link to="/signup" className="text-muted-foreground underline hover:text-foreground">
                 Create an account
               </Link>
-            </p>
+            </div>
           </CardContent>
         </Card>
 

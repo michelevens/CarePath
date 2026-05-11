@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Outlet, NavLink, useNavigate } from "react-router-dom"
 import {
   Home,
@@ -10,6 +11,7 @@ import {
   HeartHandshake,
   Shield,
   LogOut,
+  MailWarning,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -88,12 +90,24 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
 
 export function PortalShell({ portal }: { portal: Portal }) {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, resendVerification } = useAuth()
   const config = NAV_CONFIG[portal]
+
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle")
 
   const handleSignOut = async () => {
     await logout()
     navigate("/login", { replace: true })
+  }
+
+  const handleResend = async () => {
+    setResendState("sending")
+    try {
+      await resendVerification()
+      setResendState("sent")
+    } catch {
+      setResendState("idle")
+    }
   }
 
   return (
@@ -151,6 +165,24 @@ export function PortalShell({ portal }: { portal: Portal }) {
       </aside>
 
       <main className="flex-1 overflow-y-auto">
+        {user && !user.email_verified && (
+          <div className="flex items-center gap-3 border-b bg-muted/50 px-6 py-3 text-sm">
+            <MailWarning className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-muted-foreground">
+              Please verify your email address to unlock all features.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleResend}
+              disabled={resendState !== "idle"}
+            >
+              {resendState === "idle" && "Resend verification email"}
+              {resendState === "sending" && "Sending…"}
+              {resendState === "sent" && "Sent — check your inbox"}
+            </Button>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

@@ -14,6 +14,7 @@ export interface AuthUser {
   id: number
   name: string
   email: string
+  email_verified: boolean
   portal: Portal | null
   active_facility: {
     id: string
@@ -27,6 +28,14 @@ interface AuthContextValue {
   loading: boolean
   login: (email: string, password: string) => Promise<AuthUser>
   logout: () => Promise<void>
+  register: (input: {
+    name: string
+    email: string
+    password: string
+    password_confirmation: string
+  }) => Promise<AuthUser>
+  refreshUser: () => Promise<void>
+  resendVerification: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -69,8 +78,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  const register: AuthContextValue["register"] = async (input) => {
+    const res = await api.post<{ token: string; user: AuthUser }>(
+      "/auth/register",
+      { ...input, device_name: navigator.userAgent.slice(0, 60) }
+    )
+    tokenStore.set(res.data.token)
+    setUser(res.data.user)
+    return res.data.user
+  }
+
+  const refreshUser = async () => {
+    const res = await api.get<{ user: AuthUser }>("/me")
+    setUser(res.data.user)
+  }
+
+  const resendVerification = async () => {
+    await api.post("/auth/resend-verification")
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, logout, register, refreshUser, resendVerification }}
+    >
       {children}
     </AuthContext.Provider>
   )

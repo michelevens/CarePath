@@ -4,6 +4,9 @@ import { SearchPage } from "@/pages/SearchPage"
 import { FacilityDetailPage } from "@/pages/FacilityDetailPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage"
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
+import { VerifyEmailPage } from "@/pages/VerifyEmailPage"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { FamilyDashboard } from "@/portals/family/FamilyDashboard"
@@ -34,6 +37,9 @@ function App() {
       <Route path="/facility/:slug" element={<FacilityDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       {/* Portals — gated by ProtectedRoute */}
       {PORTALS.map(({ path, Dashboard }) => (

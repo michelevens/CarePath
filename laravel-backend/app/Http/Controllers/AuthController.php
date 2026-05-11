@@ -3,14 +3,45 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function register(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:191', 'unique:users,email'],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+            'device_name' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => strtolower($data['email']),
+            'password' => Hash::make($data['password']),
+        ]);
+
+        $user->sendEmailVerificationNotification();
+
+        $deviceName = $data['device_name'] ?? ($request->userAgent() ?: 'web');
+        $token = $user->createToken($deviceName)->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => $this->userPayload($user),
+        ], 201);
+    }
+
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([
@@ -29,7 +60,7 @@ class AuthController extends Controller
         }
 
         if (! Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']])) {
-            RateLimiter::hit($throttleKey, 900); // 15 min decay
+            RateLimiter::hit($throttleKey, 900);
             throw ValidationException::withMessages([
                 'email' => 'Invalid credentials.',
             ]);
@@ -61,6 +92,106 @@ class AuthController extends Controller
         ]);
     }
 
+    public function verifyEmail(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id' => ['required', 'integer'],
+            'hash' => ['required', 'string'],
+            'expires' => ['required', 'integer'],
+            'signature' => ['required', 'string'],
+        ]);
+
+        if (! $request->hasValidSignature(absolute: false)) {
+            throw ValidationException::withMessages([
+                'email' => 'Verification link is invalid or expired.',
+            ]);
+        }
+
+        $user = User::findOrFail($data['id']);
+
+        if (! hash_equals(sha1($user->getEmailForVerification()), $data['hash'])) {
+            throw ValidationException::withMessages([
+                'email' => 'Verification link does not match this account.',
+            ]);
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+            event(new Verified($user));
+        }
+
+        return response()->json(['ok' => true, 'user' => $this->userPayload($user)]);
+    }
+
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['ok' => true, 'message' => 'Already verified.']);
+        }
+
+        $key = 'verify-resend:'.$user->id;
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            throw ValidationException::withMessages([
+                'email' => 'Too many resends. Wait a few minutes.',
+            ]);
+        }
+        RateLimiter::hit($key, 300);
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $key = 'forgot-password:'.strtolower($data['email']).'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            $seconds = RateLimiter::availableIn($key);
+            throw ValidationException::withMessages([
+                'email' => "Too many attempts. Try again in {$seconds} seconds.",
+            ]);
+        }
+        RateLimiter::hit($key, 600);
+
+        Password::sendResetLink(['email' => $data['email']]);
+
+        // Always 200 — don't disclose whether email exists.
+        return response()->json(['ok' => true]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+        ]);
+
+        $status = Password::reset($data, function (User $user, string $password) {
+            $user->forceFill([
+                'password' => Hash::make($password),
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            // Revoke all existing tokens — force re-login everywhere after reset.
+            $user->tokens()->delete();
+        });
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => __($status),
+            ]);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     private function userPayload(User $user): array
     {
         $user->load('activeFacility');
@@ -69,6 +200,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'email_verified' => (bool) $user->email_verified_at,
             'portal' => $user->portalRole(),
             'active_facility' => $user->activeFacility ? [
                 'id' => $user->activeFacility->id,
