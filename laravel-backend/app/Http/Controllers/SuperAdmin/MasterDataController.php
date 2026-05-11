@@ -152,7 +152,10 @@ class MasterDataController extends Controller
         if (! $config['master_only']) {
             $query->whereNull('facility_id')->where('source', 'master');
         }
-        $query->orderBy('name');
+        // Use 'code' as the universal sort key — every master type has it,
+        // unlike 'name' which is missing on diagnosis_codes / service_codes
+        // (they use 'description' as the human label).
+        $query->orderBy('code');
 
         return response()->json(['data' => $query->get()]);
     }

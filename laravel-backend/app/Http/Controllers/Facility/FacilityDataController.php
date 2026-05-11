@@ -116,7 +116,7 @@ class FacilityDataController extends Controller
         $rows = $modelClass::query()
             ->where('facility_id', $facilityId)
             ->orderBy('source') // master first (alphabetically before custom)
-            ->orderBy('name')
+            ->orderBy('code')
             ->get();
 
         return response()->json(['data' => $rows]);
