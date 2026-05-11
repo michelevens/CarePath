@@ -3,9 +3,13 @@
 namespace App\Services;
 
 use App\Models\CredentialTemplate;
+use App\Models\DiagnosisCode;
+use App\Models\DocPreset;
 use App\Models\Facility;
 use App\Models\LevelOfCare;
 use App\Models\Payer;
+use App\Models\ServiceCode;
+use App\Models\ServiceType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -32,6 +36,10 @@ class TenantProvisioningService
         Payer::class => ['code'],
         LevelOfCare::class => ['code'],
         CredentialTemplate::class => ['code'],
+        DiagnosisCode::class => ['code'],
+        ServiceCode::class => ['code'],
+        ServiceType::class => ['code'],
+        DocPreset::class => ['code'],
     ];
 
     /**

@@ -5,8 +5,12 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\CmsFTag;
 use App\Models\CredentialTemplate;
+use App\Models\DiagnosisCode;
+use App\Models\DocPreset;
 use App\Models\LevelOfCare;
 use App\Models\Payer;
+use App\Models\ServiceCode;
+use App\Models\ServiceType;
 use App\Models\State;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -88,6 +92,51 @@ class MasterDataController extends Controller
                 'description' => ['nullable', 'string'],
                 'renewal_months' => ['nullable', 'integer', 'min:0', 'max:120'],
                 'requires_state_license' => ['boolean'],
+                'is_active' => ['boolean'],
+            ],
+        ],
+        'diagnosis-codes' => [
+            'model' => DiagnosisCode::class,
+            'master_only' => false,
+            'rules' => [
+                'code' => ['required', 'string', 'max:12'],
+                'description' => ['required', 'string', 'max:255'],
+                'category' => ['nullable', 'string', 'max:60'],
+                'is_chronic' => ['boolean'],
+                'is_active' => ['boolean'],
+            ],
+        ],
+        'service-codes' => [
+            'model' => ServiceCode::class,
+            'master_only' => false,
+            'rules' => [
+                'code' => ['required', 'string', 'max:12'],
+                'description' => ['required', 'string', 'max:255'],
+                'unit_type' => ['required', 'in:per_15_min,per_visit,per_day,per_hour'],
+                'default_unit_amount_cents' => ['nullable', 'numeric'],
+                'is_active' => ['boolean'],
+            ],
+        ],
+        'service-types' => [
+            'model' => ServiceType::class,
+            'master_only' => false,
+            'rules' => [
+                'code' => ['required', 'string', 'max:60'],
+                'name' => ['required', 'string', 'max:120'],
+                'description' => ['nullable', 'string'],
+                'requires_credential_code' => ['nullable', 'string', 'max:60'],
+                'is_active' => ['boolean'],
+            ],
+        ],
+        'doc-presets' => [
+            'model' => DocPreset::class,
+            'master_only' => false,
+            'rules' => [
+                'code' => ['required', 'string', 'max:60'],
+                'name' => ['required', 'string', 'max:120'],
+                'category' => ['nullable', 'in:admission,care_planning,regulatory,discharge'],
+                'description' => ['nullable', 'string'],
+                'requires_signature' => ['boolean'],
                 'is_active' => ['boolean'],
             ],
         ],

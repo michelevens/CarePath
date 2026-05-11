@@ -4,8 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\CmsFTag;
 use App\Models\CredentialTemplate;
+use App\Models\DiagnosisCode;
+use App\Models\DocPreset;
 use App\Models\LevelOfCare;
 use App\Models\Payer;
+use App\Models\ServiceCode;
+use App\Models\ServiceType;
 use App\Models\State;
 use Illuminate\Database\Seeder;
 
@@ -25,6 +29,10 @@ class MasterDataSeeder extends Seeder
         $this->seedLevelsOfCare();
         $this->seedCmsFTags();
         $this->seedCredentialTemplates();
+        $this->seedDiagnosisCodes();
+        $this->seedServiceCodes();
+        $this->seedServiceTypes();
+        $this->seedDocPresets();
     }
 
     private function seedStates(): void
@@ -192,5 +200,184 @@ class MasterDataSeeder extends Seeder
         }
 
         $this->command->info("✓ credential_templates (" . count($credentials) . ")");
+    }
+
+    /**
+     * Top ~40 ICD-10 codes seen in LTC populations.
+     */
+    private function seedDiagnosisCodes(): void
+    {
+        $diagnoses = [
+            // Cardiovascular
+            ['I10',     'Essential (primary) hypertension',                        'cardiology', true],
+            ['I50.9',   'Heart failure, unspecified',                              'cardiology', true],
+            ['I48.91',  'Unspecified atrial fibrillation',                         'cardiology', true],
+            ['I25.10',  'Coronary artery disease without angina pectoris',         'cardiology', true],
+            ['I63.9',   'Cerebral infarction, unspecified (stroke)',               'cardiology', true],
+            // Endocrine
+            ['E11.9',   'Type 2 diabetes mellitus without complications',          'endocrine',  true],
+            ['E78.5',   'Hyperlipidemia, unspecified',                             'endocrine',  true],
+            ['E03.9',   'Hypothyroidism, unspecified',                             'endocrine',  true],
+            // Neuro / dementia
+            ['F03.90',  'Unspecified dementia without behavioral disturbance',     'neuro_dementia', true],
+            ['F03.91',  'Unspecified dementia with behavioral disturbance',        'neuro_dementia', true],
+            ['G30.9',   'Alzheimer\'s disease, unspecified',                       'neuro_dementia', true],
+            ['G20',     'Parkinson\'s disease',                                    'neuro_dementia', true],
+            ['G31.83',  'Dementia with Lewy bodies',                               'neuro_dementia', true],
+            // Musculoskeletal
+            ['M81.0',   'Age-related osteoporosis without current path. fracture', 'musculoskeletal', true],
+            ['M19.90',  'Unspecified osteoarthritis, unspecified site',            'musculoskeletal', true],
+            ['M54.50',  'Low back pain, unspecified',                              'musculoskeletal', true],
+            // Respiratory
+            ['J44.9',   'COPD, unspecified',                                       'respiratory', true],
+            ['J18.9',   'Pneumonia, unspecified organism',                         'respiratory', false],
+            // Renal
+            ['N18.6',   'End stage renal disease',                                 'renal',      true],
+            ['N18.3',   'CKD stage 3',                                             'renal',      true],
+            // GU / UTI
+            ['N39.0',   'Urinary tract infection, site not specified',             'genitourinary', false],
+            ['R32',     'Unspecified urinary incontinence',                        'genitourinary', true],
+            // Mental health
+            ['F32.9',   'Major depressive disorder, single episode, unspecified',  'mental_health', true],
+            ['F41.9',   'Anxiety disorder, unspecified',                           'mental_health', true],
+            ['F31.9',   'Bipolar disorder, unspecified',                           'mental_health', true],
+            // Skin / wounds
+            ['L89.90',  'Pressure ulcer of unspecified site, unspecified stage',   'integumentary', false],
+            ['L97.909', 'Non-pressure chronic ulcer of unspecified site',          'integumentary', true],
+            // Falls / injury
+            ['Z91.81',  'History of falling',                                      'injury',     true],
+            ['R26.81',  'Unsteadiness on feet',                                    'neuro_dementia', true],
+            // Nutrition
+            ['E43',     'Unspecified severe protein-calorie malnutrition',         'nutrition',  false],
+            ['R63.6',   'Underweight',                                             'nutrition',  false],
+            ['K59.00',  'Constipation, unspecified',                               'gastrointestinal', true],
+            // Sensory
+            ['H91.93',  'Unspecified hearing loss, bilateral',                     'sensory',    true],
+            ['H54.7',   'Unspecified visual loss',                                 'sensory',    true],
+            // GI
+            ['K21.9',   'GERD without esophagitis',                                'gastrointestinal', true],
+            // Care management
+            ['Z51.5',   'Encounter for palliative care',                           'care_management', false],
+            ['Z79.01',  'Long term (current) use of anticoagulants',               'care_management', true],
+            ['Z79.899', 'Other long term (current) drug therapy',                  'care_management', true],
+        ];
+
+        foreach ($diagnoses as [$code, $description, $category, $chronic]) {
+            DiagnosisCode::updateOrCreate(
+                ['facility_id' => null, 'code' => $code],
+                [
+                    'source' => 'master',
+                    'description' => $description,
+                    'category' => $category,
+                    'is_chronic' => $chronic,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $this->command->info("✓ diagnosis_codes (" . count($diagnoses) . ")");
+    }
+
+    /**
+     * Common HCPCS / CPT billing codes used in SNF + AL.
+     */
+    private function seedServiceCodes(): void
+    {
+        $codes = [
+            ['G0299', 'Direct skilled nursing services by a registered nurse', 'per_15_min'],
+            ['G0300', 'Direct skilled nursing services by a licensed practical nurse', 'per_15_min'],
+            ['G0151', 'Services performed by a qualified physical therapist', 'per_15_min'],
+            ['G0152', 'Services performed by a qualified occupational therapist', 'per_15_min'],
+            ['G0153', 'Services performed by a qualified speech-language pathologist', 'per_15_min'],
+            ['G0156', 'Services of home health/hospice aide', 'per_15_min'],
+            ['G0155', 'Services of a clinical social worker', 'per_15_min'],
+            ['G0162', 'Skilled services by RN for management of patient care plan', 'per_15_min'],
+            ['T1015', 'Clinic visit/encounter, all-inclusive', 'per_visit'],
+            ['T1019', 'Personal care services, per 15 minutes', 'per_15_min'],
+            ['T1020', 'Personal care services, per diem', 'per_day'],
+            ['99304', 'Initial nursing facility care, per day, low complexity', 'per_visit'],
+            ['99307', 'Subsequent nursing facility care, per day, problem-focused', 'per_visit'],
+            ['99315', 'Nursing facility discharge management, 30 min or less', 'per_visit'],
+            ['90834', 'Psychotherapy, 45 minutes with patient', 'per_visit'],
+        ];
+
+        foreach ($codes as [$code, $description, $unit]) {
+            ServiceCode::updateOrCreate(
+                ['facility_id' => null, 'code' => $code],
+                [
+                    'source' => 'master',
+                    'description' => $description,
+                    'unit_type' => $unit,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $this->command->info("✓ service_codes (" . count($codes) . ")");
+    }
+
+    private function seedServiceTypes(): void
+    {
+        $types = [
+            ['NURSING_RN',     'RN assessment / treatment',  'RN'],
+            ['NURSING_LPN',    'LPN treatment / med pass',   'LPN'],
+            ['CNA_CARE',       'CNA personal care / ADLs',   'CNA'],
+            ['PT',             'Physical therapy',           null],
+            ['OT',             'Occupational therapy',       null],
+            ['ST',             'Speech therapy',             null],
+            ['SOCIAL_WORK',    'Social work consult',        'SW'],
+            ['DIETITIAN',      'Dietitian consult',          'DT'],
+            ['ACTIVITIES',     'Activities / recreation',    null],
+            ['TRANSPORT',      'Transportation',             null],
+            ['CHAPLAIN',       'Chaplain / spiritual care',  null],
+            ['WOUND_CARE',     'Wound care specialist',      'RN'],
+        ];
+
+        foreach ($types as [$code, $name, $credCode]) {
+            ServiceType::updateOrCreate(
+                ['facility_id' => null, 'code' => $code],
+                [
+                    'source' => 'master',
+                    'name' => $name,
+                    'requires_credential_code' => $credCode,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $this->command->info("✓ service_types (" . count($types) . ")");
+    }
+
+    private function seedDocPresets(): void
+    {
+        $presets = [
+            ['ADMISSION_PACKET',   'Admission packet',              'admission',     true],
+            ['CONSENT_TREATMENT',  'Consent for treatment',         'admission',     true],
+            ['ADVANCE_DIRECTIVE',  'Advance directive',             'admission',     true],
+            ['POLST',              'POLST / MOLST form',            'admission',     true],
+            ['NOTICE_PRIVACY',     'HIPAA notice of privacy practices', 'admission', true],
+            ['PLAN_OF_CARE',       'Plan of care',                  'care_planning', true],
+            ['MDS_3',              'MDS 3.0 assessment',            'care_planning', false],
+            ['FALL_RISK',          'Fall risk assessment',          'care_planning', false],
+            ['PRESSURE_ULCER',     'Braden scale (pressure ulcer)', 'care_planning', false],
+            ['DISCHARGE_SUMMARY',  'Discharge summary',             'discharge',     true],
+            ['INCIDENT_REPORT',    'Incident / accident report',    'regulatory',    false],
+            ['F_TAG_PLAN_OF_CORRECTION', 'Plan of correction (F-tag)', 'regulatory', true],
+        ];
+
+        foreach ($presets as [$code, $name, $category, $needsSig]) {
+            DocPreset::updateOrCreate(
+                ['facility_id' => null, 'code' => $code],
+                [
+                    'source' => 'master',
+                    'name' => $name,
+                    'category' => $category,
+                    'requires_signature' => $needsSig,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $this->command->info("✓ doc_presets (" . count($presets) . ")");
     }
 }

@@ -19,6 +19,10 @@ const TYPES = [
   { type: "payers", title: "Payers" },
   { type: "levels-of-care", title: "Levels of care" },
   { type: "credential-templates", title: "Credentials" },
+  { type: "diagnosis-codes", title: "Diagnoses" },
+  { type: "service-codes", title: "Service codes" },
+  { type: "service-types", title: "Service types" },
+  { type: "doc-presets", title: "Documents" },
 ] as const
 
 export function FacilityDataPage() {
