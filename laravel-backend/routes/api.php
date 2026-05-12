@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
@@ -13,6 +14,13 @@ use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => ['ok' => true, 'service' => 'carepath-api']);
+
+// Public marketplace — no auth.
+Route::prefix('marketplace')->group(function () {
+    Route::get('/facilities', [MarketplaceController::class, 'index']);
+    Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
+    Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);
+});
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -40,8 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('superadmin')
         ->middleware('role:super_admin')
         ->group(function () {
-            // Specific route must precede {type} wildcard.
+            // Specific routes must precede the {type} wildcard.
             Route::post('/master-data/sync', [MasterDataController::class, 'sync']);
+            Route::post('/cms/ingest', [MasterDataController::class, 'ingestCms']);
 
             Route::get('/master-data/{type}', [MasterDataController::class, 'index']);
             Route::post('/master-data/{type}', [MasterDataController::class, 'store']);

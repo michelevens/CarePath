@@ -14,14 +14,19 @@ class Facility extends Model
     use Auditable, HasFactory, HasUuids;
 
     protected $fillable = [
+        'cms_certification_number',
         'name',
         'slug',
         'type', // snf | assisted_living | memory_care | ccrc
+        'ownership_type',
         'address_line_1',
         'address_line_2',
         'city',
         'state',
         'zip',
+        'county',
+        'latitude',
+        'longitude',
         'phone',
         'email',
         'website',
@@ -32,14 +37,21 @@ class Facility extends Model
         'cms_five_star_staffing',
         'cms_five_star_quality',
         'total_beds',
+        'average_residents_per_day',
         'price_from_cents',
         'is_active',
+        'data_source',
+        'cms_synced_at',
     ];
 
     protected $casts = [
         'medicaid_certified' => 'boolean',
         'medicare_certified' => 'boolean',
         'is_active' => 'boolean',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'average_residents_per_day' => 'float',
+        'cms_synced_at' => 'datetime',
     ];
 
     public function beds(): HasMany

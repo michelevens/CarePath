@@ -1,117 +1,334 @@
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { MapPin, Star } from "lucide-react"
+import { Building2, Loader2, MapPin, Search, Star } from "lucide-react"
+import { api } from "@/lib/api"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
-const SAMPLE_RESULTS = [
-  {
-    slug: "sunset-manor",
-    name: "Sunset Manor",
-    city: "Phoenix, AZ",
-    type: "Assisted Living",
-    rating: 4.6,
-    reviews: 124,
-    priceFrom: 4500,
-    beds: 3,
-  },
-  {
-    slug: "willow-creek-snf",
-    name: "Willow Creek Skilled Nursing",
-    city: "Phoenix, AZ",
-    type: "Skilled Nursing",
-    rating: 4.2,
-    reviews: 88,
-    priceFrom: 8200,
-    beds: 1,
-  },
-  {
-    slug: "harbor-memory",
-    name: "Harbor Memory Care",
-    city: "Scottsdale, AZ",
-    type: "Memory Care",
-    rating: 4.8,
-    reviews: 67,
-    priceFrom: 6800,
-    beds: 5,
-  },
-]
+interface FacilityResult {
+  id: string
+  name: string
+  slug: string
+  type: string
+  city: string
+  state: string
+  zip: string
+  medicaid_certified: boolean
+  medicare_certified: boolean
+  cms_five_star_overall: number | null
+  total_beds: number
+  price_from_cents: number | null
+  available_beds: number
+}
+
+type Sort = "recommended" | "rating" | "price_asc" | "price_desc"
+
+const TYPE_LABEL: Record<string, string> = {
+  snf: "Skilled Nursing",
+  assisted_living: "Assisted Living",
+  memory_care: "Memory Care",
+  ccrc: "Continuing Care",
+}
 
 export function SearchPage() {
+  const [results, setResults] = useState<FacilityResult[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [q, setQ] = useState("")
+  const [state, setState] = useState("")
+  const [city, setCity] = useState("")
+  const [type, setType] = useState("")
+  const [medicaidOnly, setMedicaidOnly] = useState(false)
+  const [minFiveStar, setMinFiveStar] = useState<string>("")
+  const [maxPriceMonthly, setMaxPriceMonthly] = useState<string>("")
+  const [sort, setSort] = useState<Sort>("recommended")
+
+  const queryParams = useMemo(() => {
+    const p: Record<string, string | number | boolean> = { sort }
+    if (q) p.q = q
+    if (state) p.state = state
+    if (city) p.city = city
+    if (type) p.type = type
+    if (medicaidOnly) p.medicaid_only = true
+    if (minFiveStar) p.min_five_star = Number(minFiveStar)
+    if (maxPriceMonthly) p.max_price_cents = Number(maxPriceMonthly) * 100
+    return p
+  }, [q, state, city, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError(null)
+    const t = setTimeout(() => {
+      api
+        .get<{ data: FacilityResult[] }>("/marketplace/facilities", { params: queryParams })
+        .then((r) => alive && setResults(r.data.data))
+        .catch((err) => alive && setError(err.response?.data?.message ?? "Search failed"))
+        .finally(() => alive && setLoading(false))
+    }, 250) // debounce
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [queryParams])
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">
             CarePath
           </Link>
-          <input
-            placeholder="Phoenix, AZ"
-            className="w-80 rounded-full border bg-card px-4 py-2 text-sm outline-hidden"
-          />
+          <div className="ml-2 flex flex-1 items-center gap-2 rounded-full border bg-card px-3 py-1.5">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input
+              placeholder="City, ZIP, or facility name"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="flex-1 bg-transparent text-sm outline-hidden"
+            />
+          </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/login">Sign in</Link>
+          </Button>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <FilterSelect
+              label="Care type"
+              value={type}
+              onChange={setType}
+              options={[
+                { value: "", label: "All types" },
+                ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
+              ]}
+            />
+            <FilterInput
+              label="State"
+              value={state}
+              onChange={(v) => setState(v.toUpperCase())}
+              placeholder="AZ"
+              maxLength={2}
+              className="w-20"
+            />
+            <FilterInput
+              label="City"
+              value={city}
+              onChange={setCity}
+              placeholder="Phoenix"
+              className="w-36"
+            />
+            <FilterSelect
+              label="Min ★"
+              value={minFiveStar}
+              onChange={setMinFiveStar}
+              options={[
+                { value: "", label: "Any" },
+                { value: "3", label: "≥ 3" },
+                { value: "4", label: "≥ 4" },
+                { value: "5", label: "5 only" },
+              ]}
+            />
+            <FilterInput
+              label="Max $/mo"
+              value={maxPriceMonthly}
+              onChange={(v) => setMaxPriceMonthly(v.replace(/[^0-9]/g, ""))}
+              placeholder="8000"
+              className="w-24"
+            />
+            <label className="flex items-center gap-2 self-center pt-5 text-sm">
+              <input
+                type="checkbox"
+                checked={medicaidOnly}
+                onChange={(e) => setMedicaidOnly(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Medicaid only
+            </label>
+          </div>
+
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold">
-              {SAMPLE_RESULTS.length} facilities near Phoenix, AZ
+              {loading ? "Searching…" : `${results.length} facilities`}
+              {state && (
+                <span className="ml-2 text-base font-normal text-muted-foreground">
+                  near {city ? `${city}, ` : ""}{state}
+                </span>
+              )}
             </h1>
-            <select className="rounded-md border bg-card px-3 py-1.5 text-sm">
-              <option>Recommended</option>
-              <option>Rating: high to low</option>
-              <option>Price: low to high</option>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as Sort)}
+              className="rounded-md border bg-card px-3 py-1.5 text-sm"
+            >
+              <option value="recommended">Recommended</option>
+              <option value="rating">Rating: high to low</option>
+              <option value="price_asc">Price: low to high</option>
+              <option value="price_desc">Price: high to low</option>
             </select>
           </div>
 
-          {SAMPLE_RESULTS.map((r) => (
-            <Link key={r.slug} to={`/facility/${r.slug}`} className="block">
-              <Card className="overflow-hidden transition-shadow hover:shadow-md">
-                <div className="flex">
-                  <div className="h-40 w-56 shrink-0 bg-muted" />
-                  <CardContent className="flex-1 p-5">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold">{r.name}</h3>
-                        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {r.city} · {r.type}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Star className="h-4 w-4 fill-current" />
-                        <span className="font-medium">{r.rating}</span>
-                        <span className="text-muted-foreground">
-                          ({r.reviews})
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-end justify-between">
-                      <div>
-                        <span className="text-lg font-semibold">
-                          ${r.priceFrom.toLocaleString()}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {" "}
-                          /mo
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium text-foreground">
-                        {r.beds} beds available
-                      </span>
-                    </div>
-                  </CardContent>
-                </div>
-              </Card>
-            </Link>
-          ))}
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading facilities…
+            </div>
+          ) : results.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                No facilities match these filters.
+              </CardContent>
+            </Card>
+          ) : (
+            results.map((r) => <ResultCard key={r.id} r={r} />)
+          )}
         </div>
 
         <div className="sticky top-24 hidden h-[calc(100vh-8rem)] rounded-lg border bg-muted lg:block">
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Map view (placeholder)
+            Map view (coming soon)
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function ResultCard({ r }: { r: FacilityResult }) {
+  const monthly = r.price_from_cents ? Math.round(r.price_from_cents / 100).toLocaleString() : null
+  return (
+    <Link to={`/facility/${r.slug}`} className="block">
+      <Card className="overflow-hidden transition-shadow hover:shadow-md">
+        <div className="flex">
+          <div className="flex h-40 w-56 shrink-0 items-center justify-center bg-muted">
+            <Building2 className="h-10 w-10 text-muted-foreground/40" />
+          </div>
+          <CardContent className="flex-1 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-semibold">{r.name}</h3>
+                <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {r.city}, {r.state} · {TYPE_LABEL[r.type] ?? r.type}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                  {r.medicaid_certified && (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                      Medicaid
+                    </span>
+                  )}
+                  {r.medicare_certified && (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                      Medicare
+                    </span>
+                  )}
+                </div>
+              </div>
+              {r.cms_five_star_overall && (
+                <div className="flex items-center gap-1 text-sm">
+                  <Star className="h-4 w-4 fill-current" />
+                  <span className="font-medium">{r.cms_five_star_overall}</span>
+                  <span className="text-xs text-muted-foreground">CMS</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                {monthly ? (
+                  <>
+                    <span className="text-lg font-semibold">${monthly}</span>
+                    <span className="text-sm text-muted-foreground"> /mo</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Pricing on request</span>
+                )}
+              </div>
+              <span
+                className={cn(
+                  "text-sm font-medium",
+                  r.available_beds === 0 ? "text-muted-foreground" : "text-foreground"
+                )}
+              >
+                {r.available_beds === 0
+                  ? "Waitlist only"
+                  : `${r.available_beds} bed${r.available_beds === 1 ? "" : "s"} available`}
+              </span>
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+    </Link>
+  )
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 block rounded-md border bg-background px-3 py-1.5 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function FilterInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+  className,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  maxLength?: number
+  className?: string
+}) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className={cn(
+          "mt-1 block rounded-md border bg-background px-3 py-1.5 text-sm outline-hidden focus:ring-2 focus:ring-ring",
+          className
+        )}
+      />
     </div>
   )
 }

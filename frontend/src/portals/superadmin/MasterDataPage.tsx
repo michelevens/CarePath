@@ -1,8 +1,16 @@
-import { useState } from "react"
-import { Loader2, RefreshCcw } from "lucide-react"
+import { useState, type FormEvent } from "react"
+import { Database, Loader2, RefreshCcw } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { MasterDataTab, type MasterDataConfig } from "@/components/MasterDataTab"
 
 const CONFIGS: MasterDataConfig[] = [
@@ -183,6 +191,8 @@ export function MasterDataPage() {
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
 
+  const [cmsOpen, setCmsOpen] = useState(false)
+
   const runSync = async () => {
     setSyncing(true)
     setSyncResult(null)
@@ -210,15 +220,23 @@ export function MasterDataPage() {
             rows into every active facility.
           </p>
         </div>
-        <Button variant="outline" onClick={runSync} disabled={syncing}>
-          {syncing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCcw className="h-4 w-4" />
-          )}
-          Sync to facilities
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCmsOpen(true)}>
+            <Database className="h-4 w-4" />
+            Ingest real CMS data
+          </Button>
+          <Button variant="outline" onClick={runSync} disabled={syncing}>
+            {syncing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="h-4 w-4" />
+            )}
+            Sync to facilities
+          </Button>
+        </div>
       </div>
+
+      <CmsIngestDialog open={cmsOpen} onClose={() => setCmsOpen(false)} />
 
       {syncResult && (
         <div className="rounded-md border bg-card px-4 py-3 text-sm">
@@ -265,5 +283,104 @@ export function MasterDataPage() {
 
       <MasterDataTab config={active} />
     </div>
+  )
+}
+
+interface CmsResult {
+  fetched: number
+  upserted: number
+  skipped: number
+}
+
+function CmsIngestDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [state, setState] = useState("AZ")
+  const [max, setMax] = useState("500")
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<CmsResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setRunning(true)
+    setError(null)
+    setResult(null)
+    try {
+      const res = await api.post<CmsResult>("/superadmin/cms/ingest", {
+        state: state.toUpperCase() || undefined,
+        max: max ? Number(max) : undefined,
+      })
+      setResult(res.data)
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          "Ingest failed."
+      )
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && !running && onClose()}>
+      <DialogContent>
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle>Ingest real CMS nursing home data</DialogTitle>
+            <DialogDescription>
+              Pulls live data from the CMS Nursing Home Compare dataset
+              (data.cms.gov). Idempotent on CCN. Bounded by state to keep
+              the request synchronous.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="text-sm font-medium">State</label>
+              <input
+                value={state}
+                onChange={(e) => setState(e.target.value.toUpperCase())}
+                maxLength={2}
+                placeholder="AZ"
+                className="mt-1 w-24 rounded-md border bg-background px-3 py-2 text-sm uppercase outline-hidden focus:ring-2 focus:ring-ring"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                2-letter code. Leave blank to pull all states (large dataset, may time out).
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Max facilities</label>
+              <input
+                value={max}
+                onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))}
+                className="mt-1 w-32 rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          {result && (
+            <div className="mt-3 rounded-md border bg-card px-3 py-2 text-sm">
+              <span className="font-medium">{result.upserted}</span>{" "}
+              facilities upserted ({result.fetched} fetched, {result.skipped} skipped)
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={running}>
+              Close
+            </Button>
+            <Button type="submit" disabled={running}>
+              {running && <Loader2 className="h-4 w-4 animate-spin" />}
+              Run ingest
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
