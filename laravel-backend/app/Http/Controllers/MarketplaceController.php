@@ -104,6 +104,11 @@ class MarketplaceController extends Controller
         $facility = Facility::query()
             ->where('slug', $slug)
             ->where('is_active', true)
+            ->with([
+                'photos' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                'pricingTiers' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                'reviews' => fn ($q) => $q->where('is_published', true)->latest()->take(20),
+            ])
             ->firstOrFail();
 
         $availableBeds = Bed::query()
@@ -111,7 +116,6 @@ class MarketplaceController extends Controller
             ->where('status', 'available')
             ->count();
 
-        // Group bed availability by level of care for the profile page.
         $byLevel = Bed::query()
             ->where('facility_id', $facility->id)
             ->where('status', 'available')
@@ -119,10 +123,17 @@ class MarketplaceController extends Controller
             ->groupBy('level_of_care')
             ->pluck('count', 'level_of_care');
 
+        $reviewStats = [
+            'count' => $facility->reviews->count(),
+            'average' => round((float) $facility->reviews->avg('rating'), 1),
+            'verified_count' => $facility->reviews->where('is_verified', true)->count(),
+        ];
+
         return response()->json([
             'data' => array_merge($facility->toArray(), [
                 'available_beds' => $availableBeds,
                 'available_by_level' => $byLevel,
+                'review_stats' => $reviewStats,
             ]),
         ]);
     }
