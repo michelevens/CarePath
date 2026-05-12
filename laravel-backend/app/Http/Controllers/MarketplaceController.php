@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Facility;
+use App\Models\Tour;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
