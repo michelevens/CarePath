@@ -20,9 +20,16 @@ interface FacilityResult {
   total_beds: number
   price_from_cents: number | null
   available_beds: number
+  distance_miles?: number
 }
 
-type Sort = "recommended" | "rating" | "price_asc" | "price_desc"
+interface SearchResponse {
+  data: FacilityResult[]
+  origin: { zip: string; city: string | null; state: string | null } | null
+  radius_miles: number | null
+}
+
+type Sort = "recommended" | "rating" | "price_asc" | "price_desc" | "distance"
 
 const TYPE_LABEL: Record<string, string> = {
   snf: "Skilled Nursing",
@@ -33,12 +40,15 @@ const TYPE_LABEL: Record<string, string> = {
 
 export function SearchPage() {
   const [results, setResults] = useState<FacilityResult[]>([])
+  const [origin, setOrigin] = useState<SearchResponse["origin"]>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [q, setQ] = useState("")
   const [state, setState] = useState("")
   const [city, setCity] = useState("")
+  const [zip, setZip] = useState("")
+  const [radiusMiles, setRadiusMiles] = useState("25")
   const [type, setType] = useState("")
   const [medicaidOnly, setMedicaidOnly] = useState(false)
   const [minFiveStar, setMinFiveStar] = useState<string>("")
@@ -50,12 +60,16 @@ export function SearchPage() {
     if (q) p.q = q
     if (state) p.state = state
     if (city) p.city = city
+    if (zip.length === 5) {
+      p.zip = zip
+      p.radius_miles = Number(radiusMiles || "25")
+    }
     if (type) p.type = type
     if (medicaidOnly) p.medicaid_only = true
     if (minFiveStar) p.min_five_star = Number(minFiveStar)
     if (maxPriceMonthly) p.max_price_cents = Number(maxPriceMonthly) * 100
     return p
-  }, [q, state, city, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
+  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
 
   useEffect(() => {
     let alive = true
@@ -63,8 +77,12 @@ export function SearchPage() {
     setError(null)
     const t = setTimeout(() => {
       api
-        .get<{ data: FacilityResult[] }>("/marketplace/facilities", { params: queryParams })
-        .then((r) => alive && setResults(r.data.data))
+        .get<SearchResponse>("/marketplace/facilities", { params: queryParams })
+        .then((r) => {
+          if (!alive) return
+          setResults(r.data.data)
+          setOrigin(r.data.origin)
+        })
         .catch((err) => alive && setError(err.response?.data?.message ?? "Search failed"))
         .finally(() => alive && setLoading(false))
     }, 250) // debounce
@@ -99,6 +117,25 @@ export function SearchPage() {
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
+            <FilterInput
+              label="ZIP"
+              value={zip}
+              onChange={(v) => setZip(v.replace(/\D/g, "").slice(0, 5))}
+              placeholder="85016"
+              maxLength={5}
+              className="w-24"
+            />
+            <FilterSelect
+              label="Radius"
+              value={radiusMiles}
+              onChange={setRadiusMiles}
+              options={[
+                { value: "10", label: "10 mi" },
+                { value: "25", label: "25 mi" },
+                { value: "50", label: "50 mi" },
+                { value: "100", label: "100 mi" },
+              ]}
+            />
             <FilterSelect
               label="Care type"
               value={type}
@@ -155,17 +192,22 @@ export function SearchPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold">
               {loading ? "Searching…" : `${results.length} facilities`}
-              {state && (
+              {origin ? (
+                <span className="ml-2 text-base font-normal text-muted-foreground">
+                  within {radiusMiles}mi of {origin.zip}{origin.city ? ` (${origin.city}, ${origin.state})` : ""}
+                </span>
+              ) : state ? (
                 <span className="ml-2 text-base font-normal text-muted-foreground">
                   near {city ? `${city}, ` : ""}{state}
                 </span>
-              )}
+              ) : null}
             </h1>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
               className="rounded-md border bg-card px-3 py-1.5 text-sm"
             >
+              {origin && <option value="distance">Distance: nearest</option>}
               <option value="recommended">Recommended</option>
               <option value="rating">Rating: high to low</option>
               <option value="price_asc">Price: low to high</option>
@@ -221,6 +263,9 @@ function ResultCard({ r }: { r: FacilityResult }) {
                 <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" />
                   {r.city}, {r.state} · {TYPE_LABEL[r.type] ?? r.type}
+                  {r.distance_miles !== undefined && (
+                    <span className="ml-1 text-foreground">· {r.distance_miles} mi</span>
+                  )}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
                   {r.medicaid_certified && (

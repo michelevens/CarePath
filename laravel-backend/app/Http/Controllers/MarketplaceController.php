@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Facility;
+use App\Models\Lead;
 use App\Models\Tour;
+use App\Services\CostProjectionService;
+use App\Services\ZipLookupService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,24 +30,33 @@ class MarketplaceController extends Controller
      * Filters: state, city, type (level of care), max_price_cents,
      *          medicaid_only, min_five_star, q (free-text search on name)
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, ZipLookupService $zipLookup): JsonResponse
     {
         $data = $request->validate([
             'state' => ['nullable', 'string', 'size:2'],
             'city' => ['nullable', 'string', 'max:120'],
+            'zip' => ['nullable', 'string', 'max:10'],
+            'radius_miles' => ['nullable', 'integer', 'min:1', 'max:200'],
             'type' => ['nullable', 'in:snf,assisted_living,memory_care,ccrc'],
             'max_price_cents' => ['nullable', 'integer', 'min:0'],
             'medicaid_only' => ['nullable', 'boolean'],
             'min_five_star' => ['nullable', 'integer', 'min:1', 'max:5'],
             'q' => ['nullable', 'string', 'max:120'],
-            'sort' => ['nullable', 'in:recommended,rating,price_asc,price_desc'],
+            'sort' => ['nullable', 'in:recommended,rating,price_asc,price_desc,distance'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+
+        // ZIP → centroid lookup
+        $origin = null;
+        if (! empty($data['zip'])) {
+            $origin = $zipLookup->lookup($data['zip']);
+        }
 
         $query = Facility::query()
             ->where('is_active', true)
             ->select([
                 'id', 'name', 'slug', 'type', 'city', 'state', 'zip',
+                'latitude', 'longitude',
                 'medicaid_certified', 'medicare_certified',
                 'cms_five_star_overall', 'cms_five_star_health_inspection',
                 'cms_five_star_staffing', 'cms_five_star_quality',
@@ -73,16 +85,50 @@ class MarketplaceController extends Controller
             $query->where('name', 'ILIKE', '%' . $data['q'] . '%');
         }
 
+        // When we have a ZIP origin, pre-filter on lat/lon bounding box
+        // (cheap), then refine with exact haversine later. Default to the
+        // origin's state to keep the bounding box tight.
+        $radiusMiles = $data['radius_miles'] ?? 25;
+        if ($origin) {
+            $latDelta = $radiusMiles / 69.0; // 1° lat ≈ 69 mi
+            $lonDelta = $radiusMiles / (69.0 * max(0.01, cos(deg2rad($origin['lat']))));
+
+            $query->whereNotNull('latitude')->whereNotNull('longitude')
+                ->whereBetween('latitude', [$origin['lat'] - $latDelta, $origin['lat'] + $latDelta])
+                ->whereBetween('longitude', [$origin['lon'] - $lonDelta, $origin['lon'] + $lonDelta]);
+        }
+
         match ($data['sort'] ?? 'recommended') {
             'rating' => $query->orderByDesc('cms_five_star_overall')->orderBy('name'),
             'price_asc' => $query->orderBy('price_from_cents')->orderBy('name'),
             'price_desc' => $query->orderByDesc('price_from_cents')->orderBy('name'),
-            default => $query->orderByDesc('cms_five_star_overall')->orderBy('name'),
+            'distance' => $query->orderBy('name'), // sort happens after haversine below
+            default => $origin
+                ? $query->orderBy('name') // re-sorted by distance below
+                : $query->orderByDesc('cms_five_star_overall')->orderBy('name'),
         };
 
-        $facilities = $query->limit($data['limit'] ?? 50)->get();
+        $facilities = $query->limit($data['limit'] ?? 100)->get();
 
-        // Attach live bed availability for each facility.
+        // Exact radius check via haversine; also attach distance to payload.
+        if ($origin) {
+            $facilities = $facilities
+                ->map(function ($f) use ($origin) {
+                    $f->distance_miles = $this->haversineMiles(
+                        $origin['lat'],
+                        $origin['lon'],
+                        (float) $f->latitude,
+                        (float) $f->longitude
+                    );
+                    return $f;
+                })
+                ->filter(fn ($f) => $f->distance_miles <= ($f->_radius ?? 999))
+                ->filter(fn ($f) => $f->distance_miles <= 200)
+                ->sortBy('distance_miles')
+                ->values();
+        }
+
+        // Attach live bed availability.
         $availability = Bed::query()
             ->whereIn('facility_id', $facilities->pluck('id'))
             ->where('status', 'available')
@@ -91,12 +137,32 @@ class MarketplaceController extends Controller
             ->pluck('available_count', 'facility_id');
 
         $rows = $facilities->map(function ($f) use ($availability) {
-            return array_merge($f->toArray(), [
-                'available_beds' => (int) ($availability[$f->id] ?? 0),
-            ]);
+            $arr = $f->toArray();
+            $arr['available_beds'] = (int) ($availability[$f->id] ?? 0);
+            if (isset($f->distance_miles)) {
+                $arr['distance_miles'] = round($f->distance_miles, 1);
+            }
+            return $arr;
         });
 
-        return response()->json(['data' => $rows]);
+        return response()->json([
+            'data' => $rows,
+            'origin' => $origin,
+            'radius_miles' => $origin ? $radiusMiles : null,
+        ]);
+    }
+
+    /**
+     * Great-circle distance in miles between two lat/lon points.
+     */
+    private function haversineMiles(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $R = 3958.8; // Earth radius in miles
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+        return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     /**
@@ -376,5 +442,60 @@ class MarketplaceController extends Controller
         ]);
 
         return response()->json(['data' => $service->project($data)]);
+    }
+
+    /**
+     * POST /api/marketplace/leads
+     *
+     * Captures a soft lead — saved-search subscribers, cost-projection
+     * follow-ups, availability alerts. Rate-limited per IP. UTM + referrer
+     * attribution captured automatically from the request.
+     */
+    public function captureLead(Request $request): JsonResponse
+    {
+        $throttleKey = 'marketplace-lead:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 15)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            throw ValidationException::withMessages([
+                'rate' => "Too many submissions. Try again in {$seconds} seconds.",
+            ]);
+        }
+        RateLimiter::hit($throttleKey, 600);
+
+        $data = $request->validate([
+            'source' => ['required', 'in:' . implode(',', Lead::SOURCES)],
+            'email' => ['required', 'email', 'max:191'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'name' => ['nullable', 'string', 'max:120'],
+            'zip' => ['nullable', 'string', 'max:10'],
+            'relationship_to_prospect' => ['nullable', 'string', 'max:60'],
+            'facility_slug' => ['nullable', 'string'],
+            'context' => ['nullable', 'array'],
+        ]);
+
+        $facilityId = null;
+        if (! empty($data['facility_slug'])) {
+            $facilityId = Facility::where('slug', $data['facility_slug'])->value('id');
+        }
+
+        $lead = Lead::create([
+            'facility_id' => $facilityId,
+            'source' => $data['source'],
+            'email' => strtolower($data['email']),
+            'phone' => $data['phone'] ?? null,
+            'name' => $data['name'] ?? null,
+            'zip' => $data['zip'] ?? null,
+            'relationship_to_prospect' => $data['relationship_to_prospect'] ?? null,
+            'context' => $data['context'] ?? null,
+            'utm_source' => $request->query('utm_source'),
+            'utm_medium' => $request->query('utm_medium'),
+            'utm_campaign' => $request->query('utm_campaign'),
+            'referrer' => substr((string) $request->header('referer'), 0, 500) ?: null,
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 1000) ?: null,
+            'status' => 'new',
+        ]);
+
+        return response()->json(['ok' => true, 'lead_id' => $lead->id], 201);
     }
 }

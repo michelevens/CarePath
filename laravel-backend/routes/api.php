@@ -6,6 +6,7 @@ use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityDataController;
+use App\Http\Controllers\Facility\LeadController;
 use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\Facility\TourController;
@@ -24,6 +25,7 @@ Route::prefix('marketplace')->group(function () {
     Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);
     Route::post('/tours', [MarketplaceController::class, 'bookTour']);
     Route::post('/cost-projection', [MarketplaceController::class, 'costProjection']);
+    Route::post('/leads', [MarketplaceController::class, 'captureLead']);
 });
 
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -105,5 +107,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/tours', [TourController::class, 'index']);
         Route::put('/tours/{id}/status', [TourController::class, 'updateStatus']);
+
+        Route::get('/leads', [LeadController::class, 'index']);
+        Route::put('/leads/{id}/status', [LeadController::class, 'updateStatus']);
     });
 });

@@ -1327,11 +1327,89 @@ function CostProjectionCalculator({
                 elder-law attorney before relying on these numbers for
                 planning.
               </p>
+
+              <SaveProjectionForm
+                facilitySlug={facilitySlug}
+                projectionInputs={inputs}
+                projectionTotals={result.totals}
+              />
             </div>
           )}
         </CardContent>
       </Card>
     </section>
+  )
+}
+
+function SaveProjectionForm({
+  facilitySlug,
+  projectionInputs,
+  projectionTotals,
+}: {
+  facilitySlug: string
+  projectionInputs: unknown
+  projectionTotals: unknown
+}) {
+  const [email, setEmail] = useState("")
+  const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      await api.post("/marketplace/leads", {
+        source: "cost_projection",
+        email,
+        facility_slug: facilitySlug,
+        context: { inputs: projectionInputs, totals: projectionTotals },
+      })
+      setSubmitted(true)
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const first = e.response?.data?.errors ? Object.values(e.response.data.errors)[0]?.[0] : undefined
+      setError(first ?? e.response?.data?.message ?? "Save failed")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="rounded-md border border-foreground/30 bg-accent px-3 py-2 text-sm">
+        <CheckCircle2 className="mr-1 inline h-4 w-4" />
+        Estimate saved. We'll email you a PDF copy.
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="rounded-md border bg-muted/30 px-4 py-3">
+      <div className="text-sm font-medium">Save this estimate</div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Get a PDF copy + free updates if pricing or availability changes
+        at this facility. We don't share your email with anyone else.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+        />
+        <Button type="submit" disabled={submitting || !email}>
+          {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          Save
+        </Button>
+      </div>
+      {error && (
+        <div className="mt-2 text-xs text-destructive">{error}</div>
+      )}
+    </form>
   )
 }
 

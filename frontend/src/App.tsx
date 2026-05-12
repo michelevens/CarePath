@@ -22,6 +22,7 @@ import { AuditLogPage } from "@/portals/superadmin/AuditLogPage"
 import { FacilityDataPage } from "@/portals/admin/FacilityDataPage"
 import { AdmissionsKanban } from "@/portals/admin/AdmissionsKanban"
 import { ToursPage } from "@/portals/admin/ToursPage"
+import { LeadsPage } from "@/portals/admin/LeadsPage"
 import { CarePlanIndex } from "@/portals/staff/CarePlanIndex"
 import { CarePlanDetail } from "@/portals/staff/CarePlanDetail"
 import { NotFoundPage } from "@/pages/NotFoundPage"
@@ -81,6 +82,7 @@ function App() {
             <>
               <Route path="admissions" element={<AdmissionsKanban />} />
               <Route path="tours" element={<ToursPage />} />
+              <Route path="leads" element={<LeadsPage />} />
               <Route path="data" element={<FacilityDataPage />} />
             </>
           )}
