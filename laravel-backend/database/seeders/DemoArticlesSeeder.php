@@ -395,6 +395,370 @@ HTML
 <p>Tour 3 facilities, fill out these 20 questions for each, then come back to <a href="/search">CarePath</a> to cross-reference what you heard against the CMS data, recent F-tag history, and verified family reviews.</p>
 HTML
         ],
+
+        [
+            'slug' => 'memory-care-cost-2026',
+            'category' => 'financial',
+            'title' => 'How Much Does Memory Care Cost in 2026? (State by State)',
+            'subtitle' => 'National median is $6,200/month. But the spread is $3,800 in Mississippi to over $11,000 in Massachusetts. Here\'s the real map.',
+            'hero_image_url' => 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1600&q=80',
+            'reading_time_minutes' => 8,
+            'is_featured' => false,
+            'tags' => ['memory care', 'cost', 'dementia', 'financial planning'],
+            'summary' => 'A breakdown of memory care pricing across all 50 states, plus the four hidden charges most quotes leave out.',
+            'body' => <<<HTML
+<p class="lead">Memory care is the most expensive level of senior living below skilled nursing. The 2026 national median sits at \$6,200/month — but that number hides enormous regional variation.</p>
+
+<h2>The 2026 national picture</h2>
+<p>Memory care typically runs <strong>20-30% more than assisted living</strong> in the same building. The premium covers a higher staff-to-resident ratio (often 1:5 vs 1:10), dementia-specific training, and a locked-perimeter unit.</p>
+
+<h2>Cheapest states (under \$5,000/month median)</h2>
+<ul>
+<li><strong>Mississippi</strong> — \$3,800</li>
+<li><strong>Louisiana</strong> — \$4,200</li>
+<li><strong>Alabama</strong> — \$4,400</li>
+<li><strong>Arkansas</strong> — \$4,500</li>
+<li><strong>Oklahoma</strong> — \$4,700</li>
+<li><strong>Kansas</strong> — \$4,900</li>
+</ul>
+
+<h2>Most expensive states (over \$8,500/month median)</h2>
+<ul>
+<li><strong>Massachusetts</strong> — \$11,400</li>
+<li><strong>Connecticut</strong> — \$10,800</li>
+<li><strong>New Jersey</strong> — \$10,200</li>
+<li><strong>Alaska</strong> — \$9,800</li>
+<li><strong>New York</strong> — \$9,500</li>
+<li><strong>California</strong> — \$8,900</li>
+</ul>
+
+<h2>Mid-tier states (\$5,000-\$7,500)</h2>
+<p>The majority of states fall in this band. Texas (\$5,800), Florida (\$5,600), Arizona (\$6,100), North Carolina (\$5,500), Colorado (\$6,800), and Oregon (\$7,200) are representative.</p>
+
+<h2>Four hidden costs that don't appear in the quote</h2>
+<h3>1. Level-of-care adders</h3>
+<p>Almost every memory care community charges <strong>\$500-\$2,000/month extra</strong> as resident care needs increase. Most facilities have 3-5 tiers. Expect to move up a tier within 18-24 months as dementia progresses.</p>
+
+<h3>2. One-time community fee</h3>
+<p>A non-refundable move-in fee, typically <strong>\$2,000-\$8,000</strong>. Some chains charge as much as a month's rent. Negotiable in slow markets.</p>
+
+<h3>3. Medication management</h3>
+<p>Charged separately, often \$300-\$600/month, and sometimes per pill. Ask the line item.</p>
+
+<h3>4. Ancillary services</h3>
+<p>Salon, transportation, special diets, incontinence supplies, hospice coordination — these add up fast. Some are bundled, some à la carte.</p>
+
+<h2>What about Medicare and Medicaid?</h2>
+<p>Medicare does <strong>not</strong> pay for memory care. Medicaid will, through an HCBS waiver, but typically only at the assisted-living rate — and the family pays the difference. The cheapest path is finding a memory care facility that accepts Medicaid waiver from day one. <a href="/search?medicaid=true">CarePath lets you filter by Medicaid acceptance directly</a>.</p>
+
+<h2>Plan with the 5-year projection</h2>
+<p>Average memory care stay is 2-3 years, but progression varies. Use <a href="/search">our cost projection calculator</a> on any facility page — it models 5 years blending whatever you have (Medicare A for any hospital→SNF episode, LTC insurance, VA Aid &amp; Attendance, Medicaid spend-down, and private pay).</p>
+HTML
+        ],
+
+        [
+            'slug' => 'signs-parent-needs-assisted-living',
+            'category' => 'care_basics',
+            'title' => '10 Signs Your Parent Needs Assisted Living',
+            'subtitle' => 'How to know when it\'s time, without waiting for a crisis to decide for you.',
+            'hero_image_url' => 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1600&q=80',
+            'reading_time_minutes' => 6,
+            'is_featured' => false,
+            'tags' => ['assisted living', 'aging parents', 'signs', 'transitions'],
+            'summary' => 'The most common warning signs adult children miss until something goes wrong — and what to do at each stage.',
+            'body' => <<<HTML
+<p class="lead">Most families wait too long. The pattern looks like this: small things slip, then a fall or hospitalization forces a decision under pressure. The signs below show up months earlier — if you know what to look for.</p>
+
+<h2>1. Weight changes</h2>
+<p>Unexplained weight loss — or sudden weight gain from frozen-meal heavy diets — is the single most actionable signal. Aging parents often stop cooking, then stop eating regularly. If clothes fit differently, ask about meals.</p>
+
+<h2>2. Medication confusion</h2>
+<p>Look for: pill bottles with mismatched refill counts, multiple bottles of the same medication, missed doses (full bottle on a refill date). Polypharmacy + early cognitive decline is the single largest cause of preventable hospital admissions in adults over 75.</p>
+
+<h2>3. Mail piles or unopened bills</h2>
+<p>An unopened mail pile signals executive function changes. Bills going unpaid is the next step. By the time utilities are shut off, it's been months.</p>
+
+<h2>4. Unexplained bruises</h2>
+<p>Bruises on shins, hips, forearms — especially asymmetric ones — usually mean falls that weren't reported. Adult children often don't hear about falls because parents minimize them ("I'm fine").</p>
+
+<h2>5. Decline in personal hygiene</h2>
+<p>Hair, nails, body odor, dental — these slip when bathing becomes hard. Showers are dangerous (wet tile, balance, getting up from sitting). Many parents quietly stop bathing as often.</p>
+
+<h2>6. Home becoming unmanageable</h2>
+<p>Stacks of laundry. Spoiled food in the fridge. Dust on every surface. The garden gone wild. A house that's no longer being maintained is signaling that the person inside it can no longer maintain themselves either.</p>
+
+<h2>7. Driving incidents</h2>
+<p>Mysterious dents on the car. Getting lost in familiar areas. Slow reaction at intersections. A new aversion to driving (often the parent's own self-protection kicking in).</p>
+
+<h2>8. Social withdrawal</h2>
+<p>Stops returning calls. Drops out of clubs and groups. Doesn't go to church anymore. Sometimes this is depression; sometimes it's embarrassment about cognitive decline; sometimes it's exhaustion from compensating.</p>
+
+<h2>9. Repeating themselves in conversation</h2>
+<p>Asking the same question multiple times in a single visit, or telling the same story twice in an hour, is short-term memory loss. Different from "old age" — and worth a cognitive evaluation.</p>
+
+<h2>10. Caregiver burnout in the spouse</h2>
+<p>If your other parent looks exhausted, depressed, or has lost weight themselves, the caregiving load has become unsafe. Spousal caregivers have higher mortality rates than non-caregiving peers. This is often the strongest signal.</p>
+
+<h2>What to do</h2>
+<ul>
+<li><strong>Don't wait for a fall.</strong> Hospital-to-facility transitions are stressful and expensive. Move proactively when you're seeing 3+ of the above.</li>
+<li><strong>Get a geriatric assessment.</strong> Most primary-care offices can do a basic Mini-Mental State Exam or MoCA. Many assisted-living communities offer a free RN assessment.</li>
+<li><strong>Take the <a href="/tools/care-level-quiz">care-level quiz</a></strong> to map symptoms to assisted living vs memory care vs skilled nursing.</li>
+<li><strong>Tour 3 communities</strong> before you decide. Use the <a href="/search">CarePath search</a> to filter by ZIP, care type, and Medicaid acceptance.</li>
+</ul>
+HTML
+        ],
+
+        [
+            'slug' => 'medicaid-five-year-lookback',
+            'category' => 'medicaid',
+            'title' => 'The 5-Year Medicaid Look-Back, Explained',
+            'subtitle' => 'Every asset transfer in the last 5 years gets reviewed. Here\'s what triggers a penalty and what doesn\'t.',
+            'hero_image_url' => 'https://images.unsplash.com/photo-1554224154-26032cdc0e83?w=1600&q=80',
+            'reading_time_minutes' => 9,
+            'is_featured' => true,
+            'tags' => ['medicaid', 'look-back', 'asset transfer', 'planning', 'legal'],
+            'summary' => 'The 60-month look-back is the single most misunderstood rule in Medicaid planning. Knowing what counts as a "transfer for less than fair market value" can save tens of thousands.',
+            'body' => <<<HTML
+<p class="lead">When you apply for Medicaid long-term care benefits, the state Medicaid agency reviews every asset transfer made during the 60 months prior. Transfers that look like the applicant gave money or property away can trigger a penalty period — months during which Medicaid won't pay.</p>
+
+<h2>How the penalty works</h2>
+<p>The penalty is not "denial." It's a calculated waiting period: <strong>amount transferred ÷ state's average monthly cost of care = number of months Medicaid won't pay</strong>.</p>
+<p>So if you gave \$60,000 to a grandchild in 2023 and your state's penalty divisor is \$10,000/month, you'd face a 6-month penalty starting from the date you'd otherwise have qualified. During those 6 months, the family has to pay privately or the facility absorbs the cost (rare).</p>
+
+<h2>What counts as a "transfer for less than fair market value"</h2>
+<ul>
+<li><strong>Gifts</strong> of cash, securities, vehicles, or property</li>
+<li><strong>Adding a child's name</strong> to a bank account or deed</li>
+<li><strong>Selling property below market</strong> (e.g., selling the house to a relative for \$1)</li>
+<li><strong>Forgiving a loan</strong> you'd made earlier</li>
+<li><strong>Paying off another family member's debt</strong></li>
+<li><strong>Buying a life estate</strong> in someone else's home without meeting the residency requirement</li>
+</ul>
+
+<h2>What does NOT count</h2>
+<p>These transfers are exempt and don't trigger a penalty:</p>
+<ul>
+<li>Transfers to a <strong>spouse</strong> (unlimited)</li>
+<li>Transfers to a <strong>disabled child</strong> (any age)</li>
+<li>Transfers to a <strong>caregiver child</strong> who lived in the home and provided care for 2+ years prior (the "Caregiver Child Exemption")</li>
+<li>Transfers to a <strong>sibling with equity interest</strong> who lived in the home for 1+ year prior</li>
+<li>Bona fide <strong>spend-down on the applicant's own care, housing, debt</strong>, etc.</li>
+<li>Annual <strong>gift-tax exclusion gifts</strong> — these DO count for Medicaid even though they're IRS-free. Common misconception.</li>
+</ul>
+
+<h2>The Caregiver Child Exemption</h2>
+<p>This is the most underused planning tool. If an adult child lived in the parent's home for 2+ years and provided care that delayed institutionalization, the parent can transfer the home to that child without penalty. Documentation matters — keep a log, get a doctor's letter, ideally have a written caregiver agreement.</p>
+
+<h2>What if you've already made a transfer?</h2>
+<p>Three options when a problematic transfer has already happened:</p>
+<ol>
+<li><strong>Wait it out.</strong> If the transfer was 4+ years ago, you may simply wait until the 5-year window passes.</li>
+<li><strong>Cure the transfer.</strong> The recipient returns the money or property. The penalty disappears entirely.</li>
+<li><strong>Pay through the penalty.</strong> Have private funds or LTC insurance cover the penalty months. Sometimes the math still works.</li>
+</ol>
+
+<h2>State variation matters</h2>
+<p>California is the major exception — Medi-Cal does <strong>not</strong> impose a look-back period for institutional care (this changed in 2024). Every other state enforces 60 months. <a href="/tools/medicaid-eligibility">Use our state-aware eligibility tool</a> to see your state's rules.</p>
+
+<h2>Get a real plan — not advice from a friend</h2>
+<p>The look-back interacts with other rules (annuity rules, life-estate rules, spousal protections) in ways that make DIY risky. Find a <strong>certified elder-law attorney</strong> in your state — the National Academy of Elder Law Attorneys (NAELA) has a free finder. Cost of an initial consultation is typically \$300-\$500 and routinely saves families \$50,000+ in penalty avoidance.</p>
+
+<p>When you're ready to compare facilities that accept Medicaid, <a href="/search?medicaid=true">filter by Medicaid acceptance on CarePath</a>.</p>
+HTML
+        ],
+
+        [
+            'slug' => 'ccrc-worth-it',
+            'category' => 'care_basics',
+            'title' => 'Continuing Care Retirement Communities (CCRCs): Are They Worth It?',
+            'subtitle' => 'The case for the most expensive — and most overlooked — senior living option.',
+            'hero_image_url' => 'https://images.unsplash.com/photo-1582719188393-bb71ca45dbb9?w=1600&q=80',
+            'reading_time_minutes' => 8,
+            'is_featured' => false,
+            'tags' => ['ccrc', 'independent living', 'continuing care', 'planning'],
+            'summary' => 'CCRCs charge a six-figure entrance fee but lock in care for life. Here\'s when the math works.',
+            'body' => <<<HTML
+<p class="lead">A continuing care retirement community (CCRC) is a senior living campus that includes independent living, assisted living, memory care, and skilled nursing — all in one place. Residents move in healthy and stay through every level of care that follows.</p>
+
+<h2>How the money works</h2>
+<p>CCRCs charge:</p>
+<ul>
+<li>A one-time <strong>entrance fee</strong> — typically \$100,000 to \$1,000,000+ depending on apartment size and location</li>
+<li>A <strong>monthly fee</strong> — typically \$3,000 to \$8,000+ for independent living, increasing as care needs increase</li>
+</ul>
+
+<h2>The four contract types</h2>
+<h3>Type A — "Life Care"</h3>
+<p>Highest entrance fee. Monthly fee stays roughly the same regardless of care level. The CCRC absorbs the cost of higher care levels. Best protection against future care cost inflation. About 35% of CCRC residents nationally.</p>
+
+<h3>Type B — "Modified"</h3>
+<p>Mid-entrance fee. A limited number of "free" days of higher-level care included; after that, you pay the discounted resident rate. Common in mid-size CCRCs.</p>
+
+<h3>Type C — "Fee-for-Service"</h3>
+<p>Lowest entrance fee. You pay market rate when you move to a higher level of care. Cheaper upfront, much more expensive long-tail. About 25% of CCRC residents.</p>
+
+<h3>Rental CCRC</h3>
+<p>No entrance fee — just higher monthly. Best if you may not want to commit long-term. Growing share of new CCRCs.</p>
+
+<h2>When CCRCs make sense</h2>
+<ul>
+<li>You're <strong>healthy now but worried about the future</strong> — a Type A CCRC turns an unknown care liability into a known monthly fee.</li>
+<li>You <strong>have liquid assets</strong> (\$300K+ outside the home) that you'd rather use to pre-pay care.</li>
+<li>You value <strong>aging in one place</strong> — never having to move again ranks highly for many residents.</li>
+<li>You have a <strong>spouse with health concerns</strong> — Type A protects the well spouse from the cost of the other's eventual care.</li>
+</ul>
+
+<h2>When CCRCs are a bad fit</h2>
+<ul>
+<li>You expect to need <strong>memory care or skilled nursing soon</strong> — you'll pay the entrance fee without ever using the lower-level apartment.</li>
+<li>You're <strong>asset-poor but income-rich</strong> — Medicaid won't help with a CCRC entrance fee.</li>
+<li>You like flexibility — CCRC contracts limit how easily you can leave and reclaim the entrance fee.</li>
+</ul>
+
+<h2>The five questions to ask</h2>
+<ol>
+<li><strong>What's the refund schedule?</strong> Some CCRCs refund 0%, some 50-90% of the entrance fee. Some require resale of the unit first.</li>
+<li><strong>What's the financial health of the operator?</strong> Ask for audited financials. Look at occupancy &gt; 85%, low debt-service ratio, healthy operating reserves.</li>
+<li><strong>What's the historical monthly fee increase?</strong> 3-5% annual is normal. 8%+ signals operational stress.</li>
+<li><strong>What happens if I outlive my assets?</strong> Most Type A CCRCs have a "benevolent fund" — confirm in writing.</li>
+<li><strong>Can I see the assisted-living and skilled-nursing wings now?</strong> The marketing tour is the independent-living dining room. Insist on seeing the parts you'll eventually live in.</li>
+</ol>
+
+<h2>Use CarePath to compare</h2>
+<p>CCRCs in the CarePath directory are tagged with type (A / B / C / rental) and show entrance fee ranges. <a href="/search?type=ccrc">Filter by Continuing Care</a> to see what's available near you.</p>
+HTML
+        ],
+
+        [
+            'slug' => 'how-to-pay-nursing-home',
+            'category' => 'financial',
+            'title' => 'How to Pay for a Nursing Home (Every Option in 2026)',
+            'subtitle' => 'Six payers, four combinations that actually work, and one mistake families make every year.',
+            'hero_image_url' => 'https://images.unsplash.com/photo-1564349683136-77e08dba1ef7?w=1600&q=80',
+            'reading_time_minutes' => 9,
+            'is_featured' => false,
+            'tags' => ['payment', 'medicare', 'medicaid', 'ltc insurance', 'va benefits'],
+            'summary' => 'The complete map of how American families actually pay for nursing home and memory care — every payer source, when each kicks in, and how to layer them.',
+            'body' => <<<HTML
+<p class="lead">A year of nursing-home care averages \$110,000 nationally. No single payer covers the whole thing for most families. The trick is layering — knowing which payer handles which phase.</p>
+
+<h2>The six payers</h2>
+
+<h3>1. Medicare Part A</h3>
+<p><strong>Covers:</strong> Up to 100 days in a skilled nursing facility after a qualifying 3-day hospital stay. Days 1-20 fully covered. Days 21-100 require a daily coinsurance (~\$209.50/day in 2026).</p>
+<p><strong>Doesn't cover:</strong> Long-term custodial care. Most residents stop qualifying around day 20-30 when "improvement" plateaus.</p>
+
+<h3>2. Medicaid</h3>
+<p><strong>Covers:</strong> Long-term nursing home care for those who meet financial + functional eligibility. Pays facilities directly at the state's Medicaid rate (typically 60-80% of private-pay rate).</p>
+<p><strong>Catch:</strong> Strict asset and income limits, 5-year look-back on transfers. See our <a href="/articles/medicaid-five-year-lookback">5-year look-back guide</a>.</p>
+
+<h3>3. Private long-term care insurance</h3>
+<p><strong>Covers:</strong> Daily/monthly benefit (varies by policy) for a benefit period (commonly 3-5 years). Triggered when policyholder can't do 2+ ADLs or has severe cognitive impairment.</p>
+<p><strong>Catch:</strong> Most policies have a 90-day elimination period before benefits start. Premiums have risen 50-100% over the last decade for many existing policyholders.</p>
+
+<h3>4. VA Aid &amp; Attendance</h3>
+<p><strong>Covers:</strong> Up to \$3,740/month for qualifying wartime veterans (and surviving spouses). Used to offset care costs.</p>
+<p><strong>Catch:</strong> Wartime service requirement, discharge requirements, net worth cap (\$159,240 in 2026). <a href="/tools/va-eligibility">Check eligibility with our tool</a>.</p>
+
+<h3>5. Private pay</h3>
+<p><strong>Covers:</strong> Whatever you can afford. Sources include Social Security, pensions, retirement accounts (IRA/401k), investment income, annuities, home equity (HELOC or reverse mortgage).</p>
+
+<h3>6. Life insurance conversions</h3>
+<p><strong>Covers:</strong> Cash value or accelerated death benefit from a permanent life insurance policy can be converted to a "long-term care benefit plan" — typically pays out 30-60% of face value over time.</p>
+
+<h2>The four real-world combinations</h2>
+
+<h3>Combo 1: Short rehab → home</h3>
+<p>Medicare A covers 20-100 days after hospital discharge. Family pays for any home care needed afterward. <strong>Best when:</strong> The stay is recovery-oriented, not long-term placement.</p>
+
+<h3>Combo 2: Medicare → spend down to Medicaid</h3>
+<p>Medicare A covers the first 20-100 days. Once Medicare ends, family uses savings to private-pay for several months while spending down assets to Medicaid eligibility. Medicaid takes over. <strong>Best when:</strong> Long-term placement needed and assets are modest-to-moderate.</p>
+
+<h3>Combo 3: LTC insurance + private pay → Medicaid</h3>
+<p>LTC insurance covers a portion of the daily rate. Family covers the gap from income/savings. When LTC benefit period expires and assets are spent, Medicaid takes over. <strong>Best when:</strong> The family has an existing LTC policy that's matured.</p>
+
+<h3>Combo 4: VA Aid &amp; Attendance + private pay</h3>
+<p>A&A provides a monthly offset; family covers the remainder. <strong>Best when:</strong> Wartime veteran or surviving spouse with moderate assets.</p>
+
+<h2>The mistake families make</h2>
+<p>Waiting until the day Medicare stops to start thinking about Medicaid. <strong>Medicaid planning takes 3-6 months</strong>, and any asset transfers within the prior 60 months will be scrutinized. Start the Medicaid conversation the day you tour your first facility — not the day Medicare cuts off.</p>
+
+<h2>Project your costs</h2>
+<p>Every facility page on CarePath has a <a href="/search">cost projection calculator</a> that models 5 years blending all six payers above. Adjust your inputs and see where each payer kicks in and out.</p>
+HTML
+        ],
+
+        [
+            'slug' => 'power-of-attorney-aging-parents',
+            'category' => 'legal',
+            'title' => 'Power of Attorney for Aging Parents: A Step-by-Step',
+            'subtitle' => 'The single most important legal document for an aging family member — what it does, what it doesn\'t, and when to set it up.',
+            'hero_image_url' => 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1600&q=80',
+            'reading_time_minutes' => 7,
+            'is_featured' => false,
+            'tags' => ['power of attorney', 'legal', 'planning', 'aging parents'],
+            'summary' => 'Why every family with an aging parent needs a durable POA — and how to set one up without overpaying for an attorney.',
+            'body' => <<<HTML
+<p class="lead">A power of attorney (POA) lets one person make legal decisions for another. Without one, families often discover too late that they cannot pay parents' bills, sign Medicaid applications, or talk to the doctor — and need to go through guardianship court to get the authority back.</p>
+
+<h2>The two types you actually need</h2>
+
+<h3>Financial POA (also called "durable POA")</h3>
+<p>Authorizes someone to manage money: pay bills, file taxes, manage accounts, sign legal documents, sell property, apply for benefits. "Durable" means it remains in effect even if the principal (your parent) becomes incapacitated. <strong>This is the one that gets you through a dementia diagnosis.</strong></p>
+
+<h3>Healthcare POA (also called "healthcare proxy" or "medical directive")</h3>
+<p>Authorizes someone to make medical decisions when the principal can't. Often paired with a living will (which spells out what kinds of life-sustaining treatment the principal does or doesn't want).</p>
+
+<h2>What POA does NOT do</h2>
+<ul>
+<li><strong>Take effect after death.</strong> POAs end at death. From that point, the executor of the will takes over.</li>
+<li><strong>Override the principal.</strong> While your parent has capacity, they still make all decisions. POA is a backup, not a takeover.</li>
+<li><strong>Cover everything automatically.</strong> Some powers (like making gifts or changing beneficiaries) must be specifically granted in the document.</li>
+</ul>
+
+<h2>When to set it up</h2>
+<p><strong>Before your parent needs it.</strong> A POA can only be signed by someone with legal capacity. Once dementia has progressed to the point where the principal cannot understand what they're signing, it's too late — and the family must pursue guardianship in court (expensive, public, slow).</p>
+<p>Practical trigger: At the first sign of memory changes, or by age 75 regardless. Every adult should have one anyway.</p>
+
+<h2>How to actually set one up</h2>
+<h3>Option A: Elder-law attorney (recommended)</h3>
+<p>Cost: \$300-\$1,500 depending on state and complexity. Includes consultation, drafting, witnessing, notary. Many attorneys offer a flat-fee POA + healthcare directive bundle for ~\$500.</p>
+<p>Why it's worth it: An attorney will tailor the powers (e.g., making sure Medicaid planning powers are included), advise on successor agents (backups), and witness the signing properly. Most importantly, they document capacity — which can be challenged later if someone disputes the POA.</p>
+
+<h3>Option B: State-specific online template</h3>
+<p>Cost: \$0-\$50. Many state bar associations publish free statutory POA forms. LegalZoom and Rocket Lawyer offer guided versions.</p>
+<p>When this works: Simple family situation, no concern about challenges, no specialized provisions needed.</p>
+
+<h3>Option C: Avoid handwritten or generic forms</h3>
+<p>States have specific notarization, witness, and language requirements. A POA that's invalid is the same as no POA — except worse, because you discover it at the worst possible moment.</p>
+
+<h2>Five common mistakes</h2>
+<ol>
+<li><strong>Naming only one agent.</strong> Always name a successor in case the primary agent dies, becomes incapacitated, or declines to serve.</li>
+<li><strong>Forgetting the gift power.</strong> Without it, the agent cannot do Medicaid planning, make annual gifts, or transfer assets to a community spouse.</li>
+<li><strong>Not notifying the agent.</strong> The agent should have a copy and know where the original is kept.</li>
+<li><strong>Banks rejecting old POAs.</strong> Some banks reject POAs over 1-2 years old. Re-sign every 3-5 years, or include a "bank POA" supplement using the bank's own form.</li>
+<li><strong>Forgetting healthcare separately.</strong> Many families do the financial POA and forget that healthcare decisions need their own document.</li>
+</ol>
+
+<h2>What about HIPAA?</h2>
+<p>Healthcare POA usually includes HIPAA authorization, but check the document. Without HIPAA authorization, doctors and hospitals cannot share information with family — a routine problem at hospital discharges.</p>
+
+<h2>Where this ties into long-term care</h2>
+<p>You'll need a financial POA to:</p>
+<ul>
+<li>Sign the facility admission agreement on a parent's behalf</li>
+<li>Apply for Medicaid (a complex 30+ page application)</li>
+<li>Manage the parent's bank accounts and pay the facility</li>
+<li>File the parent's taxes</li>
+<li>Communicate with insurance, banks, and government agencies</li>
+</ul>
+<p>And the healthcare POA to authorize treatments, hospice transitions, and end-of-life decisions.</p>
+
+<p>When you're ready to compare facilities, <a href="/search">start with the CarePath search</a> — and bring the POA to your first tour appointment.</p>
+HTML
+        ],
     ];
 
     public function run(): void
