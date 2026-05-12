@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             DemoUserSeeder::class,
             DemoCensusSeeder::class,
             DemoAdmissionsSeeder::class,
+            DemoCarePlansSeeder::class,
         ]);
     }
 }
