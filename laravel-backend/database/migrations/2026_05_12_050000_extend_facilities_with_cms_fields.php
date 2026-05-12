@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('county', 80)->nullable()->after('zip');
             $table->decimal('latitude', 10, 6)->nullable()->after('county');
             $table->decimal('longitude', 10, 6)->nullable()->after('latitude');
-            $table->unsignedDecimal('average_residents_per_day', 6, 1)->nullable()->after('total_beds');
+            $table->decimal('average_residents_per_day', 6, 1)->nullable()->after('total_beds');
             $table->string('data_source', 20)->default('manual')->after('is_active'); // manual | cms_pdc
             $table->timestamp('cms_synced_at')->nullable()->after('data_source');
 
