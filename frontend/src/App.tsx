@@ -11,6 +11,8 @@ import { ArticlesIndexPage } from "@/pages/ArticlesIndexPage"
 import { ArticleDetailPage } from "@/pages/ArticleDetailPage"
 import { ToolsPage } from "@/pages/ToolsPage"
 import { CareLevelQuizPage } from "@/pages/CareLevelQuizPage"
+import { MedicaidEligibilityPage } from "@/pages/MedicaidEligibilityPage"
+import { VaEligibilityPage } from "@/pages/VaEligibilityPage"
 import { SecuritySettingsPage } from "@/pages/SecuritySettingsPage"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
@@ -52,6 +54,8 @@ function App() {
       <Route path="/articles/:slug" element={<ArticleDetailPage />} />
       <Route path="/tools" element={<ToolsPage />} />
       <Route path="/tools/care-level-quiz" element={<CareLevelQuizPage />} />
+      <Route path="/tools/medicaid-eligibility" element={<MedicaidEligibilityPage />} />
+      <Route path="/tools/va-eligibility" element={<VaEligibilityPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />

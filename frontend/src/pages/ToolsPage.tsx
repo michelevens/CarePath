@@ -48,21 +48,21 @@ const TOOLS: Array<{
   },
   {
     slug: "medicaid-eligibility",
-    to: "/tools",
+    to: "/tools/medicaid-eligibility",
     title: "Medicaid eligibility check",
     description:
       "State-specific quick check — countable assets, income trust requirements, spousal protection.",
     icon: ShieldCheck,
-    status: "coming",
+    status: "live",
   },
   {
     slug: "va-eligibility",
-    to: "/tools",
+    to: "/tools/va-eligibility",
     title: "VA Aid & Attendance eligibility",
     description:
-      "Wartime service, care needs, net worth — see if you qualify for up to $3,232/month.",
+      "Wartime service, care needs, net worth — see if you qualify for up to $3,740/month.",
     icon: Sparkles,
-    status: "coming",
+    status: "live",
   },
 ]
 
