@@ -1,5 +1,8 @@
 import { useState } from "react"
+import { Loader2, RefreshCcw } from "lucide-react"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { MasterDataTab, type MasterDataConfig } from "@/components/MasterDataTab"
 
 const CONFIGS: MasterDataConfig[] = [
@@ -166,19 +169,82 @@ const CONFIGS: MasterDataConfig[] = [
   },
 ]
 
+interface SyncResult {
+  facilities: number
+  inserted_total: number
+  per_facility: Array<{ facility_id: string; name: string; inserted: number }>
+}
+
 export function MasterDataPage() {
   const [activeType, setActiveType] = useState(CONFIGS[0].type)
   const active = CONFIGS.find((c) => c.type === activeType)!
 
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
+  const runSync = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+    setSyncError(null)
+    try {
+      const res = await api.post<SyncResult>("/superadmin/master-data/sync")
+      setSyncResult(res.data)
+    } catch (err) {
+      setSyncError(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          "Sync failed."
+      )
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   return (
     <div className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Master data</h1>
-        <p className="text-sm text-muted-foreground">
-          Platform-wide reference data. Changes here flow into all facilities
-          on next provisioning sync.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Master data</h1>
+          <p className="text-sm text-muted-foreground">
+            Platform-wide reference data. Use Sync to push newly-added master
+            rows into every active facility.
+          </p>
+        </div>
+        <Button variant="outline" onClick={runSync} disabled={syncing}>
+          {syncing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCcw className="h-4 w-4" />
+          )}
+          Sync to facilities
+        </Button>
       </div>
+
+      {syncResult && (
+        <div className="rounded-md border bg-card px-4 py-3 text-sm">
+          <div className="font-medium">
+            Synced {syncResult.facilities} facilities · {syncResult.inserted_total}{" "}
+            new snapshot{syncResult.inserted_total === 1 ? "" : "s"} inserted
+          </div>
+          {syncResult.inserted_total > 0 && (
+            <ul className="mt-1 text-xs text-muted-foreground">
+              {syncResult.per_facility
+                .filter((f) => f.inserted > 0)
+                .map((f) => (
+                  <li key={f.facility_id}>
+                    {f.name} — {f.inserted}
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {syncError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {syncError}
+        </div>
+      )}
 
       <div className="flex gap-1 border-b">
         {CONFIGS.map((c) => (

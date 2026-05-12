@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Services\TenantProvisioningService;
 use App\Models\CmsFTag;
 use App\Models\CredentialTemplate;
 use App\Models\DiagnosisCode;
@@ -214,6 +215,18 @@ class MasterDataController extends Controller
         $row->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Push any master rows added since the last sync into snapshots on
+     * every active facility. Idempotent — facilities that already have a
+     * snapshot for a given natural key are skipped.
+     */
+    public function sync(TenantProvisioningService $service): JsonResponse
+    {
+        $result = $service->syncAllFacilities();
+
+        return response()->json($result);
     }
 
     /**

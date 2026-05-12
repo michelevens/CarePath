@@ -35,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('superadmin')
         ->middleware('role:super_admin')
         ->group(function () {
+            // Specific route must precede {type} wildcard.
+            Route::post('/master-data/sync', [MasterDataController::class, 'sync']);
+
             Route::get('/master-data/{type}', [MasterDataController::class, 'index']);
             Route::post('/master-data/{type}', [MasterDataController::class, 'store']);
             Route::put('/master-data/{type}/{id}', [MasterDataController::class, 'update']);

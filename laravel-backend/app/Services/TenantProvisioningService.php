@@ -62,6 +62,42 @@ class TenantProvisioningService
     }
 
     /**
+     * Re-provision every active facility. Idempotent — only inserts rows
+     * for snapshots that don't already exist on the facility. Used by the
+     * super-admin "sync" action after adding new master rows.
+     *
+     * @return array{
+     *   facilities: int,
+     *   inserted_total: int,
+     *   per_facility: array<int, array{facility_id: string, name: string, inserted: int}>
+     * }
+     */
+    public function syncAllFacilities(): array
+    {
+        $facilities = Facility::query()->where('is_active', true)->get();
+
+        $perFacility = [];
+        $insertedTotal = 0;
+
+        foreach ($facilities as $facility) {
+            $created = $this->provision($facility);
+            $count = array_sum($created);
+            $insertedTotal += $count;
+            $perFacility[] = [
+                'facility_id' => $facility->id,
+                'name' => $facility->name,
+                'inserted' => $count,
+            ];
+        }
+
+        return [
+            'facilities' => $facilities->count(),
+            'inserted_total' => $insertedTotal,
+            'per_facility' => $perFacility,
+        ];
+    }
+
+    /**
      * @param  class-string<Model>  $modelClass
      * @param  array<int, string>  $naturalKeys
      */
