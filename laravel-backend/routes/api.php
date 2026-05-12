@@ -21,6 +21,7 @@ Route::get('/health', fn () => ['ok' => true, 'service' => 'carepath-api']);
 // Public marketplace — no auth.
 Route::prefix('marketplace')->group(function () {
     Route::get('/facilities', [MarketplaceController::class, 'index']);
+    Route::get('/compare', [MarketplaceController::class, 'compare']);
     Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
     Route::get('/facilities/{slug}/tour-slots', [MarketplaceController::class, 'tourSlots']);
     Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);

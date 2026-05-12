@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom"
 import { LandingPage } from "@/pages/LandingPage"
 import { SearchPage } from "@/pages/SearchPage"
 import { FacilityDetailPage } from "@/pages/FacilityDetailPage"
+import { ComparePage } from "@/pages/ComparePage"
 import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage"
@@ -50,6 +51,7 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/facility/:slug" element={<FacilityDetailPage />} />
+      <Route path="/compare" element={<ComparePage />} />
       <Route path="/articles" element={<ArticlesIndexPage />} />
       <Route path="/articles/:slug" element={<ArticleDetailPage />} />
       <Route path="/tools" element={<ToolsPage />} />

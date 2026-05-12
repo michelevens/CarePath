@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
-import { Building2, Loader2, MapPin, Search, Star, X } from "lucide-react"
+import {
+  ArrowRight,
+  Building2,
+  Check,
+  GitCompareArrows,
+  Loader2,
+  MapPin,
+  Search,
+  Star,
+  X,
+} from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { useCompare } from "@/lib/useCompare"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -297,6 +308,50 @@ export function SearchPage() {
           </div>
         </div>
       </div>
+      <CompareBar />
+    </div>
+  )
+}
+
+function CompareBar() {
+  const compare = useCompare()
+  if (compare.list.length === 0) return null
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+      <div className="pointer-events-auto flex max-w-3xl flex-1 items-center gap-3 rounded-full border bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur">
+        <div className="flex flex-1 items-center gap-2 overflow-hidden">
+          <GitCompareArrows className="h-4 w-4 shrink-0 text-primary" />
+          <span className="text-sm font-medium">
+            {compare.list.length} of {compare.max} to compare
+          </span>
+          <div className="hidden flex-1 items-center gap-1.5 overflow-x-auto text-xs text-muted-foreground sm:flex">
+            {compare.list.map((e) => (
+              <span
+                key={e.id}
+                className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5"
+              >
+                <span className="max-w-[140px] truncate">{e.name}</span>
+                <button
+                  onClick={() => compare.remove(e.id)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Remove"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" onClick={compare.clear}>
+          Clear
+        </Button>
+        <Button asChild size="sm" disabled={compare.list.length < 2}>
+          <Link to={`/compare?ids=${compare.list.map((e) => e.id).join(",")}`}>
+            Compare
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -304,8 +359,37 @@ export function SearchPage() {
 function ResultCard({ r }: { r: FacilityResult }) {
   const monthly = r.price_from_cents ? Math.round(r.price_from_cents / 100).toLocaleString() : null
   const hasBeds = r.available_beds > 0
+  const compare = useCompare()
+  const inCompare = compare.has(r.id)
+  const compareFull = compare.list.length >= compare.max && !inCompare
+
+  const onToggleCompare = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (compareFull) return
+    compare.toggle({ id: r.id, slug: r.slug, name: r.name })
+  }
+
   return (
-    <Link to={`/facility/${r.slug}`} className="block">
+    <Link to={`/facility/${r.slug}`} className="relative block">
+      <button
+        type="button"
+        onClick={onToggleCompare}
+        disabled={compareFull}
+        aria-pressed={inCompare}
+        className={cn(
+          "absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+          inCompare
+            ? "border-primary bg-primary text-primary-foreground"
+            : compareFull
+            ? "cursor-not-allowed border-border bg-muted text-muted-foreground opacity-60"
+            : "border-border bg-card/95 text-muted-foreground backdrop-blur hover:border-primary hover:text-foreground"
+        )}
+        title={compareFull ? `Maximum ${compare.max} facilities — clear one first` : inCompare ? "Remove from comparison" : "Add to comparison"}
+      >
+        {inCompare ? <Check className="h-3.5 w-3.5" /> : <GitCompareArrows className="h-3.5 w-3.5" />}
+        {inCompare ? "Comparing" : "Compare"}
+      </button>
       <Card className="hover-lift overflow-hidden">
         <div className="flex">
           {/* Photo placeholder with a soft violet gradient instead of pure gray */}

@@ -5,7 +5,9 @@ import {
   Building2,
   Calendar,
   Calculator,
+  Check,
   CheckCircle2,
+  GitCompareArrows,
   Loader2,
   Mail,
   MapPin,
@@ -17,6 +19,7 @@ import {
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { useCompare } from "@/lib/useCompare"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -204,7 +207,10 @@ export function FacilityDetailPage() {
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">{facility.name}</h1>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <h1 className="text-3xl font-semibold tracking-tight">{facility.name}</h1>
+                <CompareToggle id={facility.id} slug={facility.slug} name={facility.name} />
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
@@ -1734,5 +1740,33 @@ function ComparableFacilitiesSection({
         })}
       </div>
     </section>
+  )
+}
+
+function CompareToggle({ id, slug, name }: { id: string; slug: string; name: string }) {
+  const compare = useCompare()
+  const inCompare = compare.has(id)
+  const compareFull = compare.list.length >= compare.max && !inCompare
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        variant={inCompare ? "default" : "outline"}
+        size="sm"
+        disabled={compareFull}
+        onClick={() => compare.toggle({ id, slug, name })}
+        title={compareFull ? `Maximum ${compare.max} facilities — clear one first` : undefined}
+      >
+        {inCompare ? <Check className="h-4 w-4" /> : <GitCompareArrows className="h-4 w-4" />}
+        {inCompare ? "In comparison" : "Compare"}
+      </Button>
+      {compare.list.length >= 2 && (
+        <Button asChild variant="ghost" size="sm">
+          <Link to={`/compare?ids=${compare.list.map((e) => e.id).join(",")}`}>
+            See {compare.list.length}
+          </Link>
+        </Button>
+      )}
+    </div>
   )
 }

@@ -270,6 +270,96 @@ class MarketplaceController extends Controller
     }
 
     /**
+     * GET /api/marketplace/compare?ids[]=uuid&ids[]=uuid
+     *
+     * Returns 2-4 facilities with the data needed for a side-by-side
+     * comparison: CMS scores, pricing, beds, amenities, review averages.
+     * Lighter than show() — no individual reviews or comparables.
+     */
+    public function compare(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:2', 'max:4'],
+            'ids.*' => ['required', 'string'],
+        ]);
+
+        $facilities = Facility::query()
+            ->where('is_active', true)
+            ->whereIn('id', $data['ids'])
+            ->with([
+                'photos' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->limit(1),
+                'pricingTiers' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                'reviews' => fn ($q) => $q->where('is_published', true),
+                'amenities' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+            ])
+            ->get();
+
+        if ($facilities->count() < 2) {
+            throw ValidationException::withMessages([
+                'ids' => ['Need at least 2 valid, active facilities to compare.'],
+            ]);
+        }
+
+        // Collect the union of amenity slugs so the table can show one row
+        // per amenity with a check/dash per facility column.
+        $amenityUnion = $facilities
+            ->flatMap(fn ($f) => $f->amenities->pluck('slug')->all())
+            ->unique()
+            ->values();
+
+        $amenityLabels = $facilities
+            ->flatMap(fn ($f) => $f->amenities)
+            ->unique('slug')
+            ->mapWithKeys(fn ($a) => [$a->slug => $a->label])
+            ->all();
+
+        $payload = $facilities->map(function ($f) {
+            $availableBeds = Bed::query()
+                ->where('facility_id', $f->id)
+                ->where('status', 'available')
+                ->count();
+
+            $heroPhotoUrl = $f->photos->first()?->url;
+            $amenitySlugs = $f->amenities->pluck('slug')->all();
+
+            return [
+                'id' => $f->id,
+                'name' => $f->name,
+                'slug' => $f->slug,
+                'type' => $f->type,
+                'city' => $f->city,
+                'state' => $f->state,
+                'zip' => $f->zip,
+                'hero_photo_url' => $heroPhotoUrl,
+                'cms_five_star_overall' => $f->cms_five_star_overall,
+                'cms_five_star_health_inspection' => $f->cms_five_star_health_inspection,
+                'cms_five_star_staffing' => $f->cms_five_star_staffing,
+                'cms_five_star_quality' => $f->cms_five_star_quality,
+                'medicaid_certified' => $f->medicaid_certified,
+                'medicare_certified' => $f->medicare_certified,
+                'total_beds' => $f->total_beds,
+                'available_beds' => $availableBeds,
+                'price_from_cents' => $f->price_from_cents,
+                'pricing_tiers' => $f->pricingTiers->map(fn ($t) => [
+                    'label' => $t->label,
+                    'monthly_cents' => $t->monthly_cents,
+                ])->values(),
+                'review_count' => $f->reviews->count(),
+                'review_average' => $f->reviews->isNotEmpty() ? round((float) $f->reviews->avg('rating'), 1) : null,
+                'amenities' => $amenitySlugs,
+            ];
+        })->values();
+
+        return response()->json([
+            'data' => $payload,
+            'amenity_rows' => $amenityUnion->map(fn ($slug) => [
+                'slug' => $slug,
+                'label' => $amenityLabels[$slug] ?? $slug,
+            ])->values(),
+        ]);
+    }
+
+    /**
      * POST /api/marketplace/inquiries
      *
      * Creates an Admission at the 'inquiry' stage so it lands in the
