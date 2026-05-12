@@ -20,6 +20,7 @@ import { SuperAdminDashboard } from "@/portals/superadmin/SuperAdminDashboard"
 import { MasterDataPage } from "@/portals/superadmin/MasterDataPage"
 import { AuditLogPage } from "@/portals/superadmin/AuditLogPage"
 import { FacilityDataPage } from "@/portals/admin/FacilityDataPage"
+import { AdmissionsKanban } from "@/portals/admin/AdmissionsKanban"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 
 const PORTALS = [
@@ -74,7 +75,10 @@ function App() {
             </>
           )}
           {path === "admin" && (
-            <Route path="data" element={<FacilityDataPage />} />
+            <>
+              <Route path="admissions" element={<AdmissionsKanban />} />
+              <Route path="data" element={<FacilityDataPage />} />
+            </>
           )}
         </Route>
       ))}

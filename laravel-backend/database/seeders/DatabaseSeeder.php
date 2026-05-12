@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             MasterDataSeeder::class,
             DemoUserSeeder::class,
             DemoCensusSeeder::class,
+            DemoAdmissionsSeeder::class,
         ]);
     }
 }
