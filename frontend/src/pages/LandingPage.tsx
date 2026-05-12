@@ -1,11 +1,16 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import {
   Activity,
+  ArrowRight,
+  BookOpen,
   Brain,
   Building,
   Building2,
+  Calculator,
   CheckCircle2,
+  ClipboardList,
+  Clock,
   HeartHandshake,
   Heart,
   MapPin,
@@ -16,6 +21,7 @@ import {
   Star,
   Stethoscope,
 } from "lucide-react"
+import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -65,10 +71,43 @@ const TOP_METROS = [
   { state: "NC", city: "Charlotte" },
 ]
 
+interface PreviewArticle {
+  id: string
+  slug: string
+  title: string
+  subtitle: string | null
+  hero_image_url: string | null
+  category: string
+  reading_time_minutes: number
+}
+
+const ARTICLE_CATEGORY_LABEL: Record<string, string> = {
+  care_basics: "Care basics",
+  medicare: "Medicare",
+  medicaid: "Medicaid",
+  va: "VA benefits",
+  dementia: "Memory care",
+  transition: "Tours & transitions",
+  financial: "Financial planning",
+  legal: "Legal",
+}
+
 export function LandingPage() {
   const navigate = useNavigate()
   const [zip, setZip] = useState("")
   const [careType, setCareType] = useState("")
+  const [previewArticles, setPreviewArticles] = useState<PreviewArticle[]>([])
+
+  useEffect(() => {
+    let alive = true
+    api
+      .get<{ data: PreviewArticle[] }>("/content/articles", { params: { limit: 3 } })
+      .then((r) => alive && setPreviewArticles(r.data.data.slice(0, 3)))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -88,6 +127,12 @@ export function LandingPage() {
           <nav className="flex items-center gap-4">
             <Link to="/search" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
               Find care
+            </Link>
+            <Link to="/tools" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+              Tools
+            </Link>
+            <Link to="/articles" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+              Articles
             </Link>
             <Button variant="ghost" asChild>
               <Link to="/login">Sign in</Link>
@@ -185,6 +230,76 @@ export function LandingPage() {
               <div className="mt-1 text-sm text-muted-foreground">{c.description}</div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* TOOLS STRIP */}
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Decision tools — free, no signup
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Get real answers in minutes. We don't sell your info.
+            </p>
+          </div>
+          <Link
+            to="/tools"
+            className="hidden text-sm font-medium text-primary hover:underline sm:inline-flex sm:items-center sm:gap-1"
+          >
+            All tools <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <Link
+            to="/tools/care-level-quiz"
+            className="hover-lift group block rounded-xl border bg-card p-6"
+          >
+            <div className="inline-flex rounded-xl bg-primary p-3 text-primary-foreground">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <div className="mt-4 font-semibold">Care-level quiz</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              10 questions to identify the right level of care — assisted
+              living, memory care, or skilled nursing.
+            </div>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
+              Take the quiz <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
+          <Link
+            to="/search"
+            className="hover-lift group block rounded-xl border bg-card p-6"
+          >
+            <div className="inline-flex rounded-xl bg-primary p-3 text-primary-foreground">
+              <Calculator className="h-5 w-5" />
+            </div>
+            <div className="mt-4 font-semibold">Cost projection</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              5-year cost estimate blending Medicare, Medicaid spend-down, LTC
+              insurance, VA benefits, and private pay.
+            </div>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
+              Open calculator <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
+          <Link
+            to="/search"
+            className="hover-lift group block rounded-xl border bg-card p-6"
+          >
+            <div className="inline-flex rounded-xl bg-primary p-3 text-primary-foreground">
+              <Search className="h-5 w-5" />
+            </div>
+            <div className="mt-4 font-semibold">Facility search</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              8,400+ real facilities. Filter by ZIP, care type, Medicaid
+              acceptance, CMS Five-Star rating.
+            </div>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
+              Start searching <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
         </div>
       </section>
 
@@ -345,6 +460,72 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ARTICLES PREVIEW */}
+      {previewArticles.length > 0 && (
+        <section className="border-t bg-muted/20">
+          <div className="mx-auto max-w-7xl px-6 py-16">
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border bg-accent/60 px-3 py-1 text-xs font-medium text-accent-foreground">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Resource library
+                </div>
+                <h2 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">
+                  Long-term care, demystified
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Plain-English guides on Medicare, Medicaid, VA benefits, and
+                  how to pick a facility.
+                </p>
+              </div>
+              <Link
+                to="/articles"
+                className="hidden text-sm font-medium text-primary hover:underline sm:inline-flex sm:items-center sm:gap-1"
+              >
+                All articles <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {previewArticles.map((a) => (
+                <Link key={a.id} to={`/articles/${a.slug}`} className="block">
+                  <Card className="hover-lift overflow-hidden h-full">
+                    <div className="aspect-video bg-muted">
+                      {a.hero_image_url ? (
+                        <img
+                          src={a.hero_image_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
+                          <Building2 className="h-10 w-10" />
+                        </div>
+                      )}
+                    </div>
+                    <CardContent className="p-5">
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        {ARTICLE_CATEGORY_LABEL[a.category] ?? a.category}
+                      </span>
+                      <h3 className="mt-2 font-semibold leading-tight">{a.title}</h3>
+                      {a.subtitle && (
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                          {a.subtitle}
+                        </p>
+                      )}
+                      <div className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {a.reading_time_minutes} min read
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* FINAL CTA */}
       <section className="border-t bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-6 py-16 text-center">
@@ -368,6 +549,8 @@ export function LandingPage() {
           <div>© 2026 CarePath. Data from CMS Nursing Home Compare (public domain).</div>
           <div className="flex gap-4">
             <Link to="/search" className="hover:text-foreground">Search</Link>
+            <Link to="/tools" className="hover:text-foreground">Tools</Link>
+            <Link to="/articles" className="hover:text-foreground">Articles</Link>
             <Link to="/login" className="hover:text-foreground">Sign in</Link>
             <Link to="/signup" className="hover:text-foreground">List your facility</Link>
           </div>

@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             DemoMedicationsSeeder::class,
             DemoFacilityProfileSeeder::class,
             DemoAmenitiesSeeder::class,
+            DemoArticlesSeeder::class,
         ]);
     }
 }

@@ -7,6 +7,10 @@ import { SignupPage } from "@/pages/SignupPage"
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
 import { VerifyEmailPage } from "@/pages/VerifyEmailPage"
+import { ArticlesIndexPage } from "@/pages/ArticlesIndexPage"
+import { ArticleDetailPage } from "@/pages/ArticleDetailPage"
+import { ToolsPage } from "@/pages/ToolsPage"
+import { CareLevelQuizPage } from "@/pages/CareLevelQuizPage"
 import { SecuritySettingsPage } from "@/pages/SecuritySettingsPage"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
@@ -44,6 +48,10 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/facility/:slug" element={<FacilityDetailPage />} />
+      <Route path="/articles" element={<ArticlesIndexPage />} />
+      <Route path="/articles/:slug" element={<ArticleDetailPage />} />
+      <Route path="/tools" element={<ToolsPage />} />
+      <Route path="/tools/care-level-quiz" element={<CareLevelQuizPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />

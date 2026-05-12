@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\Facility\AdmissionController;
@@ -26,6 +27,12 @@ Route::prefix('marketplace')->group(function () {
     Route::post('/tours', [MarketplaceController::class, 'bookTour']);
     Route::post('/cost-projection', [MarketplaceController::class, 'costProjection']);
     Route::post('/leads', [MarketplaceController::class, 'captureLead']);
+});
+
+// Public content hub — articles + tools — no auth.
+Route::prefix('content')->group(function () {
+    Route::get('/articles', [ArticleController::class, 'index']);
+    Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 });
 
 Route::post('/auth/register', [AuthController::class, 'register']);
