@@ -16,8 +16,11 @@ class Bed extends Model
         'facility_id',
         'room_number',
         'bed_label', // e.g. "A", "B" for shared rooms
+        'floor',
+        'unit',
         'level_of_care', // skilled | assisted | memory
-        'status', // available | reserved | occupied | offline
+        'status', // available | reserved | occupied | offline | isolation
+        'notes',
         'resident_id',
     ];
 

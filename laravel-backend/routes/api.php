@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\FacilityDataController;
+use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\TwoFactorController;
@@ -51,5 +53,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/data/{type}', [FacilityDataController::class, 'store']);
         Route::put('/data/{type}/{id}', [FacilityDataController::class, 'update']);
         Route::delete('/data/{type}/{id}', [FacilityDataController::class, 'destroy']);
+
+        Route::get('/beds', [BedController::class, 'index']);
+        Route::put('/beds/{id}/status', [BedController::class, 'updateStatus']);
+        Route::post('/beds/{id}/assign', [BedController::class, 'assign']);
+        Route::post('/beds/{id}/unassign', [BedController::class, 'unassign']);
+
+        Route::get('/residents', [ResidentController::class, 'index']);
+        Route::get('/residents/{id}', [ResidentController::class, 'show']);
+        Route::post('/residents/{id}/discharge', [ResidentController::class, 'discharge']);
     });
 });

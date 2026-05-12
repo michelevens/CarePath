@@ -23,6 +23,8 @@ class Resident extends Model
         'level_of_care',
         'primary_payer', // medicaid | medicare | private_pay | ltc_insurance | va
         'mrn', // medical record number
+        'status', // active | discharged | deceased
+        'notes',
     ];
 
     protected $casts = [
