@@ -196,4 +196,157 @@ class MarketplaceController extends Controller
             'facility_name' => $facility->name,
         ], 201);
     }
+
+    /**
+     * GET /api/marketplace/facilities/{slug}/tour-slots?date=YYYY-MM-DD
+     *
+     * Returns available tour slots for a single day. The schedule is rule-
+     * based for now (Tue-Sat, 10am/11am/2pm/3pm/4pm in-person; same plus
+     * 6pm virtual). Booked slots are subtracted.
+     */
+    public function tourSlots(Request $request, string $slug): JsonResponse
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'tour_type' => ['nullable', 'in:in_person,virtual,self_guided'],
+        ]);
+
+        $facility = Facility::query()->where('slug', $slug)->where('is_active', true)->firstOrFail();
+        $date = CarbonImmutable::createFromFormat('Y-m-d', $data['date'])->startOfDay();
+        $type = $data['tour_type'] ?? 'in_person';
+
+        // Closed Sun (0) and Mon (1).
+        $dow = $date->dayOfWeek;
+        if ($dow === 0 || $dow === 1) {
+            return response()->json(['date' => $data['date'], 'tour_type' => $type, 'slots' => []]);
+        }
+
+        $hours = match ($type) {
+            'in_person' => [10, 11, 14, 15, 16],
+            'virtual' => [10, 11, 14, 15, 16, 18],
+            'self_guided' => [9, 10, 11, 13, 14, 15, 16, 17],
+            default => [10, 14],
+        };
+
+        $candidates = collect($hours)->map(fn ($h) => $date->setTime($h, 0));
+
+        $taken = Tour::query()
+            ->where('facility_id', $facility->id)
+            ->where('tour_type', $type)
+            ->whereBetween('starts_at', [$date, $date->endOfDay()])
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->pluck('starts_at')
+            ->map(fn ($d) => $d->format('Y-m-d H:i'))
+            ->all();
+
+        $slots = $candidates
+            ->filter(fn ($c) => ! in_array($c->format('Y-m-d H:i'), $taken, true))
+            ->filter(fn ($c) => $c->isAfter(now()->addMinutes(60))) // 1h minimum lead time
+            ->values()
+            ->map(fn ($c) => [
+                'starts_at' => $c->toIso8601String(),
+                'label' => $c->format('g:i A'),
+            ])
+            ->all();
+
+        return response()->json([
+            'date' => $data['date'],
+            'tour_type' => $type,
+            'slots' => $slots,
+        ]);
+    }
+
+    /**
+     * POST /api/marketplace/tours
+     *
+     * Books a tour. Creates a parent Admission at stage=tour_scheduled if
+     * one isn't already linked. Rate-limited per IP.
+     */
+    public function bookTour(Request $request): JsonResponse
+    {
+        $throttleKey = 'marketplace-tour:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 8)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            throw ValidationException::withMessages([
+                'rate' => "Too many requests. Try again in {$seconds} seconds.",
+            ]);
+        }
+        RateLimiter::hit($throttleKey, 600);
+
+        $data = $request->validate([
+            'facility_slug' => ['required', 'string'],
+            'starts_at' => ['required', 'date', 'after:now'],
+            'tour_type' => ['required', 'in:in_person,virtual,self_guided'],
+            'attendee_name' => ['required', 'string', 'max:120'],
+            'attendee_email' => ['required', 'email', 'max:191'],
+            'attendee_phone' => ['nullable', 'string', 'max:30'],
+            'relationship_to_prospect' => ['required', 'in:adult_child,spouse,poa,self,hospital,other'],
+            'prospect_first_name' => ['required', 'string', 'max:60'],
+            'prospect_last_name' => ['required', 'string', 'max:60'],
+            'prospect_level_of_care' => ['nullable', 'in:independent,assisted,memory,skilled,hospice'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $facility = Facility::query()
+            ->where('slug', $data['facility_slug'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $startsAt = CarbonImmutable::parse($data['starts_at']);
+
+        // Double-book guard.
+        $clash = Tour::query()
+            ->where('facility_id', $facility->id)
+            ->where('starts_at', $startsAt)
+            ->where('tour_type', $data['tour_type'])
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->exists();
+        if ($clash) {
+            throw ValidationException::withMessages([
+                'starts_at' => 'That slot just got booked. Please pick another time.',
+            ]);
+        }
+
+        $tour = DB::transaction(function () use ($data, $facility, $startsAt) {
+            $admission = Admission::create([
+                'facility_id' => $facility->id,
+                'stage' => 'tour_scheduled',
+                'inquirer_name' => $data['attendee_name'],
+                'inquirer_email' => $data['attendee_email'],
+                'inquirer_phone' => $data['attendee_phone'] ?? null,
+                'inquirer_relationship' => $data['relationship_to_prospect'],
+                'prospect_first_name' => $data['prospect_first_name'],
+                'prospect_last_name' => $data['prospect_last_name'],
+                'prospect_level_of_care' => $data['prospect_level_of_care'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'stage_changed_at' => now(),
+            ]);
+
+            return Tour::create([
+                'facility_id' => $facility->id,
+                'admission_id' => $admission->id,
+                'starts_at' => $startsAt,
+                'duration_minutes' => 60,
+                'tour_type' => $data['tour_type'],
+                'attendee_name' => $data['attendee_name'],
+                'attendee_email' => $data['attendee_email'],
+                'attendee_phone' => $data['attendee_phone'] ?? null,
+                'relationship_to_prospect' => $data['relationship_to_prospect'],
+                'prospect_first_name' => $data['prospect_first_name'],
+                'prospect_last_name' => $data['prospect_last_name'],
+                'prospect_level_of_care' => $data['prospect_level_of_care'] ?? null,
+                'status' => 'confirmed',
+                'notes' => $data['notes'] ?? null,
+            ]);
+        });
+
+        return response()->json([
+            'ok' => true,
+            'tour_id' => $tour->id,
+            'admission_id' => $tour->admission_id,
+            'facility_name' => $facility->name,
+            'starts_at' => $tour->starts_at,
+            'tour_type' => $tour->tour_type,
+        ], 201);
+    }
 }

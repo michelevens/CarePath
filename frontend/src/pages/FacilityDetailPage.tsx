@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { Link, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -578,6 +578,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+type TourType = "in_person" | "virtual" | "self_guided"
+interface Slot { starts_at: string; label: string }
+
 function TourRequestDialog({
   open,
   onClose,
@@ -589,58 +592,106 @@ function TourRequestDialog({
   facilitySlug: string
   facilityName: string
 }) {
-  const [form, setForm] = useState({
-    inquirer_name: "",
-    inquirer_email: "",
-    inquirer_phone: "",
-    inquirer_relationship: "adult_child",
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const [tourType, setTourType] = useState<TourType | null>(null)
+  const [date, setDate] = useState<string>(() => {
+    // Default to first Tue-Sat in next 7 days.
+    const d = new Date()
+    while (d.getDay() === 0 || d.getDay() === 1) d.setDate(d.getDate() + 1)
+    return d.toISOString().slice(0, 10)
+  })
+  const [slot, setSlot] = useState<Slot | null>(null)
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+
+  const [details, setDetails] = useState({
+    attendee_name: "",
+    attendee_email: "",
+    attendee_phone: "",
+    relationship_to_prospect: "adult_child",
     prospect_first_name: "",
     prospect_last_name: "",
     prospect_level_of_care: "assisted",
-    target_admit_date: "",
     notes: "",
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [bookedSummary, setBookedSummary] = useState<{ starts_at: string; tour_type: TourType } | null>(null)
 
   const reset = () => {
-    setSuccess(false)
+    setStep(1)
+    setTourType(null)
+    setSlot(null)
+    setSlots([])
     setError(null)
-    setForm({
-      inquirer_name: "",
-      inquirer_email: "",
-      inquirer_phone: "",
-      inquirer_relationship: "adult_child",
+    setBookedSummary(null)
+    setDetails({
+      attendee_name: "",
+      attendee_email: "",
+      attendee_phone: "",
+      relationship_to_prospect: "adult_child",
       prospect_first_name: "",
       prospect_last_name: "",
       prospect_level_of_care: "assisted",
-      target_admit_date: "",
       notes: "",
     })
   }
 
+  // Fetch slots when (date, tourType) changes and we're on step 2.
+  useEffect(() => {
+    if (step !== 2 || !tourType) return
+    let alive = true
+    setLoadingSlots(true)
+    setSlot(null)
+    api
+      .get<{ slots: Slot[] }>(`/marketplace/facilities/${facilitySlug}/tour-slots`, {
+        params: { date, tour_type: tourType },
+      })
+      .then((r) => alive && setSlots(r.data.slots))
+      .catch(() => alive && setSlots([]))
+      .finally(() => alive && setLoadingSlots(false))
+    return () => {
+      alive = false
+    }
+  }, [step, tourType, date, facilitySlug])
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    setSubmitting(true)
+    if (!slot || !tourType) return
     setError(null)
+    setSubmitting(true)
     try {
-      await api.post("/marketplace/inquiries", {
+      await api.post("/marketplace/tours", {
         facility_slug: facilitySlug,
-        ...form,
-        target_admit_date: form.target_admit_date || undefined,
-        notes: form.notes || undefined,
-        inquirer_phone: form.inquirer_phone || undefined,
+        starts_at: slot.starts_at,
+        tour_type: tourType,
+        ...details,
+        attendee_phone: details.attendee_phone || undefined,
+        notes: details.notes || undefined,
       })
-      setSuccess(true)
+      setBookedSummary({ starts_at: slot.starts_at, tour_type: tourType })
+      setStep(4)
     } catch (err) {
       const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       const first = e.response?.data?.errors ? Object.values(e.response.data.errors)[0]?.[0] : undefined
-      setError(first ?? e.response?.data?.message ?? "Request failed")
+      setError(first ?? e.response?.data?.message ?? "Booking failed")
     } finally {
       setSubmitting(false)
     }
   }
+
+  const nextDays = useMemo(() => {
+    const out: Array<{ value: string; label: string }> = []
+    const d = new Date()
+    for (let i = 0; i < 21; i++) {
+      const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i)
+      out.push({
+        value: dt.toISOString().slice(0, 10),
+        label: dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+      })
+    }
+    return out
+  }, [])
 
   return (
     <Dialog
@@ -648,123 +699,266 @@ function TourRequestDialog({
       onOpenChange={(o) => {
         if (!o) {
           onClose()
-          if (success) setTimeout(reset, 300)
+          setTimeout(reset, 300)
         }
       }}
     >
       <DialogContent>
-        {success ? (
+        {step === 4 && bookedSummary ? (
           <div className="space-y-4 py-2 text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-foreground" />
             <DialogHeader>
-              <DialogTitle>Tour requested</DialogTitle>
+              <DialogTitle>Tour booked</DialogTitle>
               <DialogDescription>
-                {facilityName} will reach out within 1 business day.
+                {facilityName} on{" "}
+                <span className="font-medium text-foreground">
+                  {new Date(bookedSummary.starts_at).toLocaleString(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+                <br />
+                {bookedSummary.tour_type === "in_person" && "In-person tour"}
+                {bookedSummary.tour_type === "virtual" && "Virtual tour — link will be emailed"}
+                {bookedSummary.tour_type === "self_guided" && "Self-guided tour"}
               </DialogDescription>
             </DialogHeader>
             <Button onClick={onClose}>Done</Button>
           </div>
         ) : (
-          <form onSubmit={submit}>
+          <>
             <DialogHeader>
-              <DialogTitle>Request a tour — {facilityName}</DialogTitle>
+              <DialogTitle>
+                {step === 1 && "Choose tour type"}
+                {step === 2 && "Pick a date and time"}
+                {step === 3 && "Confirm your details"}
+              </DialogTitle>
               <DialogDescription>
-                We share this info only with the facility. No spam calls, ever.
+                {facilityName} · step {step} of 3
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <Field
-                label="Your name"
-                required
-                value={form.inquirer_name}
-                onChange={(v) => setForm((f) => ({ ...f, inquirer_name: v }))}
-                colspan
-              />
-              <Field
-                label="Email"
-                type="email"
-                required
-                value={form.inquirer_email}
-                onChange={(v) => setForm((f) => ({ ...f, inquirer_email: v }))}
-              />
-              <Field
-                label="Phone"
-                value={form.inquirer_phone}
-                onChange={(v) => setForm((f) => ({ ...f, inquirer_phone: v }))}
-              />
-              <Select
-                label="Relationship"
-                value={form.inquirer_relationship}
-                onChange={(v) => setForm((f) => ({ ...f, inquirer_relationship: v }))}
-                options={[
-                  { value: "self", label: "Self" },
-                  { value: "spouse", label: "Spouse" },
-                  { value: "adult_child", label: "Adult child" },
-                  { value: "poa", label: "POA" },
-                  { value: "hospital", label: "Hospital / planner" },
-                  { value: "other", label: "Other" },
-                ]}
-              />
-              <Select
-                label="Level of care"
-                value={form.prospect_level_of_care}
-                onChange={(v) => setForm((f) => ({ ...f, prospect_level_of_care: v }))}
-                options={[
-                  { value: "independent", label: "Independent" },
-                  { value: "assisted", label: "Assisted" },
-                  { value: "memory", label: "Memory care" },
-                  { value: "skilled", label: "Skilled nursing" },
-                  { value: "hospice", label: "Hospice" },
-                ]}
-              />
-              <Field
-                label="Prospective resident — first name"
-                required
-                value={form.prospect_first_name}
-                onChange={(v) => setForm((f) => ({ ...f, prospect_first_name: v }))}
-              />
-              <Field
-                label="Last name"
-                required
-                value={form.prospect_last_name}
-                onChange={(v) => setForm((f) => ({ ...f, prospect_last_name: v }))}
-              />
-              <Field
-                label="Target move-in date"
-                type="date"
-                value={form.target_admit_date}
-                onChange={(v) => setForm((f) => ({ ...f, target_admit_date: v }))}
-                colspan
-              />
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={3}
-                  placeholder="Anything you'd like the facility to know."
-                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+
+            {step === 1 && (
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                <TourTypeCard
+                  type="in_person"
+                  label="In-person tour"
+                  description="Visit on-site. Meet staff. See suites + common spaces."
+                  active={tourType === "in_person"}
+                  onClick={() => {
+                    setTourType("in_person")
+                    setStep(2)
+                  }}
+                />
+                <TourTypeCard
+                  type="virtual"
+                  label="Virtual tour"
+                  description="Video walkthrough with a staff member. 30–45 min on Zoom."
+                  active={tourType === "virtual"}
+                  onClick={() => {
+                    setTourType("virtual")
+                    setStep(2)
+                  }}
+                />
+                <TourTypeCard
+                  type="self_guided"
+                  label="Self-guided"
+                  description="Stop by during open hours. Front desk will hand you a map."
+                  active={tourType === "self_guided"}
+                  onClick={() => {
+                    setTourType("self_guided")
+                    setStep(2)
+                  }}
                 />
               </div>
-            </div>
-            {error && (
-              <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
+            )}
+
+            {step === 2 && tourType && (
+              <div className="mt-4 space-y-4">
+                <div className="flex gap-1 overflow-x-auto pb-1">
+                  {nextDays.map((d) => (
+                    <button
+                      key={d.value}
+                      onClick={() => setDate(d.value)}
+                      className={cn(
+                        "shrink-0 rounded-md border px-3 py-2 text-xs transition-colors",
+                        date === d.value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border bg-background hover:bg-accent"
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
+                {loadingSlots ? (
+                  <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking availability…
+                  </div>
+                ) : slots.length === 0 ? (
+                  <div className="rounded-md border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                    No openings on this date — try another day.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {slots.map((s) => (
+                      <button
+                        key={s.starts_at}
+                        onClick={() => {
+                          setSlot(s)
+                          setStep(3)
+                        }}
+                        className={cn(
+                          "rounded-md border px-3 py-2 text-sm transition-colors",
+                          slot?.starts_at === s.starts_at
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border bg-background hover:bg-accent"
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setStep(1)}>
+                    Back
+                  </Button>
+                </DialogFooter>
               </div>
             )}
-            <DialogFooter className="mt-4">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Send request
-              </Button>
-            </DialogFooter>
-          </form>
+
+            {step === 3 && slot && tourType && (
+              <form onSubmit={submit}>
+                <div className="mt-4 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  <div className="font-medium">
+                    {new Date(slot.starts_at).toLocaleString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <div className="text-xs text-muted-foreground capitalize">
+                    {tourType.replace("_", " ")} tour ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="underline hover:text-foreground"
+                    >
+                      change
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Field label="Your name" required colspan
+                    value={details.attendee_name}
+                    onChange={(v) => setDetails((d) => ({ ...d, attendee_name: v }))}
+                  />
+                  <Field label="Email" type="email" required
+                    value={details.attendee_email}
+                    onChange={(v) => setDetails((d) => ({ ...d, attendee_email: v }))}
+                  />
+                  <Field label="Phone"
+                    value={details.attendee_phone}
+                    onChange={(v) => setDetails((d) => ({ ...d, attendee_phone: v }))}
+                  />
+                  <Select label="Relationship"
+                    value={details.relationship_to_prospect}
+                    onChange={(v) => setDetails((d) => ({ ...d, relationship_to_prospect: v }))}
+                    options={[
+                      { value: "self", label: "Self" },
+                      { value: "spouse", label: "Spouse" },
+                      { value: "adult_child", label: "Adult child" },
+                      { value: "poa", label: "POA" },
+                      { value: "hospital", label: "Hospital / planner" },
+                      { value: "other", label: "Other" },
+                    ]}
+                  />
+                  <Select label="Level of care"
+                    value={details.prospect_level_of_care}
+                    onChange={(v) => setDetails((d) => ({ ...d, prospect_level_of_care: v }))}
+                    options={[
+                      { value: "independent", label: "Independent" },
+                      { value: "assisted", label: "Assisted" },
+                      { value: "memory", label: "Memory care" },
+                      { value: "skilled", label: "Skilled nursing" },
+                      { value: "hospice", label: "Hospice" },
+                    ]}
+                  />
+                  <Field label="Resident — first name" required
+                    value={details.prospect_first_name}
+                    onChange={(v) => setDetails((d) => ({ ...d, prospect_first_name: v }))}
+                  />
+                  <Field label="Last name" required
+                    value={details.prospect_last_name}
+                    onChange={(v) => setDetails((d) => ({ ...d, prospect_last_name: v }))}
+                  />
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium">Anything else?</label>
+                    <textarea
+                      value={details.notes}
+                      onChange={(e) => setDetails((d) => ({ ...d, notes: e.target.value }))}
+                      rows={2}
+                      placeholder="Specific concerns or questions for the tour."
+                      className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+                {error && (
+                  <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {error}
+                  </div>
+                )}
+                <DialogFooter className="mt-4">
+                  <Button type="button" variant="ghost" onClick={() => setStep(2)}>
+                    Back
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Confirm booking
+                  </Button>
+                </DialogFooter>
+              </form>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function TourTypeCard({
+  label,
+  description,
+  active,
+  onClick,
+}: {
+  type: TourType
+  label: string
+  description: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-start rounded-lg border p-4 text-left transition-colors",
+        active
+          ? "border-foreground bg-accent"
+          : "border-border bg-background hover:bg-accent"
+      )}
+    >
+      <span className="font-medium">{label}</span>
+      <span className="mt-1 text-sm text-muted-foreground">{description}</span>
+    </button>
   )
 }
 

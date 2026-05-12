@@ -83,4 +83,9 @@ class Facility extends Model
     {
         return $this->hasMany(FacilityReview::class)->where('is_published', true)->latest();
     }
+
+    public function tours(): HasMany
+    {
+        return $this->hasMany(Tour::class);
+    }
 }

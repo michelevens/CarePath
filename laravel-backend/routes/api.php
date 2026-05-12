@@ -8,6 +8,7 @@ use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityDataController;
 use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
+use App\Http\Controllers\Facility\TourController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\TwoFactorController;
@@ -19,7 +20,9 @@ Route::get('/health', fn () => ['ok' => true, 'service' => 'carepath-api']);
 Route::prefix('marketplace')->group(function () {
     Route::get('/facilities', [MarketplaceController::class, 'index']);
     Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
+    Route::get('/facilities/{slug}/tour-slots', [MarketplaceController::class, 'tourSlots']);
     Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);
+    Route::post('/tours', [MarketplaceController::class, 'bookTour']);
 });
 
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -98,5 +101,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/medications/{id}', [MedicationController::class, 'update']);
         Route::post('/medications/{id}/administer', [MedicationController::class, 'administer']);
         Route::get('/medication-history/by-resident/{residentId}', [MedicationController::class, 'historyForResident']);
+
+        Route::get('/tours', [TourController::class, 'index']);
+        Route::put('/tours/{id}/status', [TourController::class, 'updateStatus']);
     });
 });
