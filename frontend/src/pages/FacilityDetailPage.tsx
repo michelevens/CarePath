@@ -10,17 +10,56 @@ import {
   MapPin,
   Phone,
   Shield,
+  ShieldCheck,
   Star,
+  X,
 } from "lucide-react"
 import { api } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+
+interface Photo {
+  id: string
+  url: string
+  caption: string | null
+  category: string | null
+}
+
+interface PricingTier {
+  id: string
+  tier_type: "base" | "level_adder" | "ancillary" | "community_fee"
+  name: string
+  level_of_care: string | null
+  amount_cents: number
+  billing_cadence: "monthly" | "one_time" | "per_visit"
+  notes: string | null
+}
+
+interface Review {
+  id: string
+  author_name: string
+  author_relationship: string | null
+  rating: number
+  title: string | null
+  body: string
+  is_verified: boolean
+  stay_started_at: string | null
+  created_at: string
+}
+
+interface ReviewStats {
+  count: number
+  average: number
+  verified_count: number
+}
 
 interface Facility {
   id: string
   name: string
   slug: string
   type: string
+  ownership_type: string | null
   address_line_1: string
   address_line_2: string | null
   city: string
@@ -39,6 +78,10 @@ interface Facility {
   price_from_cents: number | null
   available_beds: number
   available_by_level: Record<string, number>
+  photos: Photo[]
+  pricing_tiers: PricingTier[]
+  reviews: Review[]
+  review_stats: ReviewStats
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -123,20 +166,7 @@ export function FacilityDetailPage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* Photo gallery placeholder */}
-        <div className="mb-6 grid h-72 grid-cols-4 gap-2 overflow-hidden rounded-xl">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className={
-                "flex items-center justify-center bg-muted text-muted-foreground/40 " +
-                (i === 0 ? "col-span-2 row-span-2" : "")
-              }
-            >
-              <Building2 className="h-10 w-10" />
-            </div>
-          ))}
-        </div>
+        <PhotoGallery photos={facility.photos} facilityName={facility.name} />
 
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           <div className="space-y-6">
@@ -192,6 +222,8 @@ export function FacilityDetailPage() {
               </p>
             </section>
 
+            <PricingBreakdown tiers={facility.pricing_tiers} />
+
             <section>
               <h2 className="text-lg font-semibold">Availability</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -237,6 +269,8 @@ export function FacilityDetailPage() {
                 )}
               </div>
             </section>
+
+            <ReviewsSection reviews={facility.reviews} stats={facility.review_stats} />
           </div>
 
           <aside>
@@ -291,6 +325,233 @@ function Badge({ children }: { children: React.ReactNode }) {
     <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
       {children}
     </span>
+  )
+}
+
+function PhotoGallery({ photos, facilityName }: { photos: Photo[]; facilityName: string }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  if (photos.length === 0) {
+    return (
+      <div className="mb-6 grid h-72 grid-cols-4 gap-2 overflow-hidden rounded-xl">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex items-center justify-center bg-muted text-muted-foreground/40",
+              i === 0 && "col-span-2 row-span-2"
+            )}
+          >
+            <Building2 className="h-10 w-10" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const featured = photos[0]
+  const sidePhotos = photos.slice(1, 5)
+
+  return (
+    <>
+      <div className="mb-6 grid h-72 grid-cols-4 gap-2 overflow-hidden rounded-xl md:h-96">
+        <button
+          onClick={() => setLightboxIndex(0)}
+          className={cn(
+            "col-span-2 row-span-2 overflow-hidden bg-muted",
+            sidePhotos.length === 0 && "col-span-4"
+          )}
+        >
+          <img
+            src={featured.url}
+            alt={featured.caption ?? facilityName}
+            className="h-full w-full object-cover transition-transform hover:scale-105"
+            loading="lazy"
+          />
+        </button>
+        {sidePhotos.map((p, i) => (
+          <button
+            key={p.id}
+            onClick={() => setLightboxIndex(i + 1)}
+            className="overflow-hidden bg-muted"
+          >
+            <img
+              src={p.url}
+              alt={p.caption ?? facilityName}
+              className="h-full w-full object-cover transition-transform hover:scale-105"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
+
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            onClick={() => setLightboxIndex(null)}
+            className="absolute right-4 top-4 rounded-full bg-background/20 p-2 text-white hover:bg-background/30"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={photos[lightboxIndex].url}
+            alt={photos[lightboxIndex].caption ?? ""}
+            className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  )
+}
+
+function PricingBreakdown({ tiers }: { tiers: PricingTier[] }) {
+  if (tiers.length === 0) {
+    return null
+  }
+
+  const fmtMoney = (cents: number) =>
+    `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+
+  const cadenceLabel = (c: string) =>
+    c === "monthly" ? "/mo" : c === "one_time" ? " one-time" : "/visit"
+
+  const baseRates = tiers.filter((t) => t.tier_type === "base")
+  const adders = tiers.filter((t) => t.tier_type === "level_adder")
+  const ancillaries = tiers.filter((t) => t.tier_type === "ancillary")
+  const fees = tiers.filter((t) => t.tier_type === "community_fee")
+
+  const Section = ({ title, items }: { title: string; items: PricingTier[] }) => {
+    if (items.length === 0) return null
+    return (
+      <div>
+        <div className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {title}
+        </div>
+        <ul className="mt-1 divide-y rounded-md border bg-card">
+          {items.map((t) => (
+            <li key={t.id} className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">{t.name}</div>
+                {t.notes && <div className="text-xs text-muted-foreground">{t.notes}</div>}
+              </div>
+              <div className="shrink-0 text-sm font-semibold tabular-nums">
+                {fmtMoney(t.amount_cents)}
+                <span className="font-normal text-muted-foreground">
+                  {cadenceLabel(t.billing_cadence)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Transparent pricing</h2>
+        <span className="text-xs text-muted-foreground">No hidden fees, no surprises.</span>
+      </div>
+      <div className="mt-3 space-y-4">
+        <Section title="Base rates" items={baseRates} />
+        <Section title="Level-of-care adders" items={adders} />
+        <Section title="Ancillary services" items={ancillaries} />
+        <Section title="Community fees" items={fees} />
+      </div>
+    </section>
+  )
+}
+
+function ReviewsSection({ reviews, stats }: { reviews: Review[]; stats: ReviewStats }) {
+  if (reviews.length === 0) {
+    return (
+      <section>
+        <h2 className="text-lg font-semibold">Reviews</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          No reviews yet for this facility.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Reviews</h2>
+        <span className="text-xs text-muted-foreground">
+          {stats.verified_count} of {stats.count} verified ·{" "}
+          <Shield className="inline h-3 w-3" /> tied to confirmed stays
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-4 rounded-md border bg-card px-4 py-3">
+        <div className="text-3xl font-semibold tabular-nums">{stats.average.toFixed(1)}</div>
+        <div className="flex-1">
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star
+                key={n}
+                className={cn(
+                  "h-4 w-4",
+                  n <= Math.round(stats.average)
+                    ? "fill-current text-foreground"
+                    : "text-muted-foreground/30"
+                )}
+              />
+            ))}
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            Based on {stats.count} review{stats.count === 1 ? "" : "s"}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {reviews.map((r) => (
+          <Card key={r.id}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{r.author_name}</span>
+                    {r.is_verified && (
+                      <span className="inline-flex items-center gap-1 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
+                        <ShieldCheck className="h-3 w-3" />
+                        Verified stay
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground capitalize">
+                    {r.author_relationship}
+                    {r.stay_started_at && (
+                      <> · stayed since {new Date(r.stay_started_at).toLocaleDateString()}</>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        n <= r.rating ? "fill-current" : "text-muted-foreground/30"
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+              {r.title && <h3 className="mt-2 font-medium">{r.title}</h3>}
+              <p className="mt-1 text-sm text-muted-foreground">{r.body}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
   )
 }
 
