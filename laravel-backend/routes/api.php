@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\FacilityDataController;
 use App\Http\Controllers\Facility\ResidentController;
@@ -62,5 +63,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/residents', [ResidentController::class, 'index']);
         Route::get('/residents/{id}', [ResidentController::class, 'show']);
         Route::post('/residents/{id}/discharge', [ResidentController::class, 'discharge']);
+
+        Route::get('/admissions', [AdmissionController::class, 'index']);
+        Route::post('/admissions', [AdmissionController::class, 'store']);
+        Route::get('/admissions/{id}', [AdmissionController::class, 'show']);
+        Route::put('/admissions/{id}', [AdmissionController::class, 'update']);
+        Route::put('/admissions/{id}/stage', [AdmissionController::class, 'updateStage']);
+        Route::delete('/admissions/{id}', [AdmissionController::class, 'destroy']);
     });
 });
