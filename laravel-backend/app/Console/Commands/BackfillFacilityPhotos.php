@@ -89,7 +89,7 @@ class BackfillFacilityPhotos extends Command
         $touched = 0;
         $photosCreated = 0;
 
-        $query->chunk(200, function ($facilities) use (&$touched, &$photosCreated) {
+        $query->chunkById(200, function ($facilities) use (&$touched, &$photosCreated) {
             foreach ($facilities as $facility) {
                 $pool = $this->poolFor($facility);
                 if (empty($pool)) continue;
