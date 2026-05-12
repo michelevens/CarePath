@@ -111,6 +111,8 @@ class MarketplaceController extends Controller
         $facilities = $query->limit($data['limit'] ?? 100)->get();
 
         // Exact radius check via haversine; also attach distance to payload.
+        // (Bounding box above is approximate — corners of the box can fall
+        // outside the actual circle, so this step trims those.)
         if ($origin) {
             $facilities = $facilities
                 ->map(function ($f) use ($origin) {
@@ -122,8 +124,7 @@ class MarketplaceController extends Controller
                     );
                     return $f;
                 })
-                ->filter(fn ($f) => $f->distance_miles <= ($f->_radius ?? 999))
-                ->filter(fn ($f) => $f->distance_miles <= 200)
+                ->filter(fn ($f) => $f->distance_miles <= $radiusMiles)
                 ->sortBy('distance_miles')
                 ->values();
         }

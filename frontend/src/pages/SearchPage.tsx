@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
-import { Building2, Loader2, MapPin, Search, Star } from "lucide-react"
+import { Link, useSearchParams } from "react-router-dom"
+import { Building2, Loader2, MapPin, Search, Star, X } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -39,21 +39,31 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 export function SearchPage() {
+  const [urlParams, setUrlParams] = useSearchParams()
+
   const [results, setResults] = useState<FacilityResult[]>([])
   const [origin, setOrigin] = useState<SearchResponse["origin"]>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [q, setQ] = useState("")
-  const [state, setState] = useState("")
-  const [city, setCity] = useState("")
-  const [zip, setZip] = useState("")
-  const [radiusMiles, setRadiusMiles] = useState("25")
-  const [type, setType] = useState("")
-  const [medicaidOnly, setMedicaidOnly] = useState(false)
-  const [minFiveStar, setMinFiveStar] = useState<string>("")
-  const [maxPriceMonthly, setMaxPriceMonthly] = useState<string>("")
-  const [sort, setSort] = useState<Sort>("recommended")
+  // Initial state pulls from URL params so landing-page handoffs and
+  // shared/refreshed URLs work.
+  const [q, setQ] = useState(() => urlParams.get("q") ?? "")
+  const [state, setState] = useState(() => urlParams.get("state") ?? "")
+  const [city, setCity] = useState(() => urlParams.get("city") ?? "")
+  const [zip, setZip] = useState(() => urlParams.get("zip") ?? "")
+  const [radiusMiles, setRadiusMiles] = useState(() => urlParams.get("radius") ?? "25")
+  const [type, setType] = useState(() => urlParams.get("type") ?? "")
+  const [medicaidOnly, setMedicaidOnly] = useState(() => urlParams.get("medicaid") === "1")
+  const [minFiveStar, setMinFiveStar] = useState<string>(
+    () => urlParams.get("min_star") ?? ""
+  )
+  const [maxPriceMonthly, setMaxPriceMonthly] = useState<string>(
+    () => urlParams.get("max_price") ?? ""
+  )
+  const [sort, setSort] = useState<Sort>(
+    () => (urlParams.get("sort") as Sort | null) ?? "recommended"
+  )
 
   const queryParams = useMemo(() => {
     const p: Record<string, string | number | boolean> = { sort }
@@ -69,6 +79,25 @@ export function SearchPage() {
     if (minFiveStar) p.min_five_star = Number(minFiveStar)
     if (maxPriceMonthly) p.max_price_cents = Number(maxPriceMonthly) * 100
     return p
+  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
+
+  // Sync state → URL (replace, not push, so back button doesn't trap)
+  useEffect(() => {
+    const next = new URLSearchParams()
+    if (q) next.set("q", q)
+    if (state) next.set("state", state)
+    if (city) next.set("city", city)
+    if (zip.length === 5) {
+      next.set("zip", zip)
+      next.set("radius", radiusMiles)
+    }
+    if (type) next.set("type", type)
+    if (medicaidOnly) next.set("medicaid", "1")
+    if (minFiveStar) next.set("min_star", minFiveStar)
+    if (maxPriceMonthly) next.set("max_price", maxPriceMonthly)
+    if (sort !== "recommended") next.set("sort", sort)
+    setUrlParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
 
   useEffect(() => {
@@ -91,6 +120,22 @@ export function SearchPage() {
       clearTimeout(t)
     }
   }, [queryParams])
+
+  const clearAll = () => {
+    setQ("")
+    setState("")
+    setCity("")
+    setZip("")
+    setRadiusMiles("25")
+    setType("")
+    setMedicaidOnly(false)
+    setMinFiveStar("")
+    setMaxPriceMonthly("")
+    setSort("recommended")
+  }
+
+  const hasAnyFilter =
+    q || state || city || zip.length === 5 || type || medicaidOnly || minFiveStar || maxPriceMonthly
 
   return (
     <div className="min-h-screen bg-background">
@@ -187,6 +232,15 @@ export function SearchPage() {
               />
               Medicaid only
             </label>
+            {hasAnyFilter && (
+              <button
+                onClick={clearAll}
+                className="ml-auto flex items-center gap-1 self-center pt-5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear all
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
