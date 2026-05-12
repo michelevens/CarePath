@@ -53,4 +53,14 @@ class Resident extends Model
     {
         return $this->hasMany(CarePlan::class);
     }
+
+    public function medications(): HasMany
+    {
+        return $this->hasMany(Medication::class);
+    }
+
+    public function medicationAdministrations(): HasMany
+    {
+        return $this->hasMany(MedicationAdministration::class);
+    }
 }
