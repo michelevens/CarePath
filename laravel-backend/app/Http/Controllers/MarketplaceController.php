@@ -352,4 +352,29 @@ class MarketplaceController extends Controller
             'tour_type' => $tour->tour_type,
         ], 201);
     }
+
+    /**
+     * POST /api/marketplace/cost-projection
+     *
+     * Stateless: returns a 5-year (or shorter) cost-of-care projection
+     * blending Medicare A SNF, Medicaid spend-down, LTC insurance, VA
+     * Aid & Attendance, and private pay. No DB writes.
+     */
+    public function costProjection(Request $request, CostProjectionService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'facility_slug' => ['required', 'string'],
+            'level_of_care' => ['required', 'in:independent,assisted,memory,skilled,hospice'],
+            'months' => ['required', 'integer', 'min:1', 'max:60'],
+            'starting_assets_cents' => ['required', 'integer', 'min:0'],
+            'monthly_income_cents' => ['required', 'integer', 'min:0'],
+            'medicare_part_a_eligible' => ['required', 'boolean'],
+            'medicaid_eligible_state' => ['nullable', 'boolean'],
+            'ltc_insurance_daily_benefit_cents' => ['nullable', 'integer', 'min:0'],
+            'ltc_insurance_total_pool_cents' => ['nullable', 'integer', 'min:0'],
+            'va_aa_status' => ['nullable', 'in:none,single_veteran,veteran_and_spouse,surviving_spouse'],
+        ]);
+
+        return response()->json(['data' => $service->project($data)]);
+    }
 }

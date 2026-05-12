@@ -23,6 +23,7 @@ Route::prefix('marketplace')->group(function () {
     Route::get('/facilities/{slug}/tour-slots', [MarketplaceController::class, 'tourSlots']);
     Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);
     Route::post('/tours', [MarketplaceController::class, 'bookTour']);
+    Route::post('/cost-projection', [MarketplaceController::class, 'costProjection']);
 });
 
 Route::post('/auth/register', [AuthController::class, 'register']);

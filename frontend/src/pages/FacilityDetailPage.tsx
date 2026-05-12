@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
+  Calculator,
   CheckCircle2,
   Loader2,
   Mail,
@@ -269,6 +270,11 @@ export function FacilityDetailPage() {
                 )}
               </div>
             </section>
+
+            <CostProjectionCalculator
+              facilitySlug={facility.slug}
+              defaultLevel={facility.pricing_tiers[0]?.level_of_care ?? "assisted"}
+            />
 
             <ReviewsSection reviews={facility.reviews} stats={facility.review_stats} />
           </div>
@@ -1016,6 +1022,329 @@ function Select({
           </option>
         ))}
       </select>
+    </div>
+  )
+}
+
+interface ProjectionYearRow {
+  year: number
+  facility_cost_cents: number
+  medicare_cents: number
+  medicaid_cents: number
+  ltc_cents: number
+  va_cents: number
+  out_of_pocket_cents: number
+}
+
+interface ProjectionResponse {
+  monthly_rate_cents: number
+  months: number
+  totals: {
+    facility_cost_cents: number
+    medicare_covered_cents: number
+    medicaid_covered_cents: number
+    ltc_covered_cents: number
+    va_covered_cents: number
+    out_of_pocket_cents: number
+    months_until_medicaid: number | null
+  }
+  by_year: ProjectionYearRow[]
+}
+
+function CostProjectionCalculator({
+  facilitySlug,
+  defaultLevel,
+}: {
+  facilitySlug: string
+  defaultLevel: string | null
+}) {
+  const [inputs, setInputs] = useState({
+    level_of_care: defaultLevel ?? "assisted",
+    months: 36,
+    starting_assets_dollars: 150000,
+    monthly_income_dollars: 2800,
+    medicare_part_a_eligible: false,
+    medicaid_eligible_state: true,
+    ltc_insurance_daily_benefit_dollars: 0,
+    ltc_insurance_total_pool_dollars: 0,
+    va_aa_status: "none" as "none" | "single_veteran" | "veteran_and_spouse" | "surviving_spouse",
+  })
+  const [result, setResult] = useState<ProjectionResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const project = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.post<{ data: ProjectionResponse }>("/marketplace/cost-projection", {
+        facility_slug: facilitySlug,
+        level_of_care: inputs.level_of_care,
+        months: inputs.months,
+        starting_assets_cents: Math.round(inputs.starting_assets_dollars * 100),
+        monthly_income_cents: Math.round(inputs.monthly_income_dollars * 100),
+        medicare_part_a_eligible: inputs.medicare_part_a_eligible,
+        medicaid_eligible_state: inputs.medicaid_eligible_state,
+        ltc_insurance_daily_benefit_cents: Math.round(inputs.ltc_insurance_daily_benefit_dollars * 100),
+        ltc_insurance_total_pool_cents: Math.round(inputs.ltc_insurance_total_pool_dollars * 100),
+        va_aa_status: inputs.va_aa_status,
+      })
+      setResult(res.data.data)
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const first = e.response?.data?.errors ? Object.values(e.response.data.errors)[0]?.[0] : undefined
+      setError(first ?? e.response?.data?.message ?? "Calculation failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Auto-compute on first mount.
+  useEffect(() => {
+    void project()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const fmt = (c: number) => `$${Math.round(c / 100).toLocaleString()}`
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Calculator className="h-5 w-5" />
+          Cost projection
+        </h2>
+        <span className="text-xs text-muted-foreground">
+          Blended Medicare A + Medicaid + LTC ins + VA + private pay
+        </span>
+      </div>
+
+      <Card className="mt-3">
+        <CardContent className="space-y-4 p-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Level of care</label>
+              <select
+                value={inputs.level_of_care}
+                onChange={(e) => setInputs({ ...inputs, level_of_care: e.target.value })}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              >
+                <option value="independent">Independent</option>
+                <option value="assisted">Assisted</option>
+                <option value="memory">Memory</option>
+                <option value="skilled">Skilled</option>
+                <option value="hospice">Hospice</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Months of care</label>
+              <input
+                type="number"
+                value={inputs.months}
+                min={1}
+                max={60}
+                onChange={(e) => setInputs({ ...inputs, months: Number(e.target.value) })}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Starting assets ($)</label>
+              <input
+                type="number"
+                value={inputs.starting_assets_dollars}
+                min={0}
+                step={1000}
+                onChange={(e) => setInputs({ ...inputs, starting_assets_dollars: Number(e.target.value) })}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Monthly income ($)</label>
+              <input
+                type="number"
+                value={inputs.monthly_income_dollars}
+                min={0}
+                step={100}
+                onChange={(e) => setInputs({ ...inputs, monthly_income_dollars: Number(e.target.value) })}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                LTC ins daily benefit ($)
+              </label>
+              <input
+                type="number"
+                value={inputs.ltc_insurance_daily_benefit_dollars}
+                min={0}
+                step={10}
+                onChange={(e) =>
+                  setInputs({ ...inputs, ltc_insurance_daily_benefit_dollars: Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">LTC ins total pool ($)</label>
+              <input
+                type="number"
+                value={inputs.ltc_insurance_total_pool_dollars}
+                min={0}
+                step={1000}
+                onChange={(e) =>
+                  setInputs({ ...inputs, ltc_insurance_total_pool_dollars: Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs font-medium text-muted-foreground">VA Aid & Attendance</label>
+              <select
+                value={inputs.va_aa_status}
+                onChange={(e) =>
+                  setInputs({ ...inputs, va_aa_status: e.target.value as typeof inputs.va_aa_status })
+                }
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+              >
+                <option value="none">Not eligible</option>
+                <option value="single_veteran">Single veteran ($2,727/mo)</option>
+                <option value="veteran_and_spouse">Veteran + spouse ($3,232/mo)</option>
+                <option value="surviving_spouse">Surviving spouse ($1,754/mo)</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={inputs.medicare_part_a_eligible}
+                onChange={(e) =>
+                  setInputs({ ...inputs, medicare_part_a_eligible: e.target.checked })
+                }
+              />
+              Eligible for Medicare Part A SNF benefit
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={inputs.medicaid_eligible_state}
+                onChange={(e) =>
+                  setInputs({ ...inputs, medicaid_eligible_state: e.target.checked })
+                }
+              />
+              State has Medicaid LTC waiver
+            </label>
+          </div>
+
+          <Button onClick={project} disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Recalculate
+          </Button>
+
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          {result && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                <Stat
+                  label="Total facility cost"
+                  value={fmt(result.totals.facility_cost_cents)}
+                />
+                <Stat
+                  label="Total covered by payers"
+                  value={fmt(
+                    result.totals.facility_cost_cents - result.totals.out_of_pocket_cents
+                  )}
+                />
+                <Stat
+                  label="Your out-of-pocket"
+                  value={fmt(result.totals.out_of_pocket_cents)}
+                  emphasize
+                />
+              </div>
+
+              {result.totals.months_until_medicaid !== null && (
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  Estimated Medicaid eligibility:{" "}
+                  <span className="font-medium">
+                    month {result.totals.months_until_medicaid}
+                  </span>{" "}
+                  (when assets drop below $2,000).
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Year-by-year breakdown
+                </div>
+                <div className="mt-2 overflow-x-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Year</th>
+                        <th className="px-3 py-2 text-right font-medium">Facility cost</th>
+                        <th className="px-3 py-2 text-right font-medium">Medicare</th>
+                        <th className="px-3 py-2 text-right font-medium">Medicaid</th>
+                        <th className="px-3 py-2 text-right font-medium">LTC ins</th>
+                        <th className="px-3 py-2 text-right font-medium">VA</th>
+                        <th className="px-3 py-2 text-right font-medium">Out of pocket</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.by_year.map((r) => (
+                        <tr key={r.year} className="border-t">
+                          <td className="px-3 py-2">Year {r.year}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {fmt(r.facility_cost_cents)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {r.medicare_cents > 0 ? fmt(r.medicare_cents) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {r.medicaid_cents > 0 ? fmt(r.medicaid_cents) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {r.ltc_cents > 0 ? fmt(r.ltc_cents) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {r.va_cents > 0 ? fmt(r.va_cents) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium tabular-nums">
+                            {fmt(r.out_of_pocket_cents)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Estimates use 2024 federal benchmarks. State-specific
+                Medicaid rules and asset exemptions vary. Talk to an
+                elder-law attorney before relying on these numbers for
+                planning.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
+
+function Stat({ label, value, emphasize }: { label: string; value: string; emphasize?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-card p-3",
+        emphasize && "border-foreground bg-accent"
+      )}
+    >
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
     </div>
   )
 }
