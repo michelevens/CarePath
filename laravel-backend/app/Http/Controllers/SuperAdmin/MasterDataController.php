@@ -230,6 +230,26 @@ class MasterDataController extends Controller
     }
 
     /**
+     * Ingest real facility data from the CMS Nursing Home Compare dataset.
+     * Bounded by state to keep the synchronous request under the request
+     * timeout; full national ingest should be a queued job (future).
+     */
+    public function ingestCms(Request $request, \App\Services\CmsIngestService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'state' => ['nullable', 'string', 'size:2'],
+            'max' => ['nullable', 'integer', 'min:1', 'max:10000'],
+        ]);
+
+        $result = $service->ingest(
+            $data['state'] ?? null,
+            $data['max'] ?? 2000,
+        );
+
+        return response()->json($result);
+    }
+
+    /**
      * @return array{model: class-string<Model>, rules: array<string, array<int, string>>, master_only: bool}
      */
     private function config(string $type): array
