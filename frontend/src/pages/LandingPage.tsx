@@ -100,14 +100,28 @@ export function LandingPage() {
       </header>
 
       {/* HERO */}
-      <section className="mx-auto max-w-7xl px-6 py-20 text-center md:py-28">
-        <h1 className="text-balance text-5xl font-semibold tracking-tight md:text-6xl">
-          Find the right long-term care.
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground">
-          8,400+ real facilities. Live availability. CMS Five-Star ratings.
-          Transparent pricing. <span className="font-medium text-foreground">No lead-selling, ever.</span>
-        </p>
+      <section className="relative isolate overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute inset-x-0 -top-24 -z-10 mx-auto h-[600px] max-w-5xl rounded-full opacity-60 blur-3xl"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 18%, transparent), transparent)",
+          }}
+        />
+        <div className="mx-auto max-w-7xl px-6 py-20 text-center md:py-28">
+          <div className="mx-auto inline-flex items-center gap-2 rounded-full border bg-accent/60 px-3 py-1 text-xs font-medium text-accent-foreground">
+            <Sparkles className="h-3.5 w-3.5" />
+            Live CMS data · No lead-selling
+          </div>
+          <h1 className="mt-6 text-balance text-5xl font-semibold tracking-tight md:text-6xl">
+            Find the right long-term care.
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground">
+            8,400+ real facilities. Live availability. CMS Five-Star ratings.
+            Transparent pricing.{" "}
+            <span className="font-medium text-foreground">No lead-selling, ever.</span>
+          </p>
 
         <form
           onSubmit={onSubmit}
@@ -144,12 +158,13 @@ export function LandingPage() {
           </Button>
         </form>
 
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
-          <Stat label="real facilities" value="8,400+" />
-          <span>·</span>
-          <Stat label="states covered" value="15" />
-          <span>·</span>
-          <Stat label="CMS data sync" value="Daily" />
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
+            <Stat label="real facilities" value="8,400+" />
+            <span>·</span>
+            <Stat label="states covered" value="15" />
+            <span>·</span>
+            <Stat label="CMS data sync" value="Daily" />
+          </div>
         </div>
       </section>
 
@@ -163,9 +178,9 @@ export function LandingPage() {
             <Link
               key={c.type}
               to={`/search?type=${c.type}`}
-              className="group block rounded-xl border bg-card p-5 transition-all hover:border-foreground hover:shadow-md"
+              className="hover-lift group block rounded-xl border bg-card p-5"
             >
-              <c.icon className="h-7 w-7 text-muted-foreground transition-colors group-hover:text-foreground" />
+              <c.icon className="h-7 w-7 text-primary" />
               <div className="mt-3 font-semibold">{c.label}</div>
               <div className="mt-1 text-sm text-muted-foreground">{c.description}</div>
             </Link>
@@ -331,12 +346,12 @@ export function LandingPage() {
       </section>
 
       {/* FINAL CTA */}
-      <section className="border-t bg-foreground text-background">
+      <section className="border-t bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-6 py-16 text-center">
           <h2 className="text-3xl font-semibold tracking-tight">
             Ready to find care?
           </h2>
-          <p className="text-background/80">
+          <p className="text-primary-foreground/80">
             8,400+ facilities. Zero spam calls. Start your search now.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-2">
