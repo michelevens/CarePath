@@ -33,7 +33,7 @@ return new class extends Migration
         Schema::create('care_plan_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('care_plan_id')->constrained('care_plans')->cascadeOnDelete();
-            $table->foreignUuid('parent_id')->nullable()->constrained('care_plan_items')->nullOnDelete();
+            $table->uuid('parent_id')->nullable(); // self-FK added below — Postgres doesn't allow inline self-refs
 
             $table->string('kind'); // goal | intervention
             $table->string('category')->nullable(); // adl | mobility | nutrition | behavior | safety | meds | wound | psychosocial
@@ -51,6 +51,12 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['care_plan_id', 'kind']);
+        });
+
+        Schema::table('care_plan_items', function (Blueprint $table) {
+            $table->foreign('parent_id')
+                ->references('id')->on('care_plan_items')
+                ->nullOnDelete();
         });
     }
 
