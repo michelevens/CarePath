@@ -5,6 +5,7 @@ use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityDataController;
+use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
@@ -81,5 +82,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/care-plans/{id}/items', [CarePlanController::class, 'storeItem']);
         Route::put('/care-plans/{id}/items/{itemId}', [CarePlanController::class, 'updateItem']);
         Route::delete('/care-plans/{id}/items/{itemId}', [CarePlanController::class, 'destroyItem']);
+
+        Route::get('/medications/today', [MedicationController::class, 'todayBoard']);
+        Route::get('/medications/by-resident/{residentId}', [MedicationController::class, 'indexForResident']);
+        Route::post('/medications/by-resident/{residentId}', [MedicationController::class, 'storeForResident']);
+        Route::put('/medications/{id}', [MedicationController::class, 'update']);
+        Route::post('/medications/{id}/administer', [MedicationController::class, 'administer']);
+        Route::get('/medication-history/by-resident/{residentId}', [MedicationController::class, 'historyForResident']);
     });
 });
