@@ -68,4 +68,19 @@ class Facility extends Model
     {
         return $this->belongsToMany(User::class)->withPivot('role');
     }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(FacilityPhoto::class)->orderBy('sort_order');
+    }
+
+    public function pricingTiers(): HasMany
+    {
+        return $this->hasMany(FacilityPricingTier::class)->orderBy('sort_order');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(FacilityReview::class)->where('is_published', true)->latest();
+    }
 }
