@@ -21,6 +21,8 @@ import { MasterDataPage } from "@/portals/superadmin/MasterDataPage"
 import { AuditLogPage } from "@/portals/superadmin/AuditLogPage"
 import { FacilityDataPage } from "@/portals/admin/FacilityDataPage"
 import { AdmissionsKanban } from "@/portals/admin/AdmissionsKanban"
+import { CarePlanIndex } from "@/portals/staff/CarePlanIndex"
+import { CarePlanDetail } from "@/portals/staff/CarePlanDetail"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 
 const PORTALS = [
@@ -78,6 +80,12 @@ function App() {
             <>
               <Route path="admissions" element={<AdmissionsKanban />} />
               <Route path="data" element={<FacilityDataPage />} />
+            </>
+          )}
+          {path === "staff" && (
+            <>
+              <Route path="care-plans" element={<CarePlanIndex />} />
+              <Route path="care-plans/:residentId" element={<CarePlanDetail />} />
             </>
           )}
         </Route>

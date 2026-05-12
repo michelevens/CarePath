@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Resident extends Model
@@ -41,5 +42,15 @@ class Resident extends Model
     public function bed(): HasOne
     {
         return $this->hasOne(Bed::class);
+    }
+
+    public function carePlan(): HasOne
+    {
+        return $this->hasOne(CarePlan::class);
+    }
+
+    public function carePlans(): HasMany
+    {
+        return $this->hasMany(CarePlan::class);
     }
 }

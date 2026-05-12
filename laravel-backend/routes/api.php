@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BedController;
+use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityDataController;
 use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
@@ -70,5 +71,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/admissions/{id}', [AdmissionController::class, 'update']);
         Route::put('/admissions/{id}/stage', [AdmissionController::class, 'updateStage']);
         Route::delete('/admissions/{id}', [AdmissionController::class, 'destroy']);
+
+        Route::get('/care-plans', [CarePlanController::class, 'index']);
+        Route::get('/care-plans/by-resident/{residentId}', [CarePlanController::class, 'showByResident']);
+        Route::post('/care-plans/by-resident/{residentId}', [CarePlanController::class, 'storeForResident']);
+        Route::put('/care-plans/{id}', [CarePlanController::class, 'update']);
+        Route::post('/care-plans/{id}/sign', [CarePlanController::class, 'sign']);
+        Route::post('/care-plans/{id}/unsign', [CarePlanController::class, 'unsign']);
+        Route::post('/care-plans/{id}/items', [CarePlanController::class, 'storeItem']);
+        Route::put('/care-plans/{id}/items/{itemId}', [CarePlanController::class, 'updateItem']);
+        Route::delete('/care-plans/{id}/items/{itemId}', [CarePlanController::class, 'destroyItem']);
     });
 });
