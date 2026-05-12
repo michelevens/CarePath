@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             DemoCarePlansSeeder::class,
             DemoMedicationsSeeder::class,
             DemoFacilityProfileSeeder::class,
+            DemoAmenitiesSeeder::class,
         ]);
     }
 }

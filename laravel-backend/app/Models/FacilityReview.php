@@ -13,11 +13,21 @@ class FacilityReview extends Model
 
     protected $fillable = [
         'facility_id', 'resident_id', 'author_name', 'author_relationship',
-        'rating', 'title', 'body', 'is_verified', 'stay_started_at', 'is_published',
+        'rating',
+        'rating_cleanliness', 'rating_friendliness', 'rating_care',
+        'rating_staff', 'rating_meals', 'rating_activities', 'rating_value',
+        'title', 'body', 'is_verified', 'stay_started_at', 'is_published',
     ];
 
     protected $casts = [
         'rating' => 'integer',
+        'rating_cleanliness' => 'integer',
+        'rating_friendliness' => 'integer',
+        'rating_care' => 'integer',
+        'rating_staff' => 'integer',
+        'rating_meals' => 'integer',
+        'rating_activities' => 'integer',
+        'rating_value' => 'integer',
         'is_verified' => 'boolean',
         'is_published' => 'boolean',
         'stay_started_at' => 'date',

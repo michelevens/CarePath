@@ -178,6 +178,7 @@ class MarketplaceController extends Controller
                 'photos' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
                 'pricingTiers' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
                 'reviews' => fn ($q) => $q->where('is_published', true)->latest()->take(20),
+                'amenities' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
             ])
             ->firstOrFail();
 
@@ -197,15 +198,75 @@ class MarketplaceController extends Controller
             'count' => $facility->reviews->count(),
             'average' => round((float) $facility->reviews->avg('rating'), 1),
             'verified_count' => $facility->reviews->where('is_verified', true)->count(),
+            'sub_scores' => [
+                'cleanliness' => $this->avgRating($facility->reviews, 'rating_cleanliness'),
+                'friendliness' => $this->avgRating($facility->reviews, 'rating_friendliness'),
+                'care' => $this->avgRating($facility->reviews, 'rating_care'),
+                'staff' => $this->avgRating($facility->reviews, 'rating_staff'),
+                'meals' => $this->avgRating($facility->reviews, 'rating_meals'),
+                'activities' => $this->avgRating($facility->reviews, 'rating_activities'),
+                'value' => $this->avgRating($facility->reviews, 'rating_value'),
+            ],
         ];
+
+        // Comparable nearby facilities — same state, sorted by Five-Star,
+        // then by distance if we have lat/lon for this facility.
+        $compareQuery = Facility::query()
+            ->where('is_active', true)
+            ->where('id', '!=', $facility->id)
+            ->where('state', $facility->state)
+            ->select(['id', 'name', 'slug', 'type', 'city', 'state',
+                'latitude', 'longitude', 'cms_five_star_overall',
+                'medicaid_certified', 'price_from_cents', 'total_beds']);
+
+        $comparables = $compareQuery->limit(20)->get();
+
+        if ($facility->latitude && $facility->longitude) {
+            $comparables = $comparables
+                ->map(function ($c) use ($facility) {
+                    if ($c->latitude && $c->longitude) {
+                        $c->distance_miles = $this->haversineMiles(
+                            (float) $facility->latitude,
+                            (float) $facility->longitude,
+                            (float) $c->latitude,
+                            (float) $c->longitude
+                        );
+                    }
+                    return $c;
+                })
+                ->sortBy(fn ($c) => $c->distance_miles ?? 9999)
+                ->take(6)
+                ->values();
+        } else {
+            $comparables = $comparables
+                ->sortByDesc('cms_five_star_overall')
+                ->take(6)
+                ->values();
+        }
+
+        $comparablesPayload = $comparables->map(function ($c) {
+            $arr = $c->toArray();
+            if (isset($c->distance_miles)) {
+                $arr['distance_miles'] = round((float) $c->distance_miles, 1);
+            }
+            return $arr;
+        });
 
         return response()->json([
             'data' => array_merge($facility->toArray(), [
                 'available_beds' => $availableBeds,
                 'available_by_level' => $byLevel,
                 'review_stats' => $reviewStats,
+                'comparables' => $comparablesPayload,
             ]),
         ]);
+    }
+
+    private function avgRating($reviews, string $field): ?float
+    {
+        $vals = $reviews->pluck($field)->filter()->values();
+        if ($vals->isEmpty()) return null;
+        return round((float) $vals->avg(), 1);
     }
 
     /**

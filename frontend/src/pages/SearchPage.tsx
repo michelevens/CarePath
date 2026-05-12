@@ -303,12 +303,20 @@ export function SearchPage() {
 
 function ResultCard({ r }: { r: FacilityResult }) {
   const monthly = r.price_from_cents ? Math.round(r.price_from_cents / 100).toLocaleString() : null
+  const hasBeds = r.available_beds > 0
   return (
     <Link to={`/facility/${r.slug}`} className="block">
-      <Card className="overflow-hidden transition-shadow hover:shadow-md">
+      <Card className="hover-lift overflow-hidden">
         <div className="flex">
-          <div className="flex h-40 w-56 shrink-0 items-center justify-center bg-muted">
-            <Building2 className="h-10 w-10 text-muted-foreground/40" />
+          {/* Photo placeholder with a soft violet gradient instead of pure gray */}
+          <div
+            className="flex h-40 w-56 shrink-0 items-center justify-center"
+            style={{
+              background:
+                "linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 12%, var(--color-card)), color-mix(in oklch, var(--color-primary) 28%, var(--color-card)))",
+            }}
+          >
+            <Building2 className="h-12 w-12 text-primary/60" />
           </div>
           <CardContent className="flex-1 p-5">
             <div className="flex items-start justify-between">
@@ -318,26 +326,28 @@ function ResultCard({ r }: { r: FacilityResult }) {
                   <MapPin className="h-3.5 w-3.5" />
                   {r.city}, {r.state} · {TYPE_LABEL[r.type] ?? r.type}
                   {r.distance_miles !== undefined && (
-                    <span className="ml-1 text-foreground">· {r.distance_miles} mi</span>
+                    <span className="ml-1 font-medium text-foreground">
+                      · {r.distance_miles} mi
+                    </span>
                   )}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
                   {r.medicaid_certified && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                    <span className="rounded bg-accent px-1.5 py-0.5 font-medium text-accent-foreground">
                       Medicaid
                     </span>
                   )}
                   {r.medicare_certified && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                    <span className="rounded bg-accent px-1.5 py-0.5 font-medium text-accent-foreground">
                       Medicare
                     </span>
                   )}
                 </div>
               </div>
               {r.cms_five_star_overall && (
-                <div className="flex items-center gap-1 text-sm">
-                  <Star className="h-4 w-4 fill-current" />
-                  <span className="font-medium">{r.cms_five_star_overall}</span>
+                <div className="flex shrink-0 items-center gap-1 rounded-md border bg-card px-2 py-1 text-sm">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                  <span className="font-semibold">{r.cms_five_star_overall}</span>
                   <span className="text-xs text-muted-foreground">CMS</span>
                 </div>
               )}
@@ -355,13 +365,21 @@ function ResultCard({ r }: { r: FacilityResult }) {
               </div>
               <span
                 className={cn(
-                  "text-sm font-medium",
-                  r.available_beds === 0 ? "text-muted-foreground" : "text-foreground"
+                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+                  hasBeds
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                    : "bg-muted text-muted-foreground"
                 )}
               >
-                {r.available_beds === 0
-                  ? "Waitlist only"
-                  : `${r.available_beds} bed${r.available_beds === 1 ? "" : "s"} available`}
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    hasBeds ? "bg-emerald-500" : "bg-muted-foreground/50"
+                  )}
+                />
+                {hasBeds
+                  ? `${r.available_beds} bed${r.available_beds === 1 ? "" : "s"} available`
+                  : "Waitlist only"}
               </span>
             </div>
           </CardContent>

@@ -53,6 +53,36 @@ interface ReviewStats {
   count: number
   average: number
   verified_count: number
+  sub_scores: {
+    cleanliness: number | null
+    friendliness: number | null
+    care: number | null
+    staff: number | null
+    meals: number | null
+    activities: number | null
+    value: number | null
+  }
+}
+
+interface Amenity {
+  id: string
+  category: "healthcare" | "dining" | "room" | "community" | "activities" | "services"
+  name: string
+  detail: string | null
+  is_featured: boolean
+}
+
+interface ComparableFacility {
+  id: string
+  name: string
+  slug: string
+  city: string
+  state: string
+  cms_five_star_overall: number | null
+  medicaid_certified: boolean
+  price_from_cents: number | null
+  total_beds: number
+  distance_miles?: number
 }
 
 interface Facility {
@@ -83,6 +113,8 @@ interface Facility {
   pricing_tiers: PricingTier[]
   reviews: Review[]
   review_stats: ReviewStats
+  amenities: Amenity[]
+  comparables: ComparableFacility[]
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -271,12 +303,21 @@ export function FacilityDetailPage() {
               </div>
             </section>
 
+            <AmenitiesSection amenities={facility.amenities} />
+
             <CostProjectionCalculator
               facilitySlug={facility.slug}
               defaultLevel={facility.pricing_tiers[0]?.level_of_care ?? "assisted"}
             />
 
             <ReviewsSection reviews={facility.reviews} stats={facility.review_stats} />
+
+            <LocationSection facility={facility} />
+
+            <ComparableFacilitiesSection
+              facilities={facility.comparables}
+              currentName={facility.name}
+            />
           </div>
 
           <aside>
@@ -495,25 +536,38 @@ function ReviewsSection({ reviews, stats }: { reviews: Review[]; stats: ReviewSt
         </span>
       </div>
 
-      <div className="mt-3 flex items-center gap-4 rounded-md border bg-card px-4 py-3">
-        <div className="text-3xl font-semibold tabular-nums">{stats.average.toFixed(1)}</div>
-        <div className="flex-1">
-          <div className="flex items-center gap-0.5">
+      <div className="mt-3 grid gap-3 md:grid-cols-[200px_1fr]">
+        <div className="flex flex-col items-center justify-center rounded-md border bg-accent/40 px-4 py-5 text-center">
+          <div className="text-4xl font-bold tabular-nums text-foreground">
+            {stats.average.toFixed(1)}
+          </div>
+          <div className="mt-1 flex items-center gap-0.5">
             {[1, 2, 3, 4, 5].map((n) => (
               <Star
                 key={n}
                 className={cn(
                   "h-4 w-4",
                   n <= Math.round(stats.average)
-                    ? "fill-current text-foreground"
+                    ? "fill-amber-400 text-amber-500"
                     : "text-muted-foreground/30"
                 )}
               />
             ))}
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            Based on {stats.count} review{stats.count === 1 ? "" : "s"}
+          <div className="mt-1 text-xs text-muted-foreground">
+            {stats.count} review{stats.count === 1 ? "" : "s"}
           </div>
+        </div>
+
+        {/* Multi-metric sub-scores */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border bg-card px-4 py-4 text-sm">
+          <SubScore label="Cleanliness" value={stats.sub_scores.cleanliness} />
+          <SubScore label="Friendliness" value={stats.sub_scores.friendliness} />
+          <SubScore label="Care services" value={stats.sub_scores.care} />
+          <SubScore label="Staff" value={stats.sub_scores.staff} />
+          <SubScore label="Meals" value={stats.sub_scores.meals} />
+          <SubScore label="Activities" value={stats.sub_scores.activities} />
+          <SubScore label="Value for cost" value={stats.sub_scores.value} />
         </div>
       </div>
 
@@ -1424,5 +1478,261 @@ function Stat({ label, value, emphasize }: { label: string; value: string; empha
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
     </div>
+  )
+}
+
+function SubScore({ label, value }: { label: string; value: number | null }) {
+  const pct = value ? (value / 5) * 100 : 0
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-24 shrink-0 text-xs text-muted-foreground">{label}</span>
+      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-8 shrink-0 text-right text-xs font-semibold tabular-nums">
+        {value ? value.toFixed(1) : "—"}
+      </span>
+    </div>
+  )
+}
+
+/* ──────────────── Amenities ──────────────── */
+
+import {
+  Stethoscope,
+  Utensils,
+  BedDouble,
+  Users,
+  Music,
+  Truck,
+  ChevronDown,
+  ChevronRight,
+  Navigation,
+} from "lucide-react"
+
+const AMENITY_CATEGORY_LABEL: Record<Amenity["category"], string> = {
+  healthcare: "Healthcare services",
+  dining: "Dining",
+  room: "Room features",
+  community: "Community",
+  activities: "Activities",
+  services: "Services",
+}
+
+const AMENITY_CATEGORY_ICON: Record<Amenity["category"], React.ComponentType<{ className?: string }>> = {
+  healthcare: Stethoscope,
+  dining: Utensils,
+  room: BedDouble,
+  community: Users,
+  activities: Music,
+  services: Truck,
+}
+
+function AmenitiesSection({ amenities }: { amenities: Amenity[] }) {
+  const grouped = useMemo(() => {
+    const map: Record<Amenity["category"], Amenity[]> = {
+      healthcare: [], dining: [], room: [], community: [], activities: [], services: [],
+    }
+    amenities.forEach((a) => map[a.category]?.push(a))
+    return map
+  }, [amenities])
+
+  const orderedCategories = (Object.keys(AMENITY_CATEGORY_LABEL) as Amenity["category"][]).filter(
+    (c) => grouped[c].length > 0
+  )
+
+  if (orderedCategories.length === 0) return null
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Amenities &amp; services</h2>
+        <span className="text-xs text-muted-foreground">
+          {amenities.length} listed
+        </span>
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {orderedCategories.map((cat) => (
+          <AmenityCategoryCard
+            key={cat}
+            category={cat}
+            label={AMENITY_CATEGORY_LABEL[cat]}
+            items={grouped[cat]}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function AmenityCategoryCard({
+  category,
+  label,
+  items,
+}: {
+  category: Amenity["category"]
+  label: string
+  items: Amenity[]
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const Icon = AMENITY_CATEGORY_ICON[category]
+  const visible = expanded ? items : items.slice(0, 5)
+  const hasMore = items.length > 5
+
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2.5">
+          <div className="rounded-lg bg-accent p-2 text-accent-foreground">
+            <Icon className="h-4 w-4" />
+          </div>
+          <div className="font-semibold">{label}</div>
+          <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
+        </div>
+        <ul className="mt-3 space-y-1.5 text-sm">
+          {visible.map((a) => (
+            <li key={a.id} className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>
+                {a.name}
+                {a.detail && (
+                  <span className="ml-1 text-muted-foreground">— {a.detail}</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {hasMore && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            {expanded ? "Show fewer" : `Show all ${items.length}`}
+          </button>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/* ──────────────── Location + map ──────────────── */
+
+function LocationSection({ facility }: { facility: Facility }) {
+  const addressQuery = encodeURIComponent(
+    `${facility.address_line_1}, ${facility.city}, ${facility.state} ${facility.zip}`
+  )
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Location</h2>
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${addressQuery}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          <Navigation className="h-3.5 w-3.5" />
+          Get directions
+        </a>
+      </div>
+      <Card className="mt-3 overflow-hidden">
+        <iframe
+          title={`Map of ${facility.name}`}
+          src={`https://www.google.com/maps?q=${addressQuery}&output=embed`}
+          className="block h-[320px] w-full border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+        <div className="border-t bg-muted/30 px-4 py-3 text-sm">
+          <div className="font-medium">
+            {facility.address_line_1}
+            {facility.address_line_2 && <>, {facility.address_line_2}</>}
+          </div>
+          <div className="text-muted-foreground">
+            {facility.city}, {facility.state} {facility.zip}
+          </div>
+        </div>
+      </Card>
+    </section>
+  )
+}
+
+/* ──────────────── Comparable nearby facilities ──────────────── */
+
+function ComparableFacilitiesSection({
+  facilities,
+  currentName,
+}: {
+  facilities: ComparableFacility[]
+  currentName: string
+}) {
+  if (facilities.length === 0) return null
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Nearby alternatives</h2>
+        <span className="text-xs text-muted-foreground">
+          Compare with other facilities families looked at alongside {currentName}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {facilities.map((c) => {
+          const monthly = c.price_from_cents
+            ? Math.round(c.price_from_cents / 100).toLocaleString()
+            : null
+          return (
+            <Link key={c.id} to={`/facility/${c.slug}`} className="block">
+              <Card className="hover-lift">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold">{c.name}</div>
+                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {c.city}, {c.state}
+                        {c.distance_miles !== undefined && (
+                          <span className="ml-1 font-medium text-foreground">
+                            · {c.distance_miles} mi
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {c.cms_five_star_overall && (
+                      <span className="flex items-center gap-0.5 text-xs">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                        <span className="font-medium">{c.cms_five_star_overall}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-end justify-between text-xs">
+                    <div>
+                      {monthly ? (
+                        <>
+                          <span className="text-sm font-semibold">${monthly}</span>
+                          <span className="text-muted-foreground"> /mo</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Pricing on request</span>
+                      )}
+                    </div>
+                    {c.medicaid_certified && (
+                      <span className="rounded bg-accent px-1.5 py-0.5 font-medium text-accent-foreground">
+                        Medicaid
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
   )
 }
