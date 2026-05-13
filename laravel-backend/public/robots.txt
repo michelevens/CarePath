@@ -1,2 +1,11 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /family
+Disallow: /staff
+Disallow: /admin
+Disallow: /network
+Disallow: /referral
+Disallow: /superadmin
+Disallow: /settings
+
+Sitemap: https://carepath-api-production.up.railway.app/sitemap.xml
