@@ -114,11 +114,19 @@ OVERPASS;
         $lat = $el['lat'] ?? ($el['center']['lat'] ?? null);
         $lon = $el['lon'] ?? ($el['center']['lon'] ?? null);
 
-        // Need a real address — skip orphan POIs that won't help families.
+        // Require name + state (state comes from the Overpass area filter)
+        // plus EITHER a street address OR lat/lon. Missing city/zip is fine —
+        // reverse geocoding can backfill those later.
         $addr = $this->buildAddress($tags);
-        $city = $tags['addr:city'] ?? null;
-        $zip = $tags['addr:postcode'] ?? null;
-        if (! $addr || ! $city || ! $zip) return null;
+        $hasGeo = is_numeric($lat) && is_numeric($lon);
+        if (! $addr && ! $hasGeo) return null;
+
+        $city = $tags['addr:city']
+            ?? $tags['is_in:city']
+            ?? null;
+        $zip = $tags['addr:postcode']
+            ?? $tags['postal_code']
+            ?? null;
 
         $type = $this->detectType($name, $tags);
 
@@ -127,7 +135,7 @@ OVERPASS;
             'name' => Str::title(Str::lower($name)),
             'type' => $type,
             'address_line_1' => $addr,
-            'city' => Str::title(Str::lower($city)),
+            'city' => $city ? Str::title(Str::lower($city)) : null,
             'state' => $stateCode,
             'zip' => $this->normalizeZip($zip),
             'county' => $tags['addr:county'] ?? null,
