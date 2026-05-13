@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 const TOOLS: Array<{
   slug: string
@@ -69,6 +70,11 @@ const TOOLS: Array<{
 export function ToolsPage() {
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="Free decision tools for long-term care"
+        description="Care-level quiz, cost projection, Medicaid eligibility, VA Aid & Attendance check, facility search. No signup, no lead-selling."
+        canonical="/tools"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

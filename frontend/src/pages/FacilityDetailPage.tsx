@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { useCompare } from "@/lib/useCompare"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 interface Photo {
   id: string
@@ -185,8 +186,43 @@ export function FacilityDetailPage() {
     ? Math.round(facility.price_from_cents / 100).toLocaleString()
     : null
 
+  const typeLabel = TYPE_LABEL[facility.type] ?? facility.type
+  const metaTitle = `${facility.name} — ${typeLabel} in ${facility.city}, ${facility.state}`
+  const metaDescription = `${facility.name} in ${facility.city}, ${facility.state}. ${typeLabel}${facility.cms_five_star_overall ? ` · CMS ${facility.cms_five_star_overall}/5 stars` : ""}${monthly ? ` · from $${monthly}/mo` : ""}. View pricing, availability, photos, and reviews.`
+  const facilityJsonLd = {
+    "@context": "https://schema.org",
+    "@type": facility.type === "snf" ? "MedicalBusiness" : "LodgingBusiness",
+    name: facility.name,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: facility.city,
+      addressRegion: facility.state,
+      postalCode: facility.zip,
+      addressCountry: "US",
+    },
+    image: facility.photos?.[0]?.url,
+    aggregateRating:
+      facility.review_stats?.count && facility.review_stats.average
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: facility.review_stats.average,
+            reviewCount: facility.review_stats.count,
+            bestRating: 5,
+          }
+        : undefined,
+    priceRange: monthly ? `from $${monthly}/mo` : undefined,
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title={metaTitle}
+        description={metaDescription}
+        image={facility.photos?.[0]?.url}
+        canonical={`/facility/${facility.slug}`}
+        type="website"
+        jsonLd={facilityJsonLd}
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

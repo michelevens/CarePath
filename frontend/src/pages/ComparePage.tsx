@@ -16,6 +16,7 @@ import { api } from "@/lib/api"
 import { useCompare } from "@/lib/useCompare"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 interface CompareFacility {
   id: string
@@ -136,6 +137,11 @@ export function ComparePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="Compare long-term care facilities side-by-side"
+        description="Compare up to 4 facilities side-by-side — CMS ratings, pricing, beds, amenities, Medicaid acceptance."
+        canonical="/compare"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

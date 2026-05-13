@@ -11,6 +11,7 @@ import {
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 interface Article {
   id: string
@@ -97,8 +98,33 @@ export function ArticleDetailPage() {
     )
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.summary,
+    image: article.hero_image_url ?? undefined,
+    datePublished: article.published_at,
+    author: {
+      "@type": "Person",
+      name: article.author_name,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "CarePath",
+    },
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title={article.title}
+        description={article.summary}
+        image={article.hero_image_url ?? undefined}
+        canonical={`/articles/${article.slug}`}
+        type="article"
+        jsonLd={jsonLd}
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

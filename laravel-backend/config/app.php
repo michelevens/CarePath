@@ -56,6 +56,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'public_site_url' => env('PUBLIC_SITE_URL', 'https://michelevens.github.io/CarePath'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

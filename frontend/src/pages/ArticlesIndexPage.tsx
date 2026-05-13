@@ -5,6 +5,7 @@ import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Meta } from "@/components/Meta"
 
 interface Article {
   id: string
@@ -60,6 +61,11 @@ export function ArticlesIndexPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="Long-term care articles, guides & resources"
+        description="Plain-English guides on Medicare, Medicaid, VA benefits, and how to pick a long-term care facility. Free, evidence-based, no lead-selling."
+        canonical="/articles"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

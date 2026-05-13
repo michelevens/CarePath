@@ -24,6 +24,7 @@ import {
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 const CARE_TYPES = [
   {
@@ -119,6 +120,11 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="Long-term care, modernized"
+        description="Find skilled nursing, assisted living, and memory care with real availability, real reviews, and transparent pricing. No lead-selling, ever."
+        canonical="/"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-xl font-semibold tracking-tight">

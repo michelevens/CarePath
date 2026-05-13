@@ -14,6 +14,7 @@ import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 type AssetBand = "under_2k" | "2k_30k" | "30k_150k" | "over_150k"
 type IncomeBand = "under_900" | "900_1800" | "1800_2829" | "over_2829"
@@ -280,6 +281,11 @@ export function MedicaidEligibilityPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="Medicaid eligibility check for long-term care"
+        description="State-aware Medicaid eligibility quiz. 5 questions on assets, income, and care setting return a likely / spend-down / Miller-trust verdict. Educational, no signup."
+        canonical="/tools/medicaid-eligibility"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

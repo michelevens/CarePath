@@ -14,6 +14,7 @@ import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 type Applicant = "veteran" | "veteran_spouse" | "two_vets" | "surviving_spouse"
 type WartimeService = "wwii" | "korea" | "vietnam" | "gulf" | "none"
@@ -226,6 +227,11 @@ export function VaEligibilityPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="VA Aid & Attendance eligibility check (2026)"
+        description="6-question eligibility quiz for the VA Aid & Attendance pension. Get a likely / not-eligible verdict plus a filing kit. Up to $3,740/month for qualifying wartime veterans."
+        canonical="/tools/va-eligibility"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

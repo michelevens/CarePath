@@ -16,6 +16,7 @@ import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 /**
  * 10-question care-level quiz. Each answer carries weighted scores across
@@ -231,6 +232,11 @@ export function CareLevelQuizPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title="Care-level quiz: assisted living, memory care, or skilled nursing?"
+        description="10-question quiz that maps your loved one's needs to the right level of long-term care. Free, no signup."
+        canonical="/tools/care-level-quiz"
+      />
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">

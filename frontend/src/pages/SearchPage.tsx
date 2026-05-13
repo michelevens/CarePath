@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { useCompare } from "@/lib/useCompare"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Meta } from "@/components/Meta"
 
 interface FacilityResult {
   id: string
@@ -150,6 +151,17 @@ export function SearchPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Meta
+        title={
+          city && state
+            ? `Long-term care in ${city}, ${state}`
+            : state
+            ? `Long-term care facilities in ${state}`
+            : "Search 8,400+ long-term care facilities"
+        }
+        description="Find skilled nursing, assisted living, and memory care facilities with real availability, CMS Five-Star ratings, and transparent pricing. No lead-selling."
+        canonical="/search"
+      />
       <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">
