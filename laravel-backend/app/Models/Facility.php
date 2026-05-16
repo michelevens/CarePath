@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Facility extends Model
 {
@@ -92,5 +93,21 @@ class Facility extends Model
     public function amenities(): HasMany
     {
         return $this->hasMany(FacilityAmenity::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Polymorphic subscription accessor. Facility Pro / Network plans
+     * live here; the cached `subscription_tier` column is the read-time
+     * source of truth for gating, updated by SubscriptionService on
+     * webhook events.
+     */
+    public function subscriptions(): MorphMany
+    {
+        return $this->morphMany(Subscription::class, 'subscriber');
+    }
+
+    public function placements(): HasMany
+    {
+        return $this->hasMany(Placement::class);
     }
 }

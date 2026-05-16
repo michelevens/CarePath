@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -75,6 +77,30 @@ class User extends Authenticatable implements MustVerifyEmail
     public function facilities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class)->withPivot('role')->withTimestamps();
+    }
+
+    /**
+     * Advisor-side relations. advisorProfile is HasOne; if null the user
+     * is not a placement advisor. placementsAsAdvisor lists placements
+     * sourced by this user.
+     */
+    public function advisorProfile(): HasOne
+    {
+        return $this->hasOne(AdvisorProfile::class);
+    }
+
+    public function placementsAsAdvisor()
+    {
+        return $this->hasMany(Placement::class, 'advisor_user_id');
+    }
+
+    /**
+     * Polymorphic subscription accessor — used for Family Pro and
+     * Advisor SaaS tiers. Facility subscriptions hang off Facility.
+     */
+    public function subscriptions(): MorphMany
+    {
+        return $this->morphMany(Subscription::class, 'subscriber');
     }
 
     /**
