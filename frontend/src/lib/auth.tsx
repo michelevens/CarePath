@@ -8,6 +8,7 @@ export type Portal =
   | "admin"
   | "network"
   | "referral"
+  | "hospital"
   | "superadmin"
 
 export type Role =
@@ -16,6 +17,7 @@ export type Role =
   | "facility_admin"
   | "facility_staff"
   | "referral_partner"
+  | "hospital_partner"
   | "family_member"
   | "resident"
 

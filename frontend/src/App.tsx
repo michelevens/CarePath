@@ -43,6 +43,11 @@ const ReferralProfilePage = lazy(() => import("@/portals/referral/ReferralProfil
 const ReferralPayoutsPage = lazy(() => import("@/portals/referral/ReferralPayoutsPage").then(m => ({ default: m.ReferralPayoutsPage })))
 const ReferralPipelinePage = lazy(() => import("@/portals/referral/ReferralPipelinePage").then(m => ({ default: m.ReferralPipelinePage })))
 const ReferralBillingPage = lazy(() => import("@/portals/referral/ReferralBillingPage").then(m => ({ default: m.ReferralBillingPage })))
+const HospitalDashboard = lazy(() => import("@/portals/hospital/HospitalDashboard").then(m => ({ default: m.HospitalDashboard })))
+const HospitalProfilePage = lazy(() => import("@/portals/hospital/HospitalProfilePage").then(m => ({ default: m.HospitalProfilePage })))
+const HospitalReferralsPage = lazy(() => import("@/portals/hospital/HospitalReferralsPage").then(m => ({ default: m.HospitalReferralsPage })))
+const HospitalEmbedPage = lazy(() => import("@/portals/hospital/HospitalEmbedPage").then(m => ({ default: m.HospitalEmbedPage })))
+const EmbedSearchPage = lazy(() => import("@/pages/EmbedSearchPage").then(m => ({ default: m.EmbedSearchPage })))
 const SuperAdminDashboard = lazy(() => import("@/portals/superadmin/SuperAdminDashboard").then(m => ({ default: m.SuperAdminDashboard })))
 const MasterDataPage = lazy(() => import("@/portals/superadmin/MasterDataPage").then(m => ({ default: m.MasterDataPage })))
 const AuditLogPage = lazy(() => import("@/portals/superadmin/AuditLogPage").then(m => ({ default: m.AuditLogPage })))
@@ -62,6 +67,7 @@ const PORTALS = [
   { path: "admin", Dashboard: AdminDashboard },
   { path: "network", Dashboard: NetworkDashboard },
   { path: "referral", Dashboard: ReferralDashboard },
+  { path: "hospital", Dashboard: HospitalDashboard },
   { path: "superadmin", Dashboard: SuperAdminDashboard },
 ] as const
 
@@ -99,6 +105,9 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+        {/* Embeddable widget for hospital partners — iframe target. */}
+        <Route path="/embed/search" element={<EmbedSearchPage />} />
 
         {/* Authenticated, portal-agnostic */}
         <Route
@@ -151,6 +160,13 @@ function App() {
                 <Route path="placements" element={<ReferralPayoutsPage />} />
                 <Route path="pipeline" element={<ReferralPipelinePage />} />
                 <Route path="billing" element={<ReferralBillingPage />} />
+              </>
+            )}
+            {path === "hospital" && (
+              <>
+                <Route path="profile" element={<HospitalProfilePage />} />
+                <Route path="referrals" element={<HospitalReferralsPage />} />
+                <Route path="embed" element={<HospitalEmbedPage />} />
               </>
             )}
           </Route>

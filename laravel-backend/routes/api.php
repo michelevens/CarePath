@@ -9,6 +9,8 @@ use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
 use App\Http\Controllers\Facility\SponsoredController as FacilitySponsoredController;
 use App\Http\Controllers\Family\BillingController as FamilyBillingController;
+use App\Http\Controllers\Hospital\EmbedController as HospitalEmbedController;
+use App\Http\Controllers\Hospital\HospitalController;
 use App\Http\Controllers\Referral\BillingController as ReferralBillingController;
 use App\Http\Controllers\Referral\ReferralController;
 use App\Http\Controllers\Facility\BedController;
@@ -28,6 +30,15 @@ Route::get('/health', fn () => ['ok' => true, 'service' => 'carepath-api']);
 // Stripe webhook — unauthenticated, signature-verified inside the
 // controller via STRIPE_WEBHOOK_SECRET.
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+
+// Hospital embed widget API — auth via X-CarePath-Embed-Key header.
+// Public so the widget can fire from any hospital's static page; rate
+// limited per partner inside each controller method.
+Route::prefix('embed')->group(function () {
+    Route::get('/config', [HospitalEmbedController::class, 'config']);
+    Route::get('/facilities', [HospitalEmbedController::class, 'facilities']);
+    Route::post('/inquiries', [HospitalEmbedController::class, 'inquiry']);
+});
 
 // Public marketplace — no auth.
 Route::prefix('marketplace')->group(function () {
@@ -186,5 +197,18 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/billing/subscription', [ReferralBillingController::class, 'show']);
             Route::post('/billing/checkout', [ReferralBillingController::class, 'checkout']);
             Route::post('/billing/cancel', [ReferralBillingController::class, 'cancel']);
+        });
+
+    // Hospital / discharge-planner portal
+    Route::prefix('hospital')
+        ->middleware('role:hospital_partner|super_admin')
+        ->group(function () {
+            Route::get('/profile', [HospitalController::class, 'profile']);
+            Route::put('/profile', [HospitalController::class, 'updateProfile']);
+            Route::get('/api-key', [HospitalController::class, 'showApiKey']);
+            Route::post('/regenerate-api-key', [HospitalController::class, 'regenerateApiKey']);
+            Route::post('/connect/onboarding', [HospitalController::class, 'connectOnboarding']);
+            Route::get('/stats', [HospitalController::class, 'stats']);
+            Route::get('/referrals', [HospitalController::class, 'referrals']);
         });
 });

@@ -98,6 +98,14 @@ class RolePermissionSeeder extends Seeder
             'referral.create', 'referral.view_own',
         ],
 
+        'hospital_partner' => [
+            // Hospital case managers / discharge planners. Same upstream
+            // referral abilities as placement advisors but scoped via
+            // attribution to their hospital_partners row.
+            'facility.view_any', 'facility.view',
+            'referral.create', 'referral.view_own',
+        ],
+
         'family_member' => [
             'facility.view_any', 'facility.view',
             'resident.view', // limited to their loved one — enforced in policy

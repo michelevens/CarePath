@@ -117,6 +117,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'facility_admin' => 'admin',
             'facility_staff' => 'staff',
             'referral_partner' => 'referral',
+            'hospital_partner' => 'hospital',
             'family_member' => 'family',
             'resident' => 'resident',
         ];
@@ -133,6 +134,7 @@ class User extends Authenticatable implements MustVerifyEmail
             str_starts_with($this->email, 'staff.') => 'staff',
             str_starts_with($this->email, 'network.') => 'network',
             str_starts_with($this->email, 'referral.') => 'referral',
+            str_starts_with($this->email, 'hospital.') => 'hospital',
             str_starts_with($this->email, 'family.') => 'family',
             str_starts_with($this->email, 'resident.') => 'resident',
             default => null,

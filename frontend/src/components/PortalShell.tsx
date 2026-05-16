@@ -87,6 +87,15 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/referral/profile", label: "Agency profile", icon: Settings },
     ],
   },
+  hospital: {
+    title: "Hospital partner",
+    items: [
+      { to: "/hospital", label: "Overview", icon: Home },
+      { to: "/hospital/referrals", label: "Referrals", icon: Users },
+      { to: "/hospital/embed", label: "Widget &amp; embed code", icon: Sparkles },
+      { to: "/hospital/profile", label: "Profile", icon: Settings },
+    ],
+  },
   superadmin: {
     title: "Super admin",
     items: [
