@@ -9,6 +9,7 @@ use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
 use App\Http\Controllers\Facility\SponsoredController as FacilitySponsoredController;
 use App\Http\Controllers\Family\BillingController as FamilyBillingController;
+use App\Http\Controllers\Referral\BillingController as ReferralBillingController;
 use App\Http\Controllers\Referral\ReferralController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
@@ -179,5 +180,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/stats', [ReferralController::class, 'stats']);
             Route::get('/placements', [ReferralController::class, 'placements']);
             Route::get('/pipeline', [ReferralController::class, 'pipeline']);
+
+            // Advisor SaaS subscription management.
+            Route::get('/billing/plans', [ReferralBillingController::class, 'plans']);
+            Route::get('/billing/subscription', [ReferralBillingController::class, 'show']);
+            Route::post('/billing/checkout', [ReferralBillingController::class, 'checkout']);
+            Route::post('/billing/cancel', [ReferralBillingController::class, 'cancel']);
         });
 });

@@ -83,6 +83,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/referral", label: "Overview", icon: Home },
       { to: "/referral/pipeline", label: "Pipeline", icon: Users },
       { to: "/referral/payouts", label: "Payouts", icon: BarChart3 },
+      { to: "/referral/billing", label: "Subscription", icon: BarChart3 },
       { to: "/referral/profile", label: "Agency profile", icon: Settings },
     ],
   },

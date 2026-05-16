@@ -42,6 +42,7 @@ const ReferralDashboard = lazy(() => import("@/portals/referral/ReferralDashboar
 const ReferralProfilePage = lazy(() => import("@/portals/referral/ReferralProfilePage").then(m => ({ default: m.ReferralProfilePage })))
 const ReferralPayoutsPage = lazy(() => import("@/portals/referral/ReferralPayoutsPage").then(m => ({ default: m.ReferralPayoutsPage })))
 const ReferralPipelinePage = lazy(() => import("@/portals/referral/ReferralPipelinePage").then(m => ({ default: m.ReferralPipelinePage })))
+const ReferralBillingPage = lazy(() => import("@/portals/referral/ReferralBillingPage").then(m => ({ default: m.ReferralBillingPage })))
 const SuperAdminDashboard = lazy(() => import("@/portals/superadmin/SuperAdminDashboard").then(m => ({ default: m.SuperAdminDashboard })))
 const MasterDataPage = lazy(() => import("@/portals/superadmin/MasterDataPage").then(m => ({ default: m.MasterDataPage })))
 const AuditLogPage = lazy(() => import("@/portals/superadmin/AuditLogPage").then(m => ({ default: m.AuditLogPage })))
@@ -149,6 +150,7 @@ function App() {
                 <Route path="payouts" element={<ReferralPayoutsPage />} />
                 <Route path="placements" element={<ReferralPayoutsPage />} />
                 <Route path="pipeline" element={<ReferralPipelinePage />} />
+                <Route path="billing" element={<ReferralBillingPage />} />
               </>
             )}
           </Route>

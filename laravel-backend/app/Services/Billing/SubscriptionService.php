@@ -90,14 +90,18 @@ class SubscriptionService
     }
 
     /**
-     * Map a subscriber instance to its plan audience.
+     * Map a subscriber instance to its plan audience for free-tier
+     * feature fallbacks. For User subscribers, look at the spatie
+     * role: referral_partner → advisor, anything else → family.
      */
     private function audienceFor(Model $subscriber): string
     {
-        return match (true) {
-            $subscriber instanceof Facility => 'facility',
-            $subscriber instanceof User => 'advisor', // assume advisor; family users typically don't subscribe
-            default => 'facility',
-        };
+        if ($subscriber instanceof Facility) {
+            return 'facility';
+        }
+        if ($subscriber instanceof User) {
+            return $subscriber->hasRole('referral_partner') ? 'advisor' : 'family';
+        }
+        return 'facility';
     }
 }
