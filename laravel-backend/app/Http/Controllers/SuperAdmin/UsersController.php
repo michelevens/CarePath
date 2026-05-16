@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admission;
 use App\Models\AdvisorProfile;
 use App\Models\Facility;
 use App\Models\HospitalPartner;
+use App\Models\Tour;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -277,6 +279,14 @@ class UsersController extends Controller
             ->with('user:id,name,email')
             ->first();
 
+        // Per-flow data attached to this user. Each role surfaces a
+        // different "what have they actually done on the platform" view:
+        //   family_member → tours they've requested
+        //   referral_partner / hospital_partner → admissions they sourced
+        //   facility_admin / staff / network → handled via the
+        //     facility_memberships relationship above
+        $flowActivity = $this->flowActivityFor($user);
+
         // Recent platform activity. Audit log is the canonical source;
         // limit to 20 most recent rows touching this user.
         $audit = DB::table('audit_logs')
@@ -335,9 +345,76 @@ class UsersController extends Controller
                     'verified_at' => $hospital->verified_at,
                 ] : null,
                 'recent_activity' => $audit,
+                'flow_activity' => $flowActivity,
             ],
             'assignable_roles' => self::ASSIGNABLE_ROLES,
         ]);
+    }
+
+    /**
+     * Per-role activity payload. Returned as a tagged shape so the
+     * frontend can render the right card without per-role branching
+     * on the controller's caller.
+     *
+     * @return array{type: string, ...}
+     */
+    private function flowActivityFor(User $user): array
+    {
+        // Family member: tours they requested by email match.
+        if ($user->hasRole('family_member')) {
+            $tours = Tour::query()
+                ->where('attendee_email', $user->email)
+                ->with('facility:id,name,slug,city,state')
+                ->orderByDesc('starts_at')
+                ->limit(20)
+                ->get(['id', 'facility_id', 'starts_at', 'status', 'tour_type', 'prospect_first_name', 'prospect_last_name']);
+            return [
+                'type' => 'family',
+                'tours' => $tours->map(fn ($t) => [
+                    'id' => $t->id,
+                    'facility' => $t->facility ? [
+                        'name' => $t->facility->name,
+                        'slug' => $t->facility->slug,
+                        'city' => $t->facility->city,
+                        'state' => $t->facility->state,
+                    ] : null,
+                    'starts_at' => $t->starts_at,
+                    'status' => $t->status,
+                    'tour_type' => $t->tour_type,
+                    'prospect' => trim(($t->prospect_first_name ?? '') . ' ' . ($t->prospect_last_name ?? '')),
+                ]),
+                'tours_count' => Tour::where('attendee_email', $user->email)->count(),
+            ];
+        }
+
+        // Advisor / hospital partner: admissions they sourced.
+        if ($user->hasRole('referral_partner') || $user->hasRole('hospital_partner')) {
+            $admissions = Admission::query()
+                ->where('sourced_by_user_id', $user->id)
+                ->with('facility:id,name,slug,city,state')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get(['id', 'facility_id', 'stage', 'attribution_source', 'prospect_first_name', 'prospect_last_name', 'created_at', 'stage_changed_at']);
+            return [
+                'type' => 'partner',
+                'admissions' => $admissions->map(fn ($a) => [
+                    'id' => $a->id,
+                    'facility' => $a->facility ? [
+                        'name' => $a->facility->name,
+                        'slug' => $a->facility->slug,
+                        'city' => $a->facility->city,
+                        'state' => $a->facility->state,
+                    ] : null,
+                    'stage' => $a->stage,
+                    'attribution_source' => $a->attribution_source,
+                    'prospect' => trim(($a->prospect_first_name ?? '') . ' ' . ($a->prospect_last_name ?? '')),
+                    'created_at' => $a->created_at,
+                ]),
+                'admissions_count' => Admission::where('sourced_by_user_id', $user->id)->count(),
+            ];
+        }
+
+        return ['type' => 'none'];
     }
 
     /**

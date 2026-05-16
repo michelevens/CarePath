@@ -359,6 +359,30 @@ const ROLE_META: Record<string, RoleMeta> = {
   },
 }
 
+/**
+ * Visual grouping for the invite picker. Every role we serve falls
+ * into exactly one of these. Renders the three sections so a
+ * SuperAdmin doesn't think the invite flow only supports facility
+ * staff at a glance.
+ */
+const ROLE_GROUPS: Array<{ title: string; blurb: string; roles: string[] }> = [
+  {
+    title: "Facility team",
+    blurb: "People who work at or oversee one or more facilities on the platform.",
+    roles: ["facility_admin", "facility_staff", "network_admin"],
+  },
+  {
+    title: "Referral partners",
+    blurb: "Independent professionals who send placements and earn commissions.",
+    roles: ["referral_partner", "hospital_partner"],
+  },
+  {
+    title: "Consumers",
+    blurb: "Families researching care and residents using the platform directly.",
+    roles: ["family_member", "resident"],
+  },
+]
+
 function InviteModal({
   onClose,
   onInvited,
@@ -370,7 +394,7 @@ function InviteModal({
 }) {
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
-  const [role, setRole] = useState(assignable[0] ?? "facility_admin")
+  const [role, setRole] = useState<string>("")  // no preselection
   const [facilityIds, setFacilityIds] = useState<string[]>([])
   const [agencyName, setAgencyName] = useState("")
   const [orgName, setOrgName] = useState("")
@@ -378,17 +402,21 @@ function InviteModal({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  const meta = ROLE_META[role] ?? { label: role, description: "", icon: UsersIcon }
+  const meta = role ? (ROLE_META[role] ?? null) : null
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!role) {
+      setErr("Pick a user type first.")
+      return
+    }
     setBusy(true)
     setErr(null)
     try {
       const body: Record<string, unknown> = { email, name, role }
-      if (meta.needsFacility) body.facility_ids = facilityIds
-      if (meta.needsAgency) body.agency_name = agencyName
-      if (meta.needsOrg) {
+      if (meta?.needsFacility) body.facility_ids = facilityIds
+      if (meta?.needsAgency) body.agency_name = agencyName
+      if (meta?.needsOrg) {
         body.org_name = orgName
         body.partner_type = partnerType
       }
@@ -405,40 +433,65 @@ function InviteModal({
   return (
     <Modal onClose={onClose} title="Invite user" wide>
       <form onSubmit={submit} className="space-y-5">
-        {/* Role picker: 7 cards, click to select. More discoverable than
-            a dropdown and surfaces the type-specific context inline. */}
+        {/* Role picker grouped into the three audiences we actually
+            serve, so it's clear the invite supports more than just
+            facility staff. Nothing is preselected — the SuperAdmin
+            picks deliberately. */}
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">
-            Who are you inviting?
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {assignable.map((r) => {
-              const m = ROLE_META[r] ?? { label: r, description: "", icon: UsersIcon }
-              const Icon = m.icon
-              const selected = role === r
+          <div className="mb-1 text-sm font-medium">Who are you inviting?</div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            CarePath supports every audience listed below — pick the type that
+            matches the person you're adding.
+          </p>
+          <div className="space-y-4">
+            {ROLE_GROUPS.map((group) => {
+              const visibleRoles = group.roles.filter((r) => assignable.includes(r))
+              if (visibleRoles.length === 0) return null
               return (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={`flex items-start gap-2 rounded-md border p-2 text-left transition-colors ${
-                    selected
-                      ? "border-violet-300 bg-violet-50"
-                      : "hover:border-violet-200 hover:bg-muted/30"
-                  }`}
-                >
-                  <Icon
-                    className={`mt-0.5 h-4 w-4 shrink-0 ${
-                      selected ? "text-violet-700" : "text-muted-foreground"
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{m.label}</div>
-                    <div className="text-[11px] text-muted-foreground leading-snug">
-                      {m.description}
-                    </div>
+                <div key={group.title}>
+                  <div className="mb-1.5 flex items-baseline gap-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.title}
+                    </h3>
+                    <span className="text-[11px] text-muted-foreground">
+                      {group.blurb}
+                    </span>
                   </div>
-                </button>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {visibleRoles.map((r) => {
+                      const m = ROLE_META[r] ?? { label: r, description: "", icon: UsersIcon }
+                      const Icon = m.icon
+                      const selected = role === r
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setRole(r)}
+                          className={`flex items-start gap-2 rounded-md border p-2 text-left transition-colors ${
+                            selected
+                              ? "border-violet-400 bg-violet-50 ring-1 ring-violet-300"
+                              : "hover:border-violet-200 hover:bg-muted/30"
+                          }`}
+                        >
+                          <Icon
+                            className={`mt-0.5 h-4 w-4 shrink-0 ${
+                              selected ? "text-violet-700" : "text-muted-foreground"
+                            }`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium">{m.label}</div>
+                            <div className="text-[11px] text-muted-foreground leading-snug">
+                              {m.description}
+                            </div>
+                          </div>
+                          {selected && (
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-700" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -467,7 +520,7 @@ function InviteModal({
         </div>
 
         {/* Per-role context */}
-        {meta.needsFacility && (
+        {meta?.needsFacility && (
           <Field
             label={
               meta.multiFacility
@@ -483,7 +536,7 @@ function InviteModal({
           </Field>
         )}
 
-        {meta.needsAgency && (
+        {meta?.needsAgency && (
           <Field label="Agency name (optional)">
             <input
               value={agencyName}
@@ -500,7 +553,7 @@ function InviteModal({
           </Field>
         )}
 
-        {meta.needsOrg && (
+        {meta?.needsOrg && (
           <div className="grid grid-cols-2 gap-3">
             <Field label="Organization name">
               <input

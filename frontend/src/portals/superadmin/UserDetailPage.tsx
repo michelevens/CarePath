@@ -57,6 +57,29 @@ interface AuditEntry {
   created_at: string
 }
 
+interface FamilyTour {
+  id: string
+  facility: { name: string; slug: string; city: string; state: string } | null
+  starts_at: string
+  status: string
+  tour_type: string
+  prospect: string
+}
+
+interface PartnerAdmission {
+  id: string
+  facility: { name: string; slug: string; city: string; state: string } | null
+  stage: string
+  attribution_source: string | null
+  prospect: string
+  created_at: string
+}
+
+type FlowActivity =
+  | { type: "family"; tours: FamilyTour[]; tours_count: number }
+  | { type: "partner"; admissions: PartnerAdmission[]; admissions_count: number }
+  | { type: "none" }
+
 interface UserDetail {
   id: number
   name: string
@@ -74,6 +97,7 @@ interface UserDetail {
   advisor_profile: AdvisorProfile | null
   hospital_partner: HospitalPartner | null
   recent_activity: AuditEntry[]
+  flow_activity: FlowActivity
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -444,6 +468,95 @@ export function UserDetailPage() {
           </Card>
         )}
       </div>
+
+      {/* Per-flow activity — what this user has actually done */}
+      {user.flow_activity.type === "family" && (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <h2 className="text-sm font-semibold">
+              Tour requests ({user.flow_activity.tours_count})
+            </h2>
+            {user.flow_activity.tours.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No tour requests yet from this email.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {user.flow_activity.tours.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 rounded border bg-background p-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div>
+                        <strong className="text-sm">{t.facility?.name ?? "—"}</strong>
+                        <span className="ml-2 text-muted-foreground">
+                          {t.facility?.city}, {t.facility?.state}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {t.prospect || "—"} ·{" "}
+                        <span className="capitalize">{t.tour_type.replace(/_/g, " ")}</span> ·{" "}
+                        <span className="capitalize">{t.status}</span>
+                      </div>
+                    </div>
+                    <span className="text-muted-foreground">
+                      {new Date(t.starts_at).toLocaleDateString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {user.flow_activity.type === "partner" && (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <h2 className="text-sm font-semibold">
+              Admissions sourced ({user.flow_activity.admissions_count})
+            </h2>
+            {user.flow_activity.admissions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                This partner hasn't sourced any admissions yet.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {user.flow_activity.admissions.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 rounded border bg-background p-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div>
+                        <strong className="text-sm">{a.facility?.name ?? "—"}</strong>
+                        <span className="ml-2 text-muted-foreground">
+                          {a.facility?.city}, {a.facility?.state}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {a.prospect || "—"} ·{" "}
+                        <span className="rounded-full bg-stone-100 px-1.5 capitalize">
+                          {a.stage.replace(/_/g, " ")}
+                        </span>
+                        {a.attribution_source && (
+                          <span className="ml-1 text-[10px]">
+                            via {a.attribution_source.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-muted-foreground">
+                      {timeAgo(a.created_at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent activity */}
       <Card>
