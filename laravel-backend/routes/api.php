@@ -22,6 +22,7 @@ use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\Facility\TourController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
+use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
 use App\Http\Controllers\SuperAdmin\SourcesController as SuperAdminSourcesController;
 use App\Http\Controllers\SuperAdmin\SuperAdminController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
@@ -128,6 +129,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/users/invite', [SuperAdminUsersController::class, 'invite']);
             Route::put('/users/{id}/roles', [SuperAdminUsersController::class, 'updateRoles']);
             Route::post('/users/{id}/resend-invite', [SuperAdminUsersController::class, 'resendInvite']);
+
+            // SubscriptionPlan management — limited-field updates only.
+            Route::get('/plans', [SuperAdminPlansController::class, 'index']);
+            Route::put('/plans/{id}', [SuperAdminPlansController::class, 'update']);
+            Route::post('/plans/{id}/test-stripe-price', [SuperAdminPlansController::class, 'testStripePrice']);
 
             // Specific routes must precede the {type} wildcard.
             Route::post('/master-data/sync', [MasterDataController::class, 'sync']);
