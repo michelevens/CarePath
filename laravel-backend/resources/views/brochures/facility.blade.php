@@ -158,9 +158,21 @@
     </div>
 
     <h1>{{ $facility->name }}</h1>
+    @php
+        // Build address as a plain string — three inline @if/@endif blocks
+        // on one line confused the Blade compiler in production
+        // ("unexpected token 'endif'") even though source linted clean.
+        $addrParts = array_filter([
+            $facility->address_line_1,
+            $facility->address_line_2,
+        ]);
+        $streetAddress = implode(', ', $addrParts);
+        if ($streetAddress !== '') {
+            $streetAddress .= ', ';
+        }
+    @endphp
     <div class="address">
-        @if($facility->address_line_1){{ $facility->address_line_1 }}@endif@if($facility->address_line_2), {{ $facility->address_line_2 }}@endif@if($facility->address_line_1 || $facility->address_line_2),@endif
-        {{ $facility->city }}, {{ $facility->state }} {{ $facility->zip ?? '' }}
+        {{ $streetAddress }}{{ $facility->city }}, {{ $facility->state }} {{ $facility->zip ?? '' }}
         @if($facility->phone) &nbsp;·&nbsp; {{ $facility->phone }} @endif
     </div>
 
