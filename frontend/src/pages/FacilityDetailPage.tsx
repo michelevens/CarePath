@@ -4,10 +4,12 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
+  CalendarPlus,
   Calculator,
   Check,
   CheckCircle2,
   GitCompareArrows,
+  Heart,
   Loader2,
   Mail,
   MapPin,
@@ -20,6 +22,7 @@ import {
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { useCompare } from "@/lib/useCompare"
+import { useSaved } from "@/lib/useSaved"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
@@ -373,7 +376,7 @@ export function FacilityDetailPage() {
                         <span className="text-sm text-muted-foreground"> /mo from</span>
                       </>
                     ) : (
-                      <span className="text-sm text-muted-foreground">Pricing on request</span>
+                      <span className="text-sm text-muted-foreground">Pricing shared on tour</span>
                     )}
                   </div>
                   <span className="text-sm font-medium">
@@ -385,9 +388,13 @@ export function FacilityDetailPage() {
                   <Calendar className="h-4 w-4" />
                   Request a tour
                 </Button>
-                <Button variant="outline" className="mt-2 w-full" asChild>
-                  <Link to="/login">Save facility</Link>
-                </Button>
+                <SaveFacilityButton
+                  id={facility.id}
+                  slug={facility.slug}
+                  name={facility.name}
+                  city={facility.city}
+                  state={facility.state}
+                />
 
                 <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
                   <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -828,7 +835,22 @@ function TourRequestDialog({
                 {bookedSummary.tour_type === "self_guided" && "Self-guided tour"}
               </DialogDescription>
             </DialogHeader>
-            <Button onClick={onClose}>Done</Button>
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  downloadTourIcs({
+                    facilityName,
+                    startsAt: bookedSummary.starts_at,
+                    tourType: bookedSummary.tour_type,
+                  })
+                }
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Add to calendar
+              </Button>
+              <Button onClick={onClose}>Done</Button>
+            </div>
           </div>
         ) : (
           <>
@@ -875,6 +897,14 @@ function TourRequestDialog({
                     setStep(2)
                   }}
                 />
+                <div className="mt-2 rounded-md border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">What happens after you book</div>
+                  <ol className="mt-1.5 list-decimal space-y-0.5 pl-4">
+                    <li>Your details go to {facilityName} <span className="font-medium">only</span> — no advisors, no other facilities.</li>
+                    <li>You get a confirmation email immediately + a reminder before the tour.</li>
+                    <li>The facility reaches out within one business day to confirm.</li>
+                  </ol>
+                </div>
               </div>
             )}
 
@@ -1760,7 +1790,7 @@ function ComparableFacilitiesSection({
                           <span className="text-muted-foreground"> /mo</span>
                         </>
                       ) : (
-                        <span className="text-muted-foreground">Pricing on request</span>
+                        <span className="text-muted-foreground">Pricing on tour</span>
                       )}
                     </div>
                     {c.medicaid_certified && (
@@ -1805,4 +1835,100 @@ function CompareToggle({ id, slug, name }: { id: string; slug: string; name: str
       )}
     </div>
   )
+}
+
+function SaveFacilityButton({
+  id,
+  slug,
+  name,
+  city,
+  state,
+}: {
+  id: string
+  slug: string
+  name: string
+  city: string
+  state: string
+}) {
+  const saved = useSaved()
+  const isSaved = saved.has(id)
+
+  return (
+    <Button
+      variant={isSaved ? "default" : "outline"}
+      className="mt-2 w-full"
+      onClick={() => saved.toggle({ id, slug, name, city, state })}
+    >
+      <Heart className={cn("h-4 w-4", isSaved && "fill-current")} />
+      {isSaved ? "Saved" : "Save facility"}
+    </Button>
+  )
+}
+
+function downloadTourIcs({
+  facilityName,
+  startsAt,
+  tourType,
+}: {
+  facilityName: string
+  startsAt: string
+  tourType: TourType
+}) {
+  // Build an iCalendar VEVENT. End time defaults to +1h since the booking
+  // backend uses a 60-minute duration.
+  const start = new Date(startsAt)
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
+
+  const fmt = (d: Date) =>
+    `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}T${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")}00Z`
+
+  const title =
+    tourType === "in_person"
+      ? `Tour: ${facilityName}`
+      : tourType === "virtual"
+      ? `Virtual tour: ${facilityName}`
+      : `Self-guided tour: ${facilityName}`
+
+  const description =
+    tourType === "virtual"
+      ? "Video walkthrough — Zoom link will be emailed by the facility."
+      : tourType === "self_guided"
+      ? "Stop by the front desk during open hours."
+      : "In-person tour. The facility will confirm the meeting point."
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//CarePath//Tour//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${start.getTime()}-${slugify(facilityName)}@carepath`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${escapeIcs(title)}`,
+    `DESCRIPTION:${escapeIcs(description)}`,
+    `LOCATION:${escapeIcs(facilityName)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n")
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `tour-${slugify(facilityName)}.ics`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+}
+
+function escapeIcs(s: string) {
+  return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n")
 }

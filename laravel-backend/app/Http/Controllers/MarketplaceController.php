@@ -12,6 +12,7 @@ use App\Services\ZipLookupService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -151,6 +152,128 @@ class MarketplaceController extends Controller
             'origin' => $origin,
             'radius_miles' => $origin ? $radiusMiles : null,
         ]);
+    }
+
+    /**
+     * GET /api/marketplace/suggest?q=<query>
+     *
+     * Lightweight autocomplete: returns up to 5 facility-name matches,
+     * 5 city/state matches, and a single ZIP echo if `q` looks like one
+     * and resolves. Cached per-query for 60s to absorb keystroke storms.
+     */
+    public function suggest(Request $request, ZipLookupService $zipLookup): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json(['facilities' => [], 'cities' => [], 'zip' => null]);
+        }
+
+        // Bound the cache key length and normalize whitespace.
+        $cacheKey = 'suggest:' . md5(mb_strtolower($q));
+
+        $payload = Cache::remember($cacheKey, 60, function () use ($q, $zipLookup) {
+            $facilities = Facility::query()
+                ->where('is_active', true)
+                ->where('name', 'ILIKE', '%' . $q . '%')
+                ->orderByDesc('cms_five_star_overall')
+                ->orderBy('name')
+                ->limit(5)
+                ->get(['name', 'slug', 'city', 'state', 'type'])
+                ->map(fn ($f) => [
+                    'name' => $f->name,
+                    'slug' => $f->slug,
+                    'city' => $f->city,
+                    'state' => $f->state,
+                    'type' => $f->type,
+                ])
+                ->values();
+
+            // Prefix match on city for index-friendliness; aggregate so each
+            // (city,state) appears once with a facility count.
+            $cities = Facility::query()
+                ->where('is_active', true)
+                ->where('city', 'ILIKE', $q . '%')
+                ->select('city', 'state', DB::raw('count(*) as facility_count'))
+                ->groupBy('city', 'state')
+                ->orderByDesc(DB::raw('count(*)'))
+                ->limit(5)
+                ->get()
+                ->map(fn ($r) => [
+                    'city' => $r->city,
+                    'state' => $r->state,
+                    'facility_count' => (int) $r->facility_count,
+                ])
+                ->values();
+
+            $zip = null;
+            if (preg_match('/^\d{5}$/', $q)) {
+                $hit = $zipLookup->lookup($q);
+                if ($hit) {
+                    $zip = [
+                        'zip' => $hit['zip'],
+                        'city' => $hit['city'],
+                        'state' => $hit['state'],
+                    ];
+                }
+            }
+
+            return [
+                'facilities' => $facilities,
+                'cities' => $cities,
+                'zip' => $zip,
+            ];
+        });
+
+        return response()->json($payload);
+    }
+
+    /**
+     * GET /api/marketplace/top-cities
+     *
+     * Returns the cities with the deepest facility inventory, plus a 0-10
+     * "CarePath Quality Score" derived from the average CMS Five-Star rating
+     * of facilities in that city. Used for the homepage city browse grid.
+     * Cached for 6h — this data only moves when CMS publishes new ratings.
+     */
+    public function topCities(Request $request): JsonResponse
+    {
+        $limit = (int) min(60, max(8, (int) $request->query('limit', 32)));
+        $minFacilities = (int) max(1, (int) $request->query('min_facilities', 3));
+
+        $payload = Cache::remember(
+            "top-cities:l{$limit}:m{$minFacilities}",
+            60 * 60 * 6,
+            function () use ($limit, $minFacilities) {
+                $rows = Facility::query()
+                    ->where('is_active', true)
+                    ->whereNotNull('city')
+                    ->whereNotNull('state')
+                    ->select('city', 'state',
+                        DB::raw('count(*) as facility_count'),
+                        DB::raw('avg(cms_five_star_overall) as avg_rating'))
+                    ->groupBy('city', 'state')
+                    ->havingRaw('count(*) >= ?', [$minFacilities])
+                    ->orderByDesc(DB::raw('count(*)'))
+                    ->limit($limit)
+                    ->get();
+
+                return $rows->map(function ($r) {
+                    // Convert CMS 1-5 → 0-10, round to 1 decimal. Null when
+                    // we don't have any CMS data for the city's facilities.
+                    $score = $r->avg_rating === null
+                        ? null
+                        : round(((float) $r->avg_rating) * 2, 1);
+                    return [
+                        'city' => $r->city,
+                        'state' => $r->state,
+                        'facility_count' => (int) $r->facility_count,
+                        'score' => $score,
+                    ];
+                })->values();
+            }
+        );
+
+        return response()->json(['data' => $payload]);
     }
 
     /**

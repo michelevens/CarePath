@@ -13,7 +13,6 @@ import {
   Clock,
   HeartHandshake,
   Heart,
-  MapPin,
   Search,
   Shield,
   ShieldCheck,
@@ -25,6 +24,7 @@ import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
+import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 
 const CARE_TYPES = [
   {
@@ -53,24 +53,12 @@ const CARE_TYPES = [
   },
 ]
 
-const TOP_METROS = [
-  { state: "AZ", city: "Phoenix" },
-  { state: "CA", city: "Los Angeles" },
-  { state: "CA", city: "San Diego" },
-  { state: "CA", city: "San Francisco" },
-  { state: "TX", city: "Houston" },
-  { state: "TX", city: "Dallas" },
-  { state: "TX", city: "Austin" },
-  { state: "FL", city: "Miami" },
-  { state: "FL", city: "Tampa" },
-  { state: "FL", city: "Orlando" },
-  { state: "NY", city: "New York" },
-  { state: "IL", city: "Chicago" },
-  { state: "PA", city: "Philadelphia" },
-  { state: "OH", city: "Columbus" },
-  { state: "GA", city: "Atlanta" },
-  { state: "NC", city: "Charlotte" },
-]
+interface TopCity {
+  city: string
+  state: string
+  facility_count: number
+  score: number | null
+}
 
 interface PreviewArticle {
   id: string
@@ -95,9 +83,10 @@ const ARTICLE_CATEGORY_LABEL: Record<string, string> = {
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [zip, setZip] = useState("")
+  const [query, setQuery] = useState("")
   const [careType, setCareType] = useState("")
   const [previewArticles, setPreviewArticles] = useState<PreviewArticle[]>([])
+  const [topCities, setTopCities] = useState<TopCity[]>([])
 
   useEffect(() => {
     let alive = true
@@ -105,17 +94,42 @@ export function LandingPage() {
       .get<{ data: PreviewArticle[] }>("/content/articles", { params: { limit: 3 } })
       .then((r) => alive && setPreviewArticles(r.data.data.slice(0, 3)))
       .catch(() => {})
+    api
+      .get<{ data: TopCity[] }>("/marketplace/top-cities", { params: { limit: 32 } })
+      .then((r) => alive && setTopCities(r.data.data))
+      .catch(() => {})
     return () => {
       alive = false
     }
   }, [])
 
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
+  const navigateForSuggestion = (s: Suggestion) => {
+    if (s.kind === "facility") {
+      navigate(`/facility/${s.slug}`)
+      return
+    }
     const params = new URLSearchParams()
-    if (zip.length === 5) params.set("zip", zip)
+    if (s.kind === "zip") params.set("zip", s.zip)
+    if (s.kind === "city") {
+      params.set("state", s.state)
+      params.set("city", s.city)
+    }
     if (careType) params.set("type", careType)
     navigate(`/search?${params.toString()}`)
+  }
+
+  const navigateFreeText = (text: string) => {
+    const params = new URLSearchParams()
+    // 5-digit numeric → ZIP; otherwise free-text name search.
+    if (/^\d{5}$/.test(text)) params.set("zip", text)
+    else if (text.length > 0) params.set("q", text)
+    if (careType) params.set("type", careType)
+    navigate(`/search?${params.toString()}`)
+  }
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    navigateFreeText(query.trim())
   }
 
   return (
@@ -178,16 +192,16 @@ export function LandingPage() {
           onSubmit={onSubmit}
           className="mx-auto mt-10 flex max-w-2xl flex-col gap-2 rounded-2xl border bg-card p-2 shadow-sm sm:flex-row sm:rounded-full"
         >
-          <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 sm:rounded-full">
-            <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
-            <input
-              value={zip}
-              onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-              placeholder="ZIP code"
-              maxLength={5}
-              className="flex-1 bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
-            />
-          </div>
+          <FacilitySuggest
+            value={query}
+            onChange={setQuery}
+            onSelect={navigateForSuggestion}
+            onSubmitFreeText={navigateFreeText}
+            placeholder="City, ZIP, or facility name"
+            size="lg"
+            leadingIcon="map"
+            className="rounded-lg sm:rounded-full"
+          />
           <div className="hidden h-8 w-px bg-border sm:block self-center" />
           <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 sm:rounded-full">
             <Building className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -450,20 +464,42 @@ export function LandingPage() {
 
       {/* CITY BROWSE (SEO) */}
       <section className="mx-auto max-w-7xl px-6 py-16">
-        <h2 className="text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
-          Find care in these cities
-        </h2>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {TOP_METROS.map((m) => (
-            <Link
-              key={m.city}
-              to={`/search?state=${m.state}&city=${encodeURIComponent(m.city)}`}
-              className="rounded-full border bg-card px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
-            >
-              {m.city}, {m.state}
-            </Link>
-          ))}
+        <div className="flex flex-col items-center text-center">
+          <Link
+            to="/search"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary px-4 py-1.5 text-sm font-medium text-primary hover:bg-primary/5"
+          >
+            <Search className="h-4 w-4" />
+            Find senior living near you
+          </Link>
+          <h2 className="mt-6 text-2xl font-semibold tracking-tight md:text-3xl">
+            Top cities by inventory & quality
+          </h2>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            Each score is the average CMS Five-Star rating of facilities in that city, on a 0–10 scale. Updated daily.
+          </p>
         </div>
+        {topCities.length > 0 && (
+          <div className="mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {topCities.map((c) => (
+              <Link
+                key={`${c.city}-${c.state}`}
+                to={`/search?state=${c.state}&city=${encodeURIComponent(c.city)}`}
+                className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/40"
+              >
+                <ScoreBadge score={c.score} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-primary group-hover:underline">
+                    {c.city}, {c.state}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {c.facility_count.toLocaleString()} facilit{c.facility_count === 1 ? "y" : "ies"}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ARTICLES PREVIEW */}
@@ -550,19 +586,185 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t bg-background">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row">
-          <div>© 2026 CarePath. Data from CMS Nursing Home Compare (public domain).</div>
+      <SiteFooter topCities={topCities} />
+    </div>
+  )
+}
+
+function SiteFooter({ topCities }: { topCities: TopCity[] }) {
+  // Split cities into two columns for the footer (visual balance).
+  const half = Math.ceil(topCities.length / 2)
+  const colA = topCities.slice(0, half)
+  const colB = topCities.slice(half)
+
+  return (
+    <footer className="border-t bg-muted/20">
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="grid gap-10 md:grid-cols-4">
+          <div>
+            <Link to="/" className="text-lg font-semibold tracking-tight">
+              CarePath
+            </Link>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Long-term care, modernized. Real availability. Real reviews.
+              Transparent pricing. No lead-selling.
+            </p>
+            <NewsletterSignup />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold">Tools</h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              <FooterLink to="/tools/care-level-quiz">Care-level quiz</FooterLink>
+              <FooterLink to="/search">Cost projection</FooterLink>
+              <FooterLink to="/tools/medicaid-eligibility">Medicaid eligibility</FooterLink>
+              <FooterLink to="/tools/va-eligibility">VA Aid &amp; Attendance</FooterLink>
+              <FooterLink to="/articles">Articles &amp; guides</FooterLink>
+              <FooterLink to="/search">Find a facility</FooterLink>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold">Top cities</h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              {colA.length === 0 ? (
+                <li className="text-muted-foreground">—</li>
+              ) : (
+                colA.slice(0, 10).map((c) => (
+                  <FooterLink
+                    key={`a-${c.city}-${c.state}`}
+                    to={`/search?state=${c.state}&city=${encodeURIComponent(c.city)}`}
+                  >
+                    {c.city}, {c.state}
+                  </FooterLink>
+                ))
+              )}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold">More cities</h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              {colB.length === 0 ? (
+                <li className="text-muted-foreground">—</li>
+              ) : (
+                colB.slice(0, 10).map((c) => (
+                  <FooterLink
+                    key={`b-${c.city}-${c.state}`}
+                    to={`/search?state=${c.state}&city=${encodeURIComponent(c.city)}`}
+                  >
+                    {c.city}, {c.state}
+                  </FooterLink>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t pt-6 text-xs text-muted-foreground md:flex-row md:items-center">
+          <div>
+            © 2026 CarePath. Quality data from CMS Nursing Home Compare (public domain).
+          </div>
           <div className="flex gap-4">
-            <Link to="/search" className="hover:text-foreground">Search</Link>
-            <Link to="/tools" className="hover:text-foreground">Tools</Link>
-            <Link to="/articles" className="hover:text-foreground">Articles</Link>
             <Link to="/login" className="hover:text-foreground">Sign in</Link>
             <Link to="/signup" className="hover:text-foreground">List your facility</Link>
           </div>
         </div>
-      </footer>
-    </div>
+      </div>
+    </footer>
+  )
+}
+
+function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <li>
+      <Link to={to} className="text-muted-foreground hover:text-foreground">
+        {children}
+      </Link>
+    </li>
+  )
+}
+
+function NewsletterSignup() {
+  const [email, setEmail] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      await api.post("/marketplace/leads", { source: "newsletter", email })
+      setDone(true)
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const first = e.response?.data?.errors ? Object.values(e.response.data.errors)[0]?.[0] : undefined
+      setError(first ?? e.response?.data?.message ?? "Couldn't subscribe — try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="mt-5 inline-flex items-center gap-2 rounded-md border border-primary/30 bg-accent/40 px-3 py-2 text-xs">
+        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+        Subscribed — first issue lands soon.
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mt-5">
+      <label htmlFor="newsletter-email" className="text-xs font-medium text-foreground">
+        Plain-English guides, in your inbox
+      </label>
+      <div className="mt-2 flex gap-2">
+        <input
+          id="newsletter-email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+        />
+        <Button type="submit" size="sm" disabled={submitting || !email}>
+          Subscribe
+        </Button>
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Medicare, Medicaid, VA tips. Unsubscribe any time. No sharing.
+      </p>
+      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+    </form>
+  )
+}
+
+function ScoreBadge({ score }: { score: number | null }) {
+  const tier =
+    score === null
+      ? "neutral"
+      : score >= 8.0
+      ? "high"
+      : score >= 6.5
+      ? "mid"
+      : "low"
+  const classes = {
+    high: "bg-primary text-primary-foreground",
+    mid: "bg-accent text-accent-foreground",
+    low: "bg-muted text-muted-foreground border",
+    neutral: "bg-muted text-muted-foreground border",
+  }[tier]
+  return (
+    <span
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold tabular-nums ${classes}`}
+      title={score === null ? "Not enough CMS data yet" : `Avg quality ${score}/10`}
+    >
+      {score === null ? "—" : score.toFixed(1)}
+    </span>
   )
 }
 

@@ -1,22 +1,35 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowRight,
+  BookmarkPlus,
   Building2,
   Check,
   GitCompareArrows,
+  Heart,
   Loader2,
   MapPin,
-  Search,
+  SlidersHorizontal,
   Star,
   X,
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { useCompare } from "@/lib/useCompare"
+import { useSaved } from "@/lib/useSaved"
+import { useSavedSearches } from "@/lib/useSavedSearches"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
+import { FacilityMap } from "@/components/FacilityMap"
+import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 
 interface FacilityResult {
   id: string
@@ -26,6 +39,8 @@ interface FacilityResult {
   city: string
   state: string
   zip: string
+  latitude: number | null
+  longitude: number | null
   medicaid_certified: boolean
   medicare_certified: boolean
   cms_five_star_overall: number | null
@@ -37,7 +52,7 @@ interface FacilityResult {
 
 interface SearchResponse {
   data: FacilityResult[]
-  origin: { zip: string; city: string | null; state: string | null } | null
+  origin: { lat: number; lon: number; zip: string; city: string | null; state: string | null } | null
   radius_miles: number | null
 }
 
@@ -149,6 +164,13 @@ export function SearchPage() {
   const hasAnyFilter =
     q || state || city || zip.length === 5 || type || medicaidOnly || minFiveStar || maxPriceMonthly
 
+  // Free-text `q` lives in the header search box, not the filter row — so it
+  // isn't counted in the "(N)" badge on the mobile filters button.
+  const activeFilterCount = [
+    state, city, zip.length === 5 ? zip : "", type, medicaidOnly,
+    minFiveStar, maxPriceMonthly,
+  ].filter(Boolean).length
+
   return (
     <div className="min-h-screen bg-background">
       <Meta
@@ -167,13 +189,10 @@ export function SearchPage() {
           <Link to="/" className="text-lg font-semibold tracking-tight">
             CarePath
           </Link>
-          <div className="ml-2 flex flex-1 items-center gap-2 rounded-full border bg-card px-3 py-1.5">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder="City, ZIP, or facility name"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-hidden"
+          <div className="ml-2 flex flex-1 items-center gap-2 rounded-full border bg-card py-1.5">
+            <SearchHeaderSuggest
+              q={q} setQ={setQ}
+              setZip={setZip} setCity={setCity} setState={setState}
             />
           </div>
           <Button asChild variant="ghost" size="sm">
@@ -184,89 +203,114 @@ export function SearchPage() {
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <FilterInput
-              label="ZIP"
-              value={zip}
-              onChange={(v) => setZip(v.replace(/\D/g, "").slice(0, 5))}
-              placeholder="85016"
-              maxLength={5}
-              className="w-24"
-            />
-            <FilterSelect
-              label="Radius"
-              value={radiusMiles}
-              onChange={setRadiusMiles}
-              options={[
-                { value: "10", label: "10 mi" },
-                { value: "25", label: "25 mi" },
-                { value: "50", label: "50 mi" },
-                { value: "100", label: "100 mi" },
-              ]}
-            />
-            <FilterSelect
-              label="Care type"
-              value={type}
-              onChange={setType}
-              options={[
-                { value: "", label: "All types" },
-                ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
-              ]}
-            />
-            <FilterInput
-              label="State"
-              value={state}
-              onChange={(v) => setState(v.toUpperCase())}
-              placeholder="AZ"
-              maxLength={2}
-              className="w-20"
-            />
-            <FilterInput
-              label="City"
-              value={city}
-              onChange={setCity}
-              placeholder="Phoenix"
-              className="w-36"
-            />
-            <FilterSelect
-              label="Min ★"
-              value={minFiveStar}
-              onChange={setMinFiveStar}
-              options={[
-                { value: "", label: "Any" },
-                { value: "3", label: "≥ 3" },
-                { value: "4", label: "≥ 4" },
-                { value: "5", label: "5 only" },
-              ]}
-            />
-            <FilterInput
-              label="Max $/mo"
-              value={maxPriceMonthly}
-              onChange={(v) => setMaxPriceMonthly(v.replace(/[^0-9]/g, ""))}
-              placeholder="8000"
-              className="w-24"
-            />
-            <label className="flex items-center gap-2 self-center pt-5 text-sm">
-              <input
-                type="checkbox"
-                checked={medicaidOnly}
-                onChange={(e) => setMedicaidOnly(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Medicaid only
-            </label>
-            {hasAnyFilter && (
-              <button
-                onClick={clearAll}
-                className="ml-auto flex items-center gap-1 self-center pt-5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-                Clear all
-              </button>
-            )}
-          </div>
+          <SavedSearchesStrip />
+          <SavedFacilitiesStrip />
+          {(() => {
+            const filterFields = (
+              <>
+                <FilterInput
+                  label="ZIP"
+                  value={zip}
+                  onChange={(v) => setZip(v.replace(/\D/g, "").slice(0, 5))}
+                  placeholder="85016"
+                  maxLength={5}
+                  className="w-24"
+                />
+                <FilterSelect
+                  label="Radius"
+                  value={radiusMiles}
+                  onChange={setRadiusMiles}
+                  options={[
+                    { value: "10", label: "10 mi" },
+                    { value: "25", label: "25 mi" },
+                    { value: "50", label: "50 mi" },
+                    { value: "100", label: "100 mi" },
+                  ]}
+                />
+                <FilterSelect
+                  label="Care type"
+                  value={type}
+                  onChange={setType}
+                  options={[
+                    { value: "", label: "All types" },
+                    ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
+                  ]}
+                />
+                <FilterInput
+                  label="State"
+                  value={state}
+                  onChange={(v) => setState(v.toUpperCase())}
+                  placeholder="AZ"
+                  maxLength={2}
+                  className="w-20"
+                />
+                <FilterInput
+                  label="City"
+                  value={city}
+                  onChange={setCity}
+                  placeholder="Phoenix"
+                  className="w-36"
+                />
+                <FilterSelect
+                  label="Min ★"
+                  value={minFiveStar}
+                  onChange={setMinFiveStar}
+                  options={[
+                    { value: "", label: "Any" },
+                    { value: "3", label: "≥ 3" },
+                    { value: "4", label: "≥ 4" },
+                    { value: "5", label: "5 only" },
+                  ]}
+                />
+                <FilterInput
+                  label="Max $/mo"
+                  value={maxPriceMonthly}
+                  onChange={(v) => setMaxPriceMonthly(v.replace(/[^0-9]/g, ""))}
+                  placeholder="8000"
+                  className="w-24"
+                />
+                <label className="flex items-center gap-2 self-center pt-5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={medicaidOnly}
+                    onChange={(e) => setMedicaidOnly(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Medicaid only
+                </label>
+              </>
+            )
 
-          <div className="flex items-center justify-between">
+            return (
+              <>
+                {/* Desktop: inline filter row */}
+                <div className="hidden flex-wrap items-end gap-3 lg:flex">
+                  {filterFields}
+                  {hasAnyFilter && (
+                    <button
+                      onClick={clearAll}
+                      className="ml-auto flex items-center gap-1 self-center pt-5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile: button → dialog */}
+                <div className="lg:hidden">
+                  <MobileFiltersTrigger
+                    count={activeFilterCount}
+                    onClear={hasAnyFilter ? clearAll : undefined}
+                  >
+                    {filterFields}
+                  </MobileFiltersTrigger>
+                </div>
+              </>
+            )
+          })()}
+
+          <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold">
               {loading ? "Searching…" : `${results.length} facilities`}
               {origin ? (
@@ -279,17 +323,29 @@ export function SearchPage() {
                 </span>
               ) : null}
             </h1>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
-              className="rounded-md border bg-card px-3 py-1.5 text-sm"
-            >
-              {origin && <option value="distance">Distance: nearest</option>}
-              <option value="recommended">Recommended</option>
-              <option value="rating">Rating: high to low</option>
-              <option value="price_asc">Price: low to high</option>
-              <option value="price_desc">Price: high to low</option>
-            </select>
+            <div className="flex items-center gap-2">
+              {hasAnyFilter && (
+                <SaveSearchButton
+                  query={urlParams.toString()}
+                  describe={() =>
+                    describeSearch({
+                      q, state, city, zip, type, medicaidOnly, minFiveStar, maxPriceMonthly, radiusMiles,
+                    })
+                  }
+                />
+              )}
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as Sort)}
+                className="rounded-md border bg-card px-3 py-1.5 text-sm"
+              >
+                {origin && <option value="distance">Distance: nearest</option>}
+                <option value="recommended">Recommended</option>
+                <option value="rating">Rating: high to low</option>
+                <option value="price_asc">Price: low to high</option>
+                <option value="price_desc">Price: high to low</option>
+              </select>
+            </div>
           </div>
 
           {error && (
@@ -314,10 +370,12 @@ export function SearchPage() {
           )}
         </div>
 
-        <div className="sticky top-24 hidden h-[calc(100vh-8rem)] rounded-lg border bg-muted lg:block">
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Map view (coming soon)
-          </div>
+        <div className="sticky top-24 hidden h-[calc(100vh-8rem)] lg:block">
+          <FacilityMap
+            facilities={results}
+            origin={origin}
+            radiusMiles={origin ? Number(radiusMiles) : null}
+          />
         </div>
       </div>
       <CompareBar />
@@ -372,7 +430,9 @@ function ResultCard({ r }: { r: FacilityResult }) {
   const monthly = r.price_from_cents ? Math.round(r.price_from_cents / 100).toLocaleString() : null
   const hasBeds = r.available_beds > 0
   const compare = useCompare()
+  const saved = useSaved()
   const inCompare = compare.has(r.id)
+  const isSaved = saved.has(r.id)
   const compareFull = compare.list.length >= compare.max && !inCompare
 
   const onToggleCompare = (e: React.MouseEvent) => {
@@ -382,26 +442,48 @@ function ResultCard({ r }: { r: FacilityResult }) {
     compare.toggle({ id: r.id, slug: r.slug, name: r.name })
   }
 
+  const onToggleSave = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    saved.toggle({ id: r.id, slug: r.slug, name: r.name, city: r.city, state: r.state })
+  }
+
   return (
     <Link to={`/facility/${r.slug}`} className="relative block">
-      <button
-        type="button"
-        onClick={onToggleCompare}
-        disabled={compareFull}
-        aria-pressed={inCompare}
-        className={cn(
-          "absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-          inCompare
-            ? "border-primary bg-primary text-primary-foreground"
-            : compareFull
-            ? "cursor-not-allowed border-border bg-muted text-muted-foreground opacity-60"
-            : "border-border bg-card/95 text-muted-foreground backdrop-blur hover:border-primary hover:text-foreground"
-        )}
-        title={compareFull ? `Maximum ${compare.max} facilities — clear one first` : inCompare ? "Remove from comparison" : "Add to comparison"}
-      >
-        {inCompare ? <Check className="h-3.5 w-3.5" /> : <GitCompareArrows className="h-3.5 w-3.5" />}
-        {inCompare ? "Comparing" : "Compare"}
-      </button>
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onToggleSave}
+          aria-pressed={isSaved}
+          className={cn(
+            "inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
+            isSaved
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-card/95 text-muted-foreground backdrop-blur hover:border-primary hover:text-foreground"
+          )}
+          title={isSaved ? "Remove from saved" : "Save facility"}
+        >
+          <Heart className={cn("h-3.5 w-3.5", isSaved && "fill-current")} />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleCompare}
+          disabled={compareFull}
+          aria-pressed={inCompare}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+            inCompare
+              ? "border-primary bg-primary text-primary-foreground"
+              : compareFull
+              ? "cursor-not-allowed border-border bg-muted text-muted-foreground opacity-60"
+              : "border-border bg-card/95 text-muted-foreground backdrop-blur hover:border-primary hover:text-foreground"
+          )}
+          title={compareFull ? `Maximum ${compare.max} facilities — clear one first` : inCompare ? "Remove from comparison" : "Add to comparison"}
+        >
+          {inCompare ? <Check className="h-3.5 w-3.5" /> : <GitCompareArrows className="h-3.5 w-3.5" />}
+          {inCompare ? "Comparing" : "Compare"}
+        </button>
+      </div>
       <Card className="hover-lift overflow-hidden">
         <div className="flex">
           {/* Photo placeholder with a soft violet gradient instead of pure gray */}
@@ -456,7 +538,7 @@ function ResultCard({ r }: { r: FacilityResult }) {
                     <span className="text-sm text-muted-foreground"> /mo</span>
                   </>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Pricing on request</span>
+                  <span className="text-sm text-muted-foreground">Pricing shared on tour</span>
                 )}
               </div>
               <span
@@ -542,6 +624,225 @@ function FilterInput({
           className
         )}
       />
+    </div>
+  )
+}
+
+function describeSearch(filters: {
+  q: string; state: string; city: string; zip: string; type: string;
+  medicaidOnly: boolean; minFiveStar: string; maxPriceMonthly: string; radiusMiles: string;
+}): string {
+  const bits: string[] = []
+  if (filters.minFiveStar) bits.push(`${filters.minFiveStar}★+`)
+  bits.push(TYPE_LABEL[filters.type] ?? "Care")
+  if (filters.medicaidOnly) bits.push("(Medicaid)")
+  if (filters.zip) bits.push(`within ${filters.radiusMiles}mi of ${filters.zip}`)
+  else if (filters.city && filters.state) bits.push(`in ${filters.city}, ${filters.state}`)
+  else if (filters.state) bits.push(`in ${filters.state}`)
+  else if (filters.city) bits.push(`in ${filters.city}`)
+  if (filters.maxPriceMonthly) bits.push(`≤ $${Number(filters.maxPriceMonthly).toLocaleString()}/mo`)
+  if (filters.q) bits.push(`"${filters.q}"`)
+  return bits.join(" ").trim() || "Search"
+}
+
+function SaveSearchButton({
+  query,
+  describe,
+}: {
+  query: string
+  describe: () => string
+}) {
+  const saved = useSavedSearches()
+  const alreadySaved = saved.hasQuery(query)
+  const [justSaved, setJustSaved] = useState(false)
+
+  const onClick = () => {
+    if (alreadySaved) return
+    saved.save(describe(), query)
+    setJustSaved(true)
+    setTimeout(() => setJustSaved(false), 1500)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={alreadySaved || justSaved}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+        alreadySaved || justSaved
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground"
+      )}
+    >
+      {alreadySaved || justSaved ? <Check className="h-3.5 w-3.5" /> : <BookmarkPlus className="h-3.5 w-3.5" />}
+      {justSaved ? "Saved" : alreadySaved ? "Search saved" : "Save search"}
+    </button>
+  )
+}
+
+function SavedSearchesStrip() {
+  const [, setUrlParams] = useSearchParams()
+  const saved = useSavedSearches()
+
+  if (saved.list.length === 0) return null
+
+  const apply = (query: string) => {
+    setUrlParams(new URLSearchParams(query))
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-accent/30 px-3 py-2 text-xs">
+      <span className="font-medium text-accent-foreground">Saved searches</span>
+      {saved.list.map((s) => (
+        <span
+          key={s.id}
+          className="group inline-flex items-center gap-1 rounded-full border bg-card pl-2.5 pr-1 py-0.5"
+        >
+          <button
+            type="button"
+            onClick={() => apply(s.query)}
+            className="text-foreground hover:text-primary"
+          >
+            {s.name}
+          </button>
+          <button
+            type="button"
+            onClick={() => saved.remove(s.id)}
+            aria-label="Remove saved search"
+            className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function MobileFiltersTrigger({
+  count,
+  onClear,
+  children,
+}: {
+  count: number
+  onClear?: () => void
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full justify-between"
+        onClick={() => setOpen(true)}
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+        </span>
+        {count > 0 && (
+          <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+            {count}
+          </span>
+        )}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Filters</DialogTitle>
+          </DialogHeader>
+          <div className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto pr-1">
+            {children}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            {onClear ? (
+              <Button type="button" variant="ghost" onClick={onClear}>
+                <X className="h-4 w-4" />
+                Clear all
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button type="button" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function SearchHeaderSuggest({
+  q, setQ, setZip, setCity, setState,
+}: {
+  q: string
+  setQ: (v: string) => void
+  setZip: (v: string) => void
+  setCity: (v: string) => void
+  setState: (v: string) => void
+}) {
+  const navigate = useNavigate()
+  const onSelect = (s: Suggestion) => {
+    if (s.kind === "facility") {
+      navigate(`/facility/${s.slug}`)
+      return
+    }
+    if (s.kind === "zip") {
+      setZip(s.zip)
+      setQ("")
+      return
+    }
+    // city
+    setState(s.state)
+    setCity(s.city)
+    setQ("")
+  }
+  return (
+    <FacilitySuggest
+      value={q}
+      onChange={setQ}
+      onSelect={onSelect}
+      placeholder="City, ZIP, or facility name"
+      size="md"
+      leadingIcon="search"
+    />
+  )
+}
+
+function SavedFacilitiesStrip() {
+  const saved = useSaved()
+
+  if (saved.list.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs">
+      <span className="inline-flex items-center gap-1.5 font-medium">
+        <Heart className="h-3.5 w-3.5 fill-primary text-primary" />
+        Saved facilities ({saved.list.length})
+      </span>
+      {saved.list.map((f) => (
+        <span
+          key={f.id}
+          className="group inline-flex items-center gap-1 rounded-full border bg-background pl-2.5 pr-1 py-0.5"
+        >
+          <Link to={`/facility/${f.slug}`} className="text-foreground hover:text-primary">
+            {f.name}
+            <span className="ml-1 text-muted-foreground">· {f.city}, {f.state}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => saved.remove(f.id)}
+            aria-label="Remove saved facility"
+            className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
     </div>
   )
 }
