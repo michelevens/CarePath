@@ -15,6 +15,9 @@ import {
   Mail,
   MapPin,
   Phone,
+  BadgeCheck,
+  ExternalLink,
+  Flag,
   Shield,
   ShieldCheck,
   Star,
@@ -22,6 +25,7 @@ import {
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth"
 import { useCompare } from "@/lib/useCompare"
 import { useSaved } from "@/lib/useSaved"
 import { Button } from "@/components/ui/button"
@@ -427,6 +431,8 @@ export function FacilityDetailPage() {
             />
 
             <ConnectWithFacility facility={facility} onAsk={() => setAskOpen(true)} />
+
+            <ClaimFacilitySection facility={facility} />
           </div>
 
           <aside>
@@ -2556,6 +2562,306 @@ function AskFacilityDialog({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/* ──────────────── ClaimFacilitySection — bottom-of-page CTA + modal ──────────────── */
+
+interface ClaimStatus {
+  authenticated: boolean
+  is_facility_member?: boolean
+  claim_status?: "pending" | "approved" | "rejected" | "withdrawn" | null
+  claim_submitted_at?: string | null
+}
+
+function ClaimFacilitySection({
+  facility,
+}: {
+  facility: { slug: string; name: string }
+}) {
+  const { user } = useAuth()
+  const [status, setStatus] = useState<ClaimStatus | null>(null)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    const url = user
+      ? `/facilities/${facility.slug}/claim-status`
+      : null
+    if (!url) {
+      setStatus({ authenticated: false })
+      return
+    }
+    api
+      .get<{ data: ClaimStatus }>(url)
+      .then((r) => alive && setStatus(r.data?.data ?? null))
+      .catch(() => alive && setStatus({ authenticated: false }))
+    return () => {
+      alive = false
+    }
+  }, [facility.slug, user])
+
+  // Already a verified member of this facility: no need for the claim CTA.
+  if (status?.is_facility_member) {
+    return (
+      <Card className="border-emerald-200 bg-emerald-50/40">
+        <CardContent className="flex items-center gap-3 p-4 text-sm">
+          <BadgeCheck className="h-5 w-5 text-emerald-700" />
+          <div className="flex-1">
+            <strong>You manage this facility.</strong>
+            <p className="text-xs text-muted-foreground">
+              Edit listing details, photos, and amenities from your admin portal.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/admin/data">
+              Manage listing
+              <ExternalLink className="ml-1 h-3 w-3" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (status?.claim_status === "pending") {
+    return (
+      <Card className="border-amber-200 bg-amber-50/40">
+        <CardContent className="flex items-center gap-3 p-4 text-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-amber-700" />
+          <div>
+            <strong>Your claim is under review.</strong>
+            <p className="text-xs text-muted-foreground">
+              The CarePath team reviews claims within 1-2 business days. We'll
+              email you when it's approved.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <>
+      <Card>
+        <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center">
+          <Flag className="h-6 w-6 shrink-0 text-violet-700" />
+          <div className="flex-1">
+            <h3 className="text-base font-semibold">
+              Are you the administrator of {facility.name}?
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Claim this listing to edit details, respond to inquiries, manage your
+              bed board, and route tour requests — free tier available.
+            </p>
+          </div>
+          <Button onClick={() => setOpen(true)} className="shrink-0">
+            Claim this facility
+          </Button>
+        </CardContent>
+      </Card>
+      <ClaimFacilityModal
+        open={open}
+        onClose={() => setOpen(false)}
+        facility={facility}
+        authenticated={status?.authenticated ?? false}
+        onSubmitted={() =>
+          setStatus({ authenticated: true, claim_status: "pending" })
+        }
+      />
+    </>
+  )
+}
+
+function ClaimFacilityModal({
+  open,
+  onClose,
+  facility,
+  authenticated,
+  onSubmitted,
+}: {
+  open: boolean
+  onClose: () => void
+  facility: { slug: string; name: string }
+  authenticated: boolean
+  onSubmitted: () => void
+}) {
+  const [name, setName] = useState("")
+  const [title, setTitle] = useState("Administrator")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [notes, setNotes] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  if (!open) return null
+
+  // Logged-out users get a sign-up prompt instead of the form.
+  if (!authenticated) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+        <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Sign in to claim</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                We need an account on file to grant admin access to {facility.name}.
+                Sign up takes 30 seconds — the claim takes another minute.
+              </p>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-5 flex flex-col gap-2">
+            <Button asChild>
+              <Link to={`/signup?intent=claim_facility&facility_slug=${facility.slug}`}>
+                Sign up + claim
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to={`/login?next=/facility/${facility.slug}`}>
+                I have an account
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setErr(null)
+    try {
+      await api.post(`/facilities/${facility.slug}/claim`, {
+        claimer_name: name,
+        claimer_title: title || null,
+        claimer_email: email,
+        claimer_phone: phone || null,
+        supporting_notes: notes || null,
+      })
+      setDone(true)
+      onSubmitted()
+    } catch (e) {
+      const error = e as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } }
+      const fieldErrs = Object.values(error.response?.data?.errors ?? {}).flat()
+      setErr(fieldErrs[0] ?? error.response?.data?.message ?? "Submission failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b p-5">
+          <div>
+            <h2 className="text-lg font-semibold">Claim {facility.name}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The CarePath team verifies every claim within 1-2 business days.
+              Provide enough detail that we can confirm you work at the facility.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {done ? (
+          <div className="space-y-3 p-5 text-sm">
+            <div className="flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="h-5 w-5" />
+              <strong>Claim submitted.</strong>
+            </div>
+            <p className="text-muted-foreground">
+              We'll review and email you within 1-2 business days. Once approved,
+              your account will gain admin access on the facility's listing.
+            </p>
+            <Button onClick={onClose} className="w-full">
+              Done
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-4 p-5">
+            <LabeledRow label="Your full name">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={120}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </LabeledRow>
+            <LabeledRow label="Your title at the facility">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={120}
+                placeholder="Administrator, DON, Owner…"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </LabeledRow>
+            <LabeledRow label="Work email">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@your-facility.com"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                An email at the facility's own domain speeds up review.
+              </p>
+            </LabeledRow>
+            <LabeledRow label="Work phone (optional)">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                maxLength={30}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </LabeledRow>
+            <LabeledRow label="Anything else (optional)">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={2000}
+                rows={3}
+                placeholder="License number, years at the facility, etc."
+                className="w-full rounded-md border bg-background p-2 text-sm"
+              />
+            </LabeledRow>
+            {err && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+                {err}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 border-t pt-4">
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy} className="gap-2">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flag className="h-4 w-4" />}
+                Submit claim
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LabeledRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-xs font-medium text-muted-foreground">{label}</div>
+      {children}
+    </label>
   )
 }
 

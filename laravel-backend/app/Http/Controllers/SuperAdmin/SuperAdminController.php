@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\AdvisorProfile;
 use App\Models\Facility;
+use App\Models\FacilityClaim;
 use App\Models\HospitalPartner;
 use App\Models\Placement;
 use App\Models\SponsoredCampaign;
@@ -235,6 +236,142 @@ class SuperAdminController extends Controller
             'verified_at' => $partner->verified_at,
             'role_granted' => 'hospital_partner',
         ]);
+    }
+
+    /**
+     * GET /api/superadmin/claims
+     *
+     * Pending facility-claim queue + recently-approved/rejected for
+     * audit. Includes the email-domain match signal so the reviewer
+     * can spot likely-legitimate claims at a glance.
+     */
+    public function claims(): JsonResponse
+    {
+        $pending = FacilityClaim::query()
+            ->where('status', 'pending')
+            ->with([
+                'facility:id,name,slug,city,state,website,phone',
+                'user:id,name,email,created_at',
+            ])
+            ->orderBy('created_at')
+            ->limit(100)
+            ->get();
+
+        $recent = FacilityClaim::query()
+            ->whereIn('status', ['approved', 'rejected'])
+            ->with(['facility:id,name,slug', 'user:id,name,email'])
+            ->orderByDesc('reviewed_at')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'pending' => $pending->map(fn (FacilityClaim $c) => [
+                    'id' => $c->id,
+                    'facility' => $c->facility ? [
+                        'name' => $c->facility->name,
+                        'slug' => $c->facility->slug,
+                        'city' => $c->facility->city,
+                        'state' => $c->facility->state,
+                        'website' => $c->facility->website,
+                        'phone' => $c->facility->phone,
+                    ] : null,
+                    'user' => $c->user ? [
+                        'id' => $c->user->id,
+                        'name' => $c->user->name,
+                        'email' => $c->user->email,
+                    ] : null,
+                    'claimer_name' => $c->claimer_name,
+                    'claimer_title' => $c->claimer_title,
+                    'claimer_email' => $c->claimer_email,
+                    'claimer_phone' => $c->claimer_phone,
+                    'supporting_notes' => $c->supporting_notes,
+                    'email_domain_matches' => $c->emailDomainMatchesFacility(),
+                    'created_at' => $c->created_at,
+                ]),
+                'recent' => $recent->map(fn (FacilityClaim $c) => [
+                    'id' => $c->id,
+                    'facility_name' => $c->facility?->name,
+                    'facility_slug' => $c->facility?->slug,
+                    'user_name' => $c->user?->name,
+                    'status' => $c->status,
+                    'reviewed_at' => $c->reviewed_at,
+                ]),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/superadmin/claims/{id}/approve
+     *
+     * Grants facility_admin role on the user, creates the
+     * facility_user pivot row, sets the claim to approved. Auto-
+     * approves OTHER pending claims by the same user on the same
+     * facility (rare race) so we don't leave dangling rows.
+     */
+    public function approveClaim(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $claim = FacilityClaim::findOrFail($id);
+        if ($claim->status !== 'pending') {
+            return response()->json(['ok' => false, 'message' => 'Claim is no longer pending'], 422);
+        }
+
+        DB::transaction(function () use ($claim, $request, $data) {
+            // Grant role.
+            $claim->user->assignRole('facility_admin');
+
+            // Create pivot row (idempotent — they may already be a
+            // member as staff, for instance).
+            DB::table('facility_user')->updateOrInsert(
+                ['facility_id' => $claim->facility_id, 'user_id' => $claim->user_id],
+                ['role' => 'admin', 'updated_at' => now(), 'created_at' => now()],
+            );
+
+            // Default active facility if they don't have one yet.
+            if (! $claim->user->active_facility_id) {
+                $claim->user->update(['active_facility_id' => $claim->facility_id]);
+            }
+
+            $claim->update([
+                'status' => 'approved',
+                'reviewed_by_user_id' => $request->user()?->id,
+                'reviewed_at' => now(),
+                'decision_notes' => $data['notes'] ?? null,
+            ]);
+        });
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Claim approved. The user is now a facility admin on this site.',
+        ]);
+    }
+
+    /**
+     * POST /api/superadmin/claims/{id}/reject
+     */
+    public function rejectClaim(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'notes' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $claim = FacilityClaim::findOrFail($id);
+        if ($claim->status !== 'pending') {
+            return response()->json(['ok' => false, 'message' => 'Claim is no longer pending'], 422);
+        }
+
+        $claim->update([
+            'status' => 'rejected',
+            'reviewed_by_user_id' => $request->user()?->id,
+            'reviewed_at' => now(),
+            'decision_notes' => $data['notes'],
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     /**

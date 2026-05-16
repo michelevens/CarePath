@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react"
-import { Check, Hospital, Loader2, ShieldCheck, UserCheck } from "lucide-react"
+import { Link } from "react-router-dom"
+import {
+  Building2,
+  Check,
+  Flag,
+  Hospital,
+  Loader2,
+  ShieldCheck,
+  UserCheck,
+  X,
+} from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -118,6 +128,9 @@ export function VerificationsPage() {
             : `${advisorCount} advisor${advisorCount !== 1 ? "s" : ""} · ${hospitalCount} hospital${hospitalCount !== 1 ? "s" : ""} awaiting review.`}
         </p>
       </div>
+
+      {/* Facility claims */}
+      <ClaimsSection />
 
       {/* Advisors */}
       <Card>
@@ -337,5 +350,263 @@ function StatusPill({ status }: { status: string }) {
     >
       {status.replace(/_/g, " ")}
     </span>
+  )
+}
+
+// ─── Facility claims section ────────────────────────────────────────────────
+
+interface ClaimRow {
+  id: string
+  facility: { name: string; slug: string; city: string; state: string; website: string | null; phone: string | null } | null
+  user: { id: number; name: string; email: string } | null
+  claimer_name: string
+  claimer_title: string | null
+  claimer_email: string
+  claimer_phone: string | null
+  supporting_notes: string | null
+  email_domain_matches: boolean | null
+  created_at: string
+}
+
+interface RecentClaim {
+  id: string
+  facility_name: string | null
+  facility_slug: string | null
+  user_name: string | null
+  status: string
+  reviewed_at: string | null
+}
+
+interface ClaimsPayload {
+  pending: ClaimRow[]
+  recent: RecentClaim[]
+}
+
+function ClaimsSection() {
+  const [data, setData] = useState<ClaimsPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [rejectNotes, setRejectNotes] = useState("")
+
+  const load = () => {
+    setLoading(true)
+    api
+      .get<{ data: ClaimsPayload }>("/superadmin/claims")
+      .then((r) => setData(r.data?.data ?? null))
+      .finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const approve = async (id: string) => {
+    setBusyId(id)
+    try {
+      await api.post(`/superadmin/claims/${id}/approve`)
+      load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const reject = async (id: string) => {
+    if (!rejectNotes.trim()) return
+    setBusyId(id)
+    try {
+      await api.post(`/superadmin/claims/${id}/reject`, { notes: rejectNotes })
+      setRejectingId(null)
+      setRejectNotes("")
+      load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (loading && !data) return null
+
+  const pending = data?.pending ?? []
+  const recent = data?.recent ?? []
+  if (pending.length === 0 && recent.length === 0) return null
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="flex items-center gap-2 border-b p-4">
+          <Flag className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Facility claims</h2>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {pending.length} pending
+          </span>
+        </div>
+        {pending.length === 0 ? (
+          <p className="p-4 text-xs text-muted-foreground">
+            No facility claims pending review.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {pending.map((c) => (
+              <li key={c.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <Link
+                        to={`/facility/${c.facility?.slug ?? ""}`}
+                        className="text-sm font-semibold hover:underline"
+                      >
+                        {c.facility?.name ?? "—"}
+                      </Link>
+                      {c.facility && (
+                        <span className="text-xs text-muted-foreground">
+                          {c.facility.city}, {c.facility.state}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Submitted by{" "}
+                      <strong className="text-foreground">{c.user?.name}</strong>{" "}
+                      (<span>{c.user?.email}</span>) ·{" "}
+                      <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Claimer:</span>{" "}
+                        <strong>{c.claimer_name}</strong>
+                        {c.claimer_title && (
+                          <span className="text-muted-foreground"> · {c.claimer_title}</span>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground">
+                        Work email:{" "}
+                        <a href={`mailto:${c.claimer_email}`} className="text-violet-700 hover:underline">
+                          {c.claimer_email}
+                        </a>
+                        {c.email_domain_matches === true && (
+                          <span className="ml-2 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+                            ✓ matches facility domain
+                          </span>
+                        )}
+                        {c.email_domain_matches === false && (
+                          <span className="ml-2 rounded-full bg-stone-200 px-1.5 py-0.5 text-[10px] text-stone-700">
+                            does not match facility domain
+                          </span>
+                        )}
+                      </div>
+                      {c.claimer_phone && (
+                        <div className="text-muted-foreground">
+                          Phone: {c.claimer_phone}
+                        </div>
+                      )}
+                      {c.facility?.phone && (
+                        <div className="text-muted-foreground">
+                          Facility on file: {c.facility.phone}
+                          {c.facility.website && (
+                            <>
+                              {" · "}
+                              <a
+                                href={c.facility.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-violet-700 hover:underline"
+                              >
+                                {c.facility.website}
+                              </a>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {c.supporting_notes && (
+                        <p className="mt-1 italic text-muted-foreground">
+                          "{c.supporting_notes}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <Button
+                      size="sm"
+                      onClick={() => approve(c.id)}
+                      disabled={busyId === c.id}
+                      className="gap-1"
+                    >
+                      {busyId === c.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setRejectingId(c.id)
+                        setRejectNotes("")
+                      }}
+                      disabled={busyId === c.id}
+                      className="gap-1 text-destructive"
+                    >
+                      <X className="h-3 w-3" /> Reject
+                    </Button>
+                  </div>
+                </div>
+                {rejectingId === c.id && (
+                  <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-3">
+                    <textarea
+                      value={rejectNotes}
+                      onChange={(e) => setRejectNotes(e.target.value)}
+                      placeholder="Reason — sent to no one, kept for audit."
+                      rows={2}
+                      className="w-full rounded border bg-background p-2 text-xs"
+                    />
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRejectingId(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => reject(c.id)}
+                        disabled={!rejectNotes.trim() || busyId === c.id}
+                      >
+                        Confirm reject
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {recent.length > 0 && (
+          <div className="border-t p-4">
+            <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+              Recent decisions
+            </div>
+            <ul className="space-y-1 text-xs">
+              {recent.map((r) => (
+                <li key={r.id} className="flex justify-between">
+                  <span>
+                    <Link
+                      to={`/facility/${r.facility_slug ?? ""}`}
+                      className="text-violet-700 hover:underline"
+                    >
+                      {r.facility_name ?? "—"}
+                    </Link>
+                    <span className="text-muted-foreground"> — {r.user_name}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    {r.status} ·{" "}
+                    {r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString() : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FacilityClaimController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\StripeWebhookController;
@@ -98,6 +99,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/me/active-facility', [AuthController::class, 'setActiveFacility']);
 
+    // Facility claim submission + status. Auth required (we need a
+    // user to grant the role to on approval) but no role gate —
+    // anyone can claim, SuperAdmin verifies.
+    Route::post('/facilities/{slug}/claim', [FacilityClaimController::class, 'submit']);
+    Route::get('/facilities/{slug}/claim-status', [FacilityClaimController::class, 'status']);
+
     Route::prefix('auth/2fa')->group(function () {
         Route::post('/enable', [TwoFactorController::class, 'enable']);
         Route::post('/confirm', [TwoFactorController::class, 'confirm']);
@@ -118,6 +125,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/verifications', [SuperAdminController::class, 'verifications']);
             Route::post('/verifications/advisors/{id}/approve', [SuperAdminController::class, 'approveAdvisor']);
             Route::post('/verifications/hospitals/{id}/approve', [SuperAdminController::class, 'approveHospital']);
+            Route::get('/claims', [SuperAdminController::class, 'claims']);
+            Route::post('/claims/{id}/approve', [SuperAdminController::class, 'approveClaim']);
+            Route::post('/claims/{id}/reject', [SuperAdminController::class, 'rejectClaim']);
             Route::get('/subscriptions', [SuperAdminController::class, 'subscriptions']);
             Route::get('/placements', [SuperAdminController::class, 'placements']);
             Route::get('/sponsored', [SuperAdminController::class, 'sponsored']);
