@@ -11,6 +11,7 @@ import { VerifyEmailPage } from "@/pages/VerifyEmailPage"
 import { ArticlesIndexPage } from "@/pages/ArticlesIndexPage"
 import { ArticleDetailPage } from "@/pages/ArticleDetailPage"
 import { ToolsPage } from "@/pages/ToolsPage"
+import { GuidesPage } from "@/pages/GuidesPage"
 import { CareLevelQuizPage } from "@/pages/CareLevelQuizPage"
 import { MedicaidEligibilityPage } from "@/pages/MedicaidEligibilityPage"
 import { VaEligibilityPage } from "@/pages/VaEligibilityPage"
@@ -55,6 +56,7 @@ function App() {
       <Route path="/articles" element={<ArticlesIndexPage />} />
       <Route path="/articles/:slug" element={<ArticleDetailPage />} />
       <Route path="/tools" element={<ToolsPage />} />
+      <Route path="/guides" element={<GuidesPage />} />
       <Route path="/tools/care-level-quiz" element={<CareLevelQuizPage />} />
       <Route path="/tools/medicaid-eligibility" element={<MedicaidEligibilityPage />} />
       <Route path="/tools/va-eligibility" element={<VaEligibilityPage />} />

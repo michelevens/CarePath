@@ -15,7 +15,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // Use 127.0.0.1 (not "localhost") — on Windows, Node 18+ resolves
+        // localhost to ::1 (IPv6) first while `php artisan serve` only
+        // binds IPv4, which causes ECONNREFUSED.
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },

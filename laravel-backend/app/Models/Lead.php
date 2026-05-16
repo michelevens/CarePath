@@ -16,6 +16,7 @@ class Lead extends Model
         'saved_search',
         'availability_alert',
         'newsletter',
+        'guide_download',
         'other',
     ];
 

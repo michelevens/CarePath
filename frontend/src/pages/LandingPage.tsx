@@ -162,6 +162,9 @@ export function LandingPage() {
             <Link to="/tools" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
               Tools
             </Link>
+            <Link to="/guides" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
+              Guides
+            </Link>
             <Link to="/articles" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
               Articles
             </Link>
@@ -332,6 +335,27 @@ export function LandingPage() {
             </span>
           </Link>
         </div>
+
+        {/* Guides callout — branded PDF library */}
+        <Link
+          to="/guides"
+          className="hover-lift group mt-6 flex items-center justify-between gap-4 rounded-xl border bg-card p-5"
+        >
+          <div className="flex items-start gap-4">
+            <div className="inline-flex rounded-xl bg-primary p-3 text-primary-foreground">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-semibold">Free, branded guides</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Tour question sheet · Medicare LTC cheat sheet · Medicaid look-back checklist · VA Aid &amp; Attendance kit · and more. Email only — no phone calls.
+              </div>
+            </div>
+          </div>
+          <span className="hidden shrink-0 items-center gap-1 text-sm font-medium text-primary sm:inline-flex">
+            Browse <ArrowRight className="h-4 w-4" />
+          </span>
+        </Link>
       </section>
 
       {/* WHY CAREPATH */}
@@ -626,6 +650,7 @@ function SiteFooter({ topCities }: { topCities: TopCity[] }) {
           <div>
             <h3 className="text-sm font-semibold">Tools</h3>
             <ul className="mt-3 space-y-2 text-sm">
+              <FooterLink to="/guides">Free PDF guides</FooterLink>
               <FooterLink to="/tools/care-level-quiz">Care-level quiz</FooterLink>
               <FooterLink to="/search">Cost projection</FooterLink>
               <FooterLink to="/tools/medicaid-eligibility">Medicaid eligibility</FooterLink>
