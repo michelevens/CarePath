@@ -151,6 +151,12 @@ export function FacilityDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tourOpen, setTourOpen] = useState(false)
+  const [tourPreset, setTourPreset] = useState<TourType | undefined>(undefined)
+  const [askOpen, setAskOpen] = useState(false)
+  const openTour = (preset?: TourType) => {
+    setTourPreset(preset)
+    setTourOpen(true)
+  }
 
   // Sticky tour bar: shown when the sidebar CTA card scrolls out of view.
   // Mirrors APFM's most-clicked CTA placement, minus the lead-gen pressure.
@@ -330,6 +336,13 @@ export function FacilityDetailPage() {
 
             <QualityScoreBadge data={facility.quality_score} variant="hero" />
 
+            <ActionBar
+              slug={facility.slug}
+              onSiteTour={() => openTour("in_person")}
+              virtualTour={() => openTour("virtual")}
+              ask={() => setAskOpen(true)}
+            />
+
             <section>
               <h2 className="text-lg font-semibold">Detailed CMS ratings</h2>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -406,6 +419,8 @@ export function FacilityDetailPage() {
               facilities={facility.comparables}
               currentName={facility.name}
             />
+
+            <ConnectWithFacility facility={facility} onAsk={() => setAskOpen(true)} />
           </div>
 
           <aside>
@@ -427,7 +442,7 @@ export function FacilityDetailPage() {
                   </span>
                 </div>
 
-                <Button className="mt-4 w-full" size="lg" onClick={() => setTourOpen(true)}>
+                <Button className="mt-4 w-full" size="lg" onClick={() => openTour()}>
                   <Calendar className="h-4 w-4" />
                   Request a tour
                 </Button>
@@ -465,7 +480,7 @@ export function FacilityDetailPage() {
                 {facility.available_beds} bed{facility.available_beds === 1 ? "" : "s"} available
               </div>
             </div>
-            <Button onClick={() => setTourOpen(true)} size="lg">
+            <Button onClick={() => openTour()} size="lg">
               <Calendar className="h-4 w-4" />
               Request a tour
             </Button>
@@ -476,6 +491,14 @@ export function FacilityDetailPage() {
       <TourRequestDialog
         open={tourOpen}
         onClose={() => setTourOpen(false)}
+        facilitySlug={facility.slug}
+        facilityName={facility.name}
+        initialTourType={tourPreset}
+      />
+
+      <AskFacilityDialog
+        open={askOpen}
+        onClose={() => setAskOpen(false)}
         facilitySlug={facility.slug}
         facilityName={facility.name}
       />
@@ -826,14 +849,25 @@ function TourRequestDialog({
   onClose,
   facilitySlug,
   facilityName,
+  initialTourType,
 }: {
   open: boolean
   onClose: () => void
   facilitySlug: string
   facilityName: string
+  initialTourType?: TourType
 }) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
-  const [tourType, setTourType] = useState<TourType | null>(null)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialTourType ? 2 : 1)
+  const [tourType, setTourType] = useState<TourType | null>(initialTourType ?? null)
+
+  // When the consumer reopens with a different preset, jump straight to
+  // slot selection for that type.
+  useEffect(() => {
+    if (open && initialTourType) {
+      setTourType(initialTourType)
+      setStep(2)
+    }
+  }, [open, initialTourType])
   const [date, setDate] = useState<string>(() => {
     // Default to first Tue-Sat in next 7 days.
     const d = new Date()
@@ -2159,3 +2193,334 @@ function slugify(s: string) {
 function escapeIcs(s: string) {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n")
 }
+
+/* ──────────────── ActionBar — quick CTAs above the fold ──────────────── */
+
+function ActionBar({
+  slug,
+  onSiteTour,
+  virtualTour,
+  ask,
+}: {
+  slug: string
+  onSiteTour: () => void
+  virtualTour: () => void
+  ask: () => void
+}) {
+  const [downloading, setDownloading] = useState(false)
+  const onBrochure = async () => {
+    setDownloading(true)
+    try {
+      const res = await api.get(`/marketplace/facilities/${slug}/brochure`, {
+        responseType: "blob",
+      })
+      const blob = new Blob([res.data as BlobPart], { type: "application/pdf" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `carepath-${slug}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch {
+      // Sidebar BrochureDownloadButton surfaces a more detailed error; this
+      // quick-action variant fails quietly so the rest of the bar stays usable.
+    } finally {
+      setDownloading(false)
+    }
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <Button size="lg" onClick={onSiteTour}>
+        <Calendar className="h-4 w-4" />
+        On-site tour
+      </Button>
+      <Button size="lg" variant="outline" onClick={virtualTour}>
+        <Calendar className="h-4 w-4" />
+        Virtual tour
+      </Button>
+      <Button size="lg" variant="outline" onClick={ask}>
+        <Mail className="h-4 w-4" />
+        Ask the facility
+      </Button>
+      <Button size="lg" variant="outline" onClick={onBrochure} disabled={downloading}>
+        {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        Brochure (PDF)
+      </Button>
+    </div>
+  )
+}
+
+/* ──────────────── ConnectWithFacility — bottom-of-page lead capture ──────────────── */
+
+function ConnectWithFacility({
+  facility,
+  onAsk,
+}: {
+  facility: Facility
+  onAsk: () => void
+}) {
+  return (
+    <section className="rounded-2xl border bg-accent/20 p-6 sm:p-8">
+      <div className="grid gap-6 md:grid-cols-[230px_1fr]">
+        <div className="space-y-2">
+          <TrustPill icon={ShieldCheck}>100% free for families</TrustPill>
+          <TrustPill icon={Shield}>Only this facility sees your message</TrustPill>
+          <TrustPill icon={Phone}>You choose if and when to be contacted</TrustPill>
+          <TrustPill icon={Building2}>Goes directly to admissions</TrustPill>
+        </div>
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Talk to {facility.name} directly
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Most senior-living lead-gen sites auction your contact info to
+            dozens of facilities at once. We don't. When you send a question
+            here, it goes to this facility's admissions team — and only this
+            facility. No surprise calls from operators you didn't reach out to.
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              Ask about pricing, availability, level-of-care fit, dietary
+              accommodations — anything you'd ask on a tour.
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              No phone number required. Email-only by default.
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              Your message stays with this facility. It's never resold or
+              syndicated to a lead-broker network.
+            </li>
+          </ul>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button size="lg" onClick={onAsk}>
+              <Mail className="h-4 w-4" />
+              Send a message
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <a href="#tour">Request a tour instead</a>
+            </Button>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Prefer working with a placement advisor? CarePath supports a vetted
+            advisor network — every advisor discloses upfront how they're paid.
+            Advisor connections coming soon.
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TrustPill({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <span>{children}</span>
+    </div>
+  )
+}
+
+/* ──────────────── AskFacilityDialog — direct-to-admissions inquiry ──────────────── */
+
+function AskFacilityDialog({
+  open,
+  onClose,
+  facilitySlug,
+  facilityName,
+}: {
+  open: boolean
+  onClose: () => void
+  facilitySlug: string
+  facilityName: string
+}) {
+  const [form, setForm] = useState({
+    inquirer_name: "",
+    inquirer_email: "",
+    inquirer_phone: "",
+    inquirer_relationship: "adult_child",
+    prospect_first_name: "",
+    prospect_last_name: "",
+    prospect_level_of_care: "assisted",
+    notes: "",
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const reset = () => {
+    setForm({
+      inquirer_name: "",
+      inquirer_email: "",
+      inquirer_phone: "",
+      inquirer_relationship: "adult_child",
+      prospect_first_name: "",
+      prospect_last_name: "",
+      prospect_level_of_care: "assisted",
+      notes: "",
+    })
+    setError(null)
+    setDone(false)
+  }
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      await api.post("/marketplace/inquiries", {
+        facility_slug: facilitySlug,
+        ...form,
+        inquirer_phone: form.inquirer_phone || undefined,
+        notes: form.notes || undefined,
+      })
+      setDone(true)
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const first = e.response?.data?.errors ? Object.values(e.response.data.errors)[0]?.[0] : undefined
+      setError(first ?? e.response?.data?.message ?? "Send failed — try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          onClose()
+          setTimeout(reset, 300)
+        }
+      }}
+    >
+      <DialogContent>
+        {done ? (
+          <div className="space-y-4 py-2 text-center">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
+            <DialogHeader>
+              <DialogTitle>Message sent</DialogTitle>
+              <DialogDescription>
+                We've forwarded your question to {facilityName}'s admissions
+                team. They typically respond within one business day. Your
+                contact info was shared with this facility only — no one else.
+              </DialogDescription>
+            </DialogHeader>
+            <Button onClick={onClose}>Done</Button>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <DialogHeader>
+              <DialogTitle>Ask {facilityName}</DialogTitle>
+              <DialogDescription>
+                Goes directly to {facilityName}'s admissions team. Not
+                auctioned to other facilities. No surprise calls.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 grid gap-3">
+              <Field
+                label="Your name"
+                required
+                value={form.inquirer_name}
+                onChange={(v) => setForm((f) => ({ ...f, inquirer_name: v }))}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="Email"
+                  type="email"
+                  required
+                  value={form.inquirer_email}
+                  onChange={(v) => setForm((f) => ({ ...f, inquirer_email: v }))}
+                />
+                <Field
+                  label="Phone (optional)"
+                  value={form.inquirer_phone}
+                  onChange={(v) => setForm((f) => ({ ...f, inquirer_phone: v }))}
+                />
+              </div>
+              <Select
+                label="You are"
+                value={form.inquirer_relationship}
+                onChange={(v) => setForm((f) => ({ ...f, inquirer_relationship: v }))}
+                options={[
+                  { value: "self", label: "The person needing care" },
+                  { value: "spouse", label: "Spouse / partner" },
+                  { value: "adult_child", label: "Adult child" },
+                  { value: "poa", label: "Power of attorney" },
+                  { value: "hospital", label: "Hospital / discharge planner" },
+                  { value: "other", label: "Other" },
+                ]}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="Resident — first name"
+                  required
+                  value={form.prospect_first_name}
+                  onChange={(v) => setForm((f) => ({ ...f, prospect_first_name: v }))}
+                />
+                <Field
+                  label="Last name"
+                  required
+                  value={form.prospect_last_name}
+                  onChange={(v) => setForm((f) => ({ ...f, prospect_last_name: v }))}
+                />
+              </div>
+              <Select
+                label="Level of care"
+                value={form.prospect_level_of_care}
+                onChange={(v) => setForm((f) => ({ ...f, prospect_level_of_care: v }))}
+                options={[
+                  { value: "independent", label: "Independent" },
+                  { value: "assisted", label: "Assisted" },
+                  { value: "memory", label: "Memory care" },
+                  { value: "skilled", label: "Skilled nursing" },
+                  { value: "hospice", label: "Hospice" },
+                ]}
+              />
+              <div>
+                <label className="text-sm font-medium">Your question</label>
+                <textarea
+                  required
+                  value={form.notes}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  rows={4}
+                  placeholder="Pricing for memory care, availability, dietary accommodations, anything you'd ask on a tour."
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            <p className="mt-3 inline-flex items-start gap-2 text-xs text-muted-foreground">
+              <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              We don't sell, share, or syndicate your information. It goes to
+              {" "}{facilityName} only. No texts or calls unless you ask for them.
+            </p>
+
+            {error && (
+              <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Mail className="h-4 w-4" />
+                Send to facility
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
