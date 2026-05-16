@@ -1,42 +1,53 @@
+import { lazy, Suspense } from "react"
 import { Routes, Route } from "react-router-dom"
+import { Loader2 } from "lucide-react"
 import { LandingPage } from "@/pages/LandingPage"
-import { SearchPage } from "@/pages/SearchPage"
-import { FacilityDetailPage } from "@/pages/FacilityDetailPage"
-import { ComparePage } from "@/pages/ComparePage"
-import { LoginPage } from "@/pages/LoginPage"
-import { SignupPage } from "@/pages/SignupPage"
-import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage"
-import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
-import { VerifyEmailPage } from "@/pages/VerifyEmailPage"
-import { ArticlesIndexPage } from "@/pages/ArticlesIndexPage"
-import { ArticleDetailPage } from "@/pages/ArticleDetailPage"
-import { ToolsPage } from "@/pages/ToolsPage"
-import { GuidesPage } from "@/pages/GuidesPage"
-import { WhyCarePathPage } from "@/pages/WhyCarePathPage"
-import { StateLandingPage } from "@/pages/StateLandingPage"
-import { CityLandingPage } from "@/pages/CityLandingPage"
-import { CareLevelQuizPage } from "@/pages/CareLevelQuizPage"
-import { MedicaidEligibilityPage } from "@/pages/MedicaidEligibilityPage"
-import { VaEligibilityPage } from "@/pages/VaEligibilityPage"
-import { SecuritySettingsPage } from "@/pages/SecuritySettingsPage"
+import { NotFoundPage } from "@/pages/NotFoundPage"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
-import { FamilyDashboard } from "@/portals/family/FamilyDashboard"
-import { ResidentDashboard } from "@/portals/resident/ResidentDashboard"
-import { StaffDashboard } from "@/portals/staff/StaffDashboard"
-import { AdminDashboard } from "@/portals/admin/AdminDashboard"
-import { NetworkDashboard } from "@/portals/network/NetworkDashboard"
-import { ReferralDashboard } from "@/portals/referral/ReferralDashboard"
-import { SuperAdminDashboard } from "@/portals/superadmin/SuperAdminDashboard"
-import { MasterDataPage } from "@/portals/superadmin/MasterDataPage"
-import { AuditLogPage } from "@/portals/superadmin/AuditLogPage"
-import { FacilityDataPage } from "@/portals/admin/FacilityDataPage"
-import { AdmissionsKanban } from "@/portals/admin/AdmissionsKanban"
-import { ToursPage } from "@/portals/admin/ToursPage"
-import { LeadsPage } from "@/portals/admin/LeadsPage"
-import { CarePlanIndex } from "@/portals/staff/CarePlanIndex"
-import { CarePlanDetail } from "@/portals/staff/CarePlanDetail"
-import { NotFoundPage } from "@/pages/NotFoundPage"
+
+/**
+ * Route-based code splitting. LandingPage and NotFoundPage stay eager
+ * (first paint + 404 fallback). Everything else is lazy — most notably
+ * SearchPage (Leaflet ~140kb), the per-route admin/staff portals, and
+ * the article/guide content surfaces. Before this we shipped one ~1MB
+ * bundle on every page load.
+ */
+const SearchPage = lazy(() => import("@/pages/SearchPage").then(m => ({ default: m.SearchPage })))
+const FacilityDetailPage = lazy(() => import("@/pages/FacilityDetailPage").then(m => ({ default: m.FacilityDetailPage })))
+const ComparePage = lazy(() => import("@/pages/ComparePage").then(m => ({ default: m.ComparePage })))
+const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })))
+const SignupPage = lazy(() => import("@/pages/SignupPage").then(m => ({ default: m.SignupPage })))
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })))
+const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage").then(m => ({ default: m.VerifyEmailPage })))
+const ArticlesIndexPage = lazy(() => import("@/pages/ArticlesIndexPage").then(m => ({ default: m.ArticlesIndexPage })))
+const ArticleDetailPage = lazy(() => import("@/pages/ArticleDetailPage").then(m => ({ default: m.ArticleDetailPage })))
+const ToolsPage = lazy(() => import("@/pages/ToolsPage").then(m => ({ default: m.ToolsPage })))
+const GuidesPage = lazy(() => import("@/pages/GuidesPage").then(m => ({ default: m.GuidesPage })))
+const WhyCarePathPage = lazy(() => import("@/pages/WhyCarePathPage").then(m => ({ default: m.WhyCarePathPage })))
+const StateLandingPage = lazy(() => import("@/pages/StateLandingPage").then(m => ({ default: m.StateLandingPage })))
+const CityLandingPage = lazy(() => import("@/pages/CityLandingPage").then(m => ({ default: m.CityLandingPage })))
+const CareLevelQuizPage = lazy(() => import("@/pages/CareLevelQuizPage").then(m => ({ default: m.CareLevelQuizPage })))
+const MedicaidEligibilityPage = lazy(() => import("@/pages/MedicaidEligibilityPage").then(m => ({ default: m.MedicaidEligibilityPage })))
+const VaEligibilityPage = lazy(() => import("@/pages/VaEligibilityPage").then(m => ({ default: m.VaEligibilityPage })))
+const SecuritySettingsPage = lazy(() => import("@/pages/SecuritySettingsPage").then(m => ({ default: m.SecuritySettingsPage })))
+
+const FamilyDashboard = lazy(() => import("@/portals/family/FamilyDashboard").then(m => ({ default: m.FamilyDashboard })))
+const ResidentDashboard = lazy(() => import("@/portals/resident/ResidentDashboard").then(m => ({ default: m.ResidentDashboard })))
+const StaffDashboard = lazy(() => import("@/portals/staff/StaffDashboard").then(m => ({ default: m.StaffDashboard })))
+const AdminDashboard = lazy(() => import("@/portals/admin/AdminDashboard").then(m => ({ default: m.AdminDashboard })))
+const NetworkDashboard = lazy(() => import("@/portals/network/NetworkDashboard").then(m => ({ default: m.NetworkDashboard })))
+const ReferralDashboard = lazy(() => import("@/portals/referral/ReferralDashboard").then(m => ({ default: m.ReferralDashboard })))
+const SuperAdminDashboard = lazy(() => import("@/portals/superadmin/SuperAdminDashboard").then(m => ({ default: m.SuperAdminDashboard })))
+const MasterDataPage = lazy(() => import("@/portals/superadmin/MasterDataPage").then(m => ({ default: m.MasterDataPage })))
+const AuditLogPage = lazy(() => import("@/portals/superadmin/AuditLogPage").then(m => ({ default: m.AuditLogPage })))
+const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
+const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").then(m => ({ default: m.AdmissionsKanban })))
+const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
+const LeadsPage = lazy(() => import("@/portals/admin/LeadsPage").then(m => ({ default: m.LeadsPage })))
+const CarePlanIndex = lazy(() => import("@/portals/staff/CarePlanIndex").then(m => ({ default: m.CarePlanIndex })))
+const CarePlanDetail = lazy(() => import("@/portals/staff/CarePlanDetail").then(m => ({ default: m.CarePlanDetail })))
 
 const PORTALS = [
   { path: "family", Dashboard: FamilyDashboard },
@@ -48,78 +59,89 @@ const PORTALS = [
   { path: "superadmin", Dashboard: SuperAdminDashboard },
 ] as const
 
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Loading…
+    </div>
+  )
+}
+
 function App() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/search" element={<SearchPage />} />
-      <Route path="/facility/:slug" element={<FacilityDetailPage />} />
-      <Route path="/compare" element={<ComparePage />} />
-      <Route path="/articles" element={<ArticlesIndexPage />} />
-      <Route path="/articles/:slug" element={<ArticleDetailPage />} />
-      <Route path="/tools" element={<ToolsPage />} />
-      <Route path="/guides" element={<GuidesPage />} />
-      <Route path="/why-carepath" element={<WhyCarePathPage />} />
-      <Route path="/senior-living/:state" element={<StateLandingPage />} />
-      <Route path="/senior-living/:state/:city" element={<CityLandingPage />} />
-      <Route path="/senior-living/:state/:city/:type" element={<CityLandingPage />} />
-      <Route path="/tools/care-level-quiz" element={<CareLevelQuizPage />} />
-      <Route path="/tools/medicaid-eligibility" element={<MedicaidEligibilityPage />} />
-      <Route path="/tools/va-eligibility" element={<VaEligibilityPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/verify-email" element={<VerifyEmailPage />} />
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/facility/:slug" element={<FacilityDetailPage />} />
+        <Route path="/compare" element={<ComparePage />} />
+        <Route path="/articles" element={<ArticlesIndexPage />} />
+        <Route path="/articles/:slug" element={<ArticleDetailPage />} />
+        <Route path="/tools" element={<ToolsPage />} />
+        <Route path="/guides" element={<GuidesPage />} />
+        <Route path="/why-carepath" element={<WhyCarePathPage />} />
+        <Route path="/senior-living/:state" element={<StateLandingPage />} />
+        <Route path="/senior-living/:state/:city" element={<CityLandingPage />} />
+        <Route path="/senior-living/:state/:city/:type" element={<CityLandingPage />} />
+        <Route path="/tools/care-level-quiz" element={<CareLevelQuizPage />} />
+        <Route path="/tools/medicaid-eligibility" element={<MedicaidEligibilityPage />} />
+        <Route path="/tools/va-eligibility" element={<VaEligibilityPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
-      {/* Authenticated, portal-agnostic */}
-      <Route
-        path="/settings/security"
-        element={
-          <ProtectedRoute>
-            <SecuritySettingsPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Portals — gated by ProtectedRoute */}
-      {PORTALS.map(({ path, Dashboard }) => (
+        {/* Authenticated, portal-agnostic */}
         <Route
-          key={path}
-          path={`/${path}`}
+          path="/settings/security"
           element={
-            <ProtectedRoute portal={path}>
-              <PortalShell portal={path} />
+            <ProtectedRoute>
+              <SecuritySettingsPage />
             </ProtectedRoute>
           }
-        >
-          <Route index element={<Dashboard />} />
-          {path === "superadmin" && (
-            <>
-              <Route path="master-data" element={<MasterDataPage />} />
-              <Route path="audit" element={<AuditLogPage />} />
-            </>
-          )}
-          {path === "admin" && (
-            <>
-              <Route path="admissions" element={<AdmissionsKanban />} />
-              <Route path="tours" element={<ToursPage />} />
-              <Route path="leads" element={<LeadsPage />} />
-              <Route path="data" element={<FacilityDataPage />} />
-            </>
-          )}
-          {path === "staff" && (
-            <>
-              <Route path="care-plans" element={<CarePlanIndex />} />
-              <Route path="care-plans/:residentId" element={<CarePlanDetail />} />
-            </>
-          )}
-        </Route>
-      ))}
+        />
 
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* Portals — gated by ProtectedRoute */}
+        {PORTALS.map(({ path, Dashboard }) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <ProtectedRoute portal={path}>
+                <PortalShell portal={path} />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            {path === "superadmin" && (
+              <>
+                <Route path="master-data" element={<MasterDataPage />} />
+                <Route path="audit" element={<AuditLogPage />} />
+              </>
+            )}
+            {path === "admin" && (
+              <>
+                <Route path="admissions" element={<AdmissionsKanban />} />
+                <Route path="tours" element={<ToursPage />} />
+                <Route path="leads" element={<LeadsPage />} />
+                <Route path="data" element={<FacilityDataPage />} />
+              </>
+            )}
+            {path === "staff" && (
+              <>
+                <Route path="care-plans" element={<CarePlanIndex />} />
+                <Route path="care-plans/:residentId" element={<CarePlanDetail />} />
+              </>
+            )}
+          </Route>
+        ))}
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   )
 }
 

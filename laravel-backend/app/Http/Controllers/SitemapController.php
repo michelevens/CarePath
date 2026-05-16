@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use App\Models\Facility;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Generates a sitemap.xml covering all public pages — static routes,
@@ -25,9 +26,22 @@ class SitemapController extends Controller
         '/tools/care-level-quiz',
         '/tools/medicaid-eligibility',
         '/tools/va-eligibility',
+        '/guides',
+        '/why-carepath',
         '/compare',
         '/login',
         '/signup',
+    ];
+
+    /**
+     * Map our internal care-type enum to the URL-slug used in
+     * /senior-living/{state}/{city}/{type} care-type sub-pages.
+     */
+    private const TYPE_URL_SLUG = [
+        'assisted_living' => 'assisted-living',
+        'memory_care' => 'memory-care',
+        'snf' => 'skilled-nursing',
+        'ccrc' => 'continuing-care',
     ];
 
     public function index(): Response
@@ -72,6 +86,69 @@ class SitemapController extends Controller
                         'changefreq' => 'weekly',
                         'priority' => '0.5',
                     ];
+                }
+            });
+
+        // (Guides live behind a download dialog rather than per-slug
+        // routes today; /guides itself is in STATIC_ROUTES above. When
+        // we add per-guide preview pages, list them here from
+        // GuideCatalog::all().)
+
+        // State landing pages — every state we cover with at least one
+        // active facility gets its own /senior-living/{state} entry.
+        $stateRows = Facility::query()
+            ->where('is_active', true)
+            ->whereNotNull('state')
+            ->select('state')
+            ->distinct()
+            ->get();
+        foreach ($stateRows as $row) {
+            $urls[] = [
+                'loc' => $siteUrl . '/senior-living/' . $row->state,
+                'lastmod' => $now,
+                'changefreq' => 'weekly',
+                'priority' => '0.7',
+            ];
+        }
+
+        // City landing pages + per-care-type sub-pages. One row per
+        // distinct (state, city, type) where count > 0 lets us emit the
+        // care-type page only when it has real content.
+        DB::table('facilities')
+            ->where('is_active', true)
+            ->whereNotNull('state')
+            ->whereNotNull('city')
+            ->select('state', 'city', 'type', DB::raw('count(*) as n'))
+            ->groupBy('state', 'city', 'type')
+            ->orderBy('state')->orderBy('city')->orderBy('type')
+            ->chunk(1000, function ($rows) use (&$urls, $siteUrl, $now) {
+                // Track which (state,city) pairs we've already added the
+                // top-level page for — many will appear multiple times
+                // across types.
+                static $seenCity = [];
+                foreach ($rows as $row) {
+                    $cityKey = $row->state . '|' . mb_strtolower($row->city);
+                    if (! isset($seenCity[$cityKey])) {
+                        $seenCity[$cityKey] = true;
+                        $urls[] = [
+                            'loc' => $siteUrl . '/senior-living/' . $row->state
+                                . '/' . rawurlencode($row->city),
+                            'lastmod' => $now,
+                            'changefreq' => 'weekly',
+                            'priority' => '0.65',
+                        ];
+                    }
+                    $typeSlug = self::TYPE_URL_SLUG[$row->type] ?? null;
+                    if ($typeSlug !== null) {
+                        $urls[] = [
+                            'loc' => $siteUrl . '/senior-living/' . $row->state
+                                . '/' . rawurlencode($row->city)
+                                . '/' . $typeSlug,
+                            'lastmod' => $now,
+                            'changefreq' => 'monthly',
+                            'priority' => '0.55',
+                        ];
+                    }
                 }
             });
 
