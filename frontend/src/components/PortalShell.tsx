@@ -76,11 +76,12 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     ],
   },
   referral: {
-    title: "Referral partner",
+    title: "Placement advisor",
     items: [
       { to: "/referral", label: "Overview", icon: Home },
-      { to: "/referral/placements", label: "Placements", icon: Users },
+      { to: "/referral/pipeline", label: "Pipeline", icon: Users },
       { to: "/referral/payouts", label: "Payouts", icon: BarChart3 },
+      { to: "/referral/profile", label: "Agency profile", icon: Settings },
     ],
   },
   superadmin: {

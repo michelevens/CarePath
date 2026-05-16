@@ -39,6 +39,9 @@ const StaffDashboard = lazy(() => import("@/portals/staff/StaffDashboard").then(
 const AdminDashboard = lazy(() => import("@/portals/admin/AdminDashboard").then(m => ({ default: m.AdminDashboard })))
 const NetworkDashboard = lazy(() => import("@/portals/network/NetworkDashboard").then(m => ({ default: m.NetworkDashboard })))
 const ReferralDashboard = lazy(() => import("@/portals/referral/ReferralDashboard").then(m => ({ default: m.ReferralDashboard })))
+const ReferralProfilePage = lazy(() => import("@/portals/referral/ReferralProfilePage").then(m => ({ default: m.ReferralProfilePage })))
+const ReferralPayoutsPage = lazy(() => import("@/portals/referral/ReferralPayoutsPage").then(m => ({ default: m.ReferralPayoutsPage })))
+const ReferralPipelinePage = lazy(() => import("@/portals/referral/ReferralPipelinePage").then(m => ({ default: m.ReferralPipelinePage })))
 const SuperAdminDashboard = lazy(() => import("@/portals/superadmin/SuperAdminDashboard").then(m => ({ default: m.SuperAdminDashboard })))
 const MasterDataPage = lazy(() => import("@/portals/superadmin/MasterDataPage").then(m => ({ default: m.MasterDataPage })))
 const AuditLogPage = lazy(() => import("@/portals/superadmin/AuditLogPage").then(m => ({ default: m.AuditLogPage })))
@@ -136,6 +139,14 @@ function App() {
               <>
                 <Route path="care-plans" element={<CarePlanIndex />} />
                 <Route path="care-plans/:residentId" element={<CarePlanDetail />} />
+              </>
+            )}
+            {path === "referral" && (
+              <>
+                <Route path="profile" element={<ReferralProfilePage />} />
+                <Route path="payouts" element={<ReferralPayoutsPage />} />
+                <Route path="placements" element={<ReferralPayoutsPage />} />
+                <Route path="pipeline" element={<ReferralPipelinePage />} />
               </>
             )}
           </Route>

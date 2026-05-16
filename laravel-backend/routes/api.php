@@ -7,6 +7,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
+use App\Http\Controllers\Referral\ReferralController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityDataController;
@@ -141,4 +142,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leads', [LeadController::class, 'index']);
         Route::put('/leads/{id}/status', [LeadController::class, 'updateStatus']);
     });
+
+    // Placement-advisor / referral-partner portal
+    Route::prefix('referral')
+        ->middleware('role:referral_partner|super_admin')
+        ->group(function () {
+            Route::get('/profile', [ReferralController::class, 'profile']);
+            Route::put('/profile', [ReferralController::class, 'updateProfile']);
+            Route::post('/connect/onboarding', [ReferralController::class, 'connectOnboarding']);
+            Route::get('/stats', [ReferralController::class, 'stats']);
+            Route::get('/placements', [ReferralController::class, 'placements']);
+            Route::get('/pipeline', [ReferralController::class, 'pipeline']);
+        });
 });
