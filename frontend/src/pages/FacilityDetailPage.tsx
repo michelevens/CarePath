@@ -26,6 +26,7 @@ import { useSaved } from "@/lib/useSaved"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
+import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
 
 interface Photo {
   id: string
@@ -83,13 +84,16 @@ interface ComparableFacility {
   id: string
   name: string
   slug: string
+  type: string
   city: string
   state: string
   cms_five_star_overall: number | null
   medicaid_certified: boolean
   price_from_cents: number | null
   total_beds: number
+  available_beds: number
   distance_miles?: number
+  quality_score: QualityScore | null
 }
 
 interface Facility {
@@ -122,6 +126,7 @@ interface Facility {
   review_stats: ReviewStats
   amenities: Amenity[]
   comparables: ComparableFacility[]
+  quality_score: QualityScore | null
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -287,8 +292,10 @@ export function FacilityDetailPage() {
               )}
             </div>
 
+            <QualityScoreBadge data={facility.quality_score} variant="hero" />
+
             <section>
-              <h2 className="text-lg font-semibold">Compliance & quality</h2>
+              <h2 className="text-lg font-semibold">Detailed CMS ratings</h2>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                 <StarTile label="Overall" value={facility.cms_five_star_overall} />
                 <StarTile label="Health inspection" value={facility.cms_five_star_health_inspection} />
@@ -1750,60 +1757,82 @@ function ComparableFacilitiesSection({
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-semibold">Nearby alternatives</h2>
         <span className="text-xs text-muted-foreground">
-          Compare with other facilities families looked at alongside {currentName}
+          Side-by-side with {currentName}. Sortable, all real listings, no paid placement.
         </span>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {facilities.map((c) => {
-          const monthly = c.price_from_cents
-            ? Math.round(c.price_from_cents / 100).toLocaleString()
-            : null
-          return (
-            <Link key={c.id} to={`/facility/${c.slug}`} className="block">
-              <Card className="hover-lift">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-semibold">{c.name}</div>
-                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        {c.city}, {c.state}
-                        {c.distance_miles !== undefined && (
-                          <span className="ml-1 font-medium text-foreground">
-                            · {c.distance_miles} mi
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {c.cms_five_star_overall && (
-                      <span className="flex items-center gap-0.5 text-xs">
-                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
-                        <span className="font-medium">{c.cms_five_star_overall}</span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-end justify-between text-xs">
-                    <div>
-                      {monthly ? (
-                        <>
-                          <span className="text-sm font-semibold">${monthly}</span>
-                          <span className="text-muted-foreground"> /mo</span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">Pricing on tour</span>
-                      )}
+      <div className="mt-3 overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2.5 text-left font-medium">Facility</th>
+              <th className="px-3 py-2.5 text-left font-medium">Quality</th>
+              <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">CMS</th>
+              <th className="px-3 py-2.5 text-left font-medium">Price</th>
+              <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">Distance</th>
+              <th className="px-3 py-2.5"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {facilities.map((c) => {
+              const monthly = c.price_from_cents
+                ? Math.round(c.price_from_cents / 100).toLocaleString()
+                : null
+              return (
+                <tr key={c.id} className="border-t hover:bg-muted/20">
+                  <td className="px-3 py-3 align-top">
+                    <Link to={`/facility/${c.slug}`} className="font-semibold text-primary hover:underline">
+                      {c.name}
+                    </Link>
+                    <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      {c.city}, {c.state}
                     </div>
                     {c.medicaid_certified && (
-                      <span className="rounded bg-accent px-1.5 py-0.5 font-medium text-accent-foreground">
+                      <span className="mt-1 inline-block rounded bg-accent px-1.5 py-0.5 text-xs font-medium text-accent-foreground">
                         Medicaid
                       </span>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })}
+                  </td>
+                  <td className="px-3 py-3 align-top">
+                    {c.quality_score ? (
+                      <QualityScoreBadge data={c.quality_score} variant="inline" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="hidden px-3 py-3 align-top text-sm md:table-cell">
+                    {c.cms_five_star_overall ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                        {c.cms_five_star_overall}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 align-top text-sm">
+                    {monthly ? (
+                      <>
+                        <span className="font-semibold">${monthly}</span>
+                        <span className="text-xs text-muted-foreground"> /mo</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">On tour</span>
+                    )}
+                  </td>
+                  <td className="hidden px-3 py-3 align-top text-sm text-muted-foreground md:table-cell">
+                    {c.distance_miles !== undefined ? `${c.distance_miles} mi` : "—"}
+                  </td>
+                  <td className="px-3 py-3 align-top text-right">
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/facility/${c.slug}`}>View</Link>
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   )

@@ -30,6 +30,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
 import { FacilityMap } from "@/components/FacilityMap"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
+import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
 
 interface FacilityResult {
   id: string
@@ -48,6 +49,7 @@ interface FacilityResult {
   price_from_cents: number | null
   available_beds: number
   distance_miles?: number
+  quality_score: QualityScore | null
 }
 
 interface SearchResponse {
@@ -522,13 +524,15 @@ function ResultCard({ r }: { r: FacilityResult }) {
                   )}
                 </div>
               </div>
-              {r.cms_five_star_overall && (
-                <div className="flex shrink-0 items-center gap-1 rounded-md border bg-card px-2 py-1 text-sm">
-                  <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
-                  <span className="font-semibold">{r.cms_five_star_overall}</span>
-                  <span className="text-xs text-muted-foreground">CMS</span>
-                </div>
-              )}
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <QualityScoreBadge data={r.quality_score} variant="compact" />
+                {r.cms_five_star_overall && (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                    {r.cms_five_star_overall} CMS
+                  </span>
+                )}
+              </div>
             </div>
             <div className="mt-4 flex items-end justify-between">
               <div>

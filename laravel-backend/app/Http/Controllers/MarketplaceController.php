@@ -8,6 +8,7 @@ use App\Models\Facility;
 use App\Models\Lead;
 use App\Models\Tour;
 use App\Services\CostProjectionService;
+use App\Services\QualityScoreService;
 use App\Services\ZipLookupService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -144,6 +145,10 @@ class MarketplaceController extends Controller
             if (isset($f->distance_miles)) {
                 $arr['distance_miles'] = round($f->distance_miles, 1);
             }
+            // CarePath Quality Score — one number above-the-fold.
+            // Defensive against partial data; service returns null when
+            // nothing is computable.
+            $arr['quality_score'] = QualityScoreService::score($arr);
             return $arr;
         });
 
@@ -385,19 +390,28 @@ class MarketplaceController extends Controller
                 ->orderBy('name')
                 ->limit(8)
                 ->get(['id', 'name', 'slug', 'type', 'city', 'state',
-                    'cms_five_star_overall', 'price_from_cents',
+                    'cms_five_star_overall', 'cms_five_star_health_inspection',
+                    'cms_five_star_staffing', 'cms_five_star_quality',
+                    'price_from_cents', 'total_beds',
                     'medicaid_certified', 'medicare_certified'])
-                ->map(fn ($f) => [
-                    'name' => $f->name,
-                    'slug' => $f->slug,
-                    'type' => $f->type,
-                    'city' => $f->city,
-                    'state' => $f->state,
-                    'cms_five_star_overall' => $f->cms_five_star_overall,
-                    'price_from_cents' => $f->price_from_cents,
-                    'medicaid_certified' => (bool) $f->medicaid_certified,
-                    'medicare_certified' => (bool) $f->medicare_certified,
-                ])
+                ->map(function ($f) {
+                    $arr = $f->toArray();
+                    // Top-cities/state listings don't pay the bed-count
+                    // join cost; quality score uses bed-data signal only.
+                    $arr['available_beds'] = 0;
+                    return [
+                        'name' => $f->name,
+                        'slug' => $f->slug,
+                        'type' => $f->type,
+                        'city' => $f->city,
+                        'state' => $f->state,
+                        'cms_five_star_overall' => $f->cms_five_star_overall,
+                        'price_from_cents' => $f->price_from_cents,
+                        'medicaid_certified' => (bool) $f->medicaid_certified,
+                        'medicare_certified' => (bool) $f->medicare_certified,
+                        'quality_score' => QualityScoreService::score($arr),
+                    ];
+                })
                 ->values()
                 ->all();
 
@@ -497,8 +511,11 @@ class MarketplaceController extends Controller
             ->where('id', '!=', $facility->id)
             ->where('state', $facility->state)
             ->select(['id', 'name', 'slug', 'type', 'city', 'state',
-                'latitude', 'longitude', 'cms_five_star_overall',
-                'medicaid_certified', 'price_from_cents', 'total_beds']);
+                'latitude', 'longitude',
+                'cms_five_star_overall', 'cms_five_star_health_inspection',
+                'cms_five_star_staffing', 'cms_five_star_quality',
+                'medicaid_certified', 'medicare_certified',
+                'price_from_cents', 'total_beds']);
 
         $comparables = $compareQuery->limit(20)->get();
 
@@ -525,13 +542,29 @@ class MarketplaceController extends Controller
                 ->values();
         }
 
-        $comparablesPayload = $comparables->map(function ($c) {
+        // Comparables share live-bed counts with the search index so the
+        // quality score can use real availability data.
+        $cmpAvailability = Bed::query()
+            ->whereIn('facility_id', $comparables->pluck('id'))
+            ->where('status', 'available')
+            ->selectRaw('facility_id, count(*) as available_count')
+            ->groupBy('facility_id')
+            ->pluck('available_count', 'facility_id');
+
+        $comparablesPayload = $comparables->map(function ($c) use ($cmpAvailability) {
             $arr = $c->toArray();
+            $arr['available_beds'] = (int) ($cmpAvailability[$c->id] ?? 0);
             if (isset($c->distance_miles)) {
                 $arr['distance_miles'] = round((float) $c->distance_miles, 1);
             }
+            $arr['quality_score'] = QualityScoreService::score($arr);
             return $arr;
         });
+
+        // Compute quality score from the facility's actual data + bed count.
+        $facilityArr = $facility->toArray();
+        $facilityArr['available_beds'] = $availableBeds;
+        $qualityScore = QualityScoreService::score($facilityArr);
 
         return response()->json([
             'data' => array_merge($facility->toArray(), [
@@ -539,6 +572,7 @@ class MarketplaceController extends Controller
                 'available_by_level' => $byLevel,
                 'review_stats' => $reviewStats,
                 'comparables' => $comparablesPayload,
+                'quality_score' => $qualityScore,
             ]),
         ]);
     }

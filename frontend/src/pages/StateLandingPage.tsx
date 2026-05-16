@@ -12,6 +12,7 @@ import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
+import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
 
 const STATE_NAMES: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
@@ -50,6 +51,7 @@ interface TopFacility {
   price_from_cents: number | null
   medicaid_certified: boolean
   medicare_certified: boolean
+  quality_score: QualityScore | null
 }
 
 interface StateData {
@@ -247,13 +249,15 @@ export function StateLandingPage() {
                                 {f.city}, {f.state} · {TYPE_LABEL[f.type] ?? f.type}
                               </div>
                             </div>
-                            {f.cms_five_star_overall && (
-                              <span className="flex shrink-0 items-center gap-1 rounded-md border bg-card px-2 py-1 text-sm">
-                                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
-                                <span className="font-semibold">{f.cms_five_star_overall}</span>
-                                <span className="text-xs text-muted-foreground">CMS</span>
-                              </span>
-                            )}
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <QualityScoreBadge data={f.quality_score} variant="compact" />
+                              {f.cms_five_star_overall && (
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                                  {f.cms_five_star_overall} CMS
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="mt-3 flex items-end justify-between text-xs">
                             <div className="flex gap-1.5">
