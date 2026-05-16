@@ -11,6 +11,7 @@ import {
   HeartHandshake,
   Shield,
   ShieldCheck,
+  Sparkles,
   LogOut,
   MailWarning,
 } from "lucide-react"
@@ -62,6 +63,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/admin/leads", label: "Leads", icon: HeartHandshake },
       { to: "/admin/compliance", label: "Compliance", icon: Shield },
       { to: "/admin/data", label: "Facility data", icon: ClipboardList },
+      { to: "/admin/sponsored", label: "Sponsored boosts", icon: Sparkles },
       { to: "/admin/billing", label: "Billing & plan", icon: BarChart3 },
       { to: "/admin/reports", label: "Reports", icon: BarChart3 },
       { to: "/admin/settings", label: "Settings", icon: Settings },

@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\Tour;
 use App\Services\CostProjectionService;
 use App\Services\QualityScoreService;
+use App\Services\SponsoredListingService;
 use App\Services\ZipLookupService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
@@ -34,7 +35,7 @@ class MarketplaceController extends Controller
      * Filters: state, city, type (level of care), max_price_cents,
      *          medicaid_only, min_five_star, q (free-text search on name)
      */
-    public function index(Request $request, ZipLookupService $zipLookup): JsonResponse
+    public function index(Request $request, ZipLookupService $zipLookup, SponsoredListingService $sponsored): JsonResponse
     {
         $data = $request->validate([
             'state' => ['nullable', 'string', 'size:2'],
@@ -133,6 +134,31 @@ class MarketplaceController extends Controller
                 ->values();
         }
 
+        // Inject sponsored listings at the top of the result set. Each
+        // sponsored Facility model is decorated with `is_sponsored` +
+        // `sponsored_campaign_id` so the payload mapper picks them up.
+        // Dedup organic results against sponsored so the same facility
+        // doesn't appear twice.
+        $sponsoredFacilities = $sponsored->selectForSearch($data);
+        if ($sponsoredFacilities->isNotEmpty()) {
+            $sponsoredIds = $sponsoredFacilities->pluck('id')->all();
+            $facilities = $facilities->reject(fn ($f) => in_array($f->id, $sponsoredIds, true));
+            // If origin is set, copy distance onto the sponsored result so
+            // the UI still shows mileage.
+            if ($origin) {
+                $sponsoredFacilities = $sponsoredFacilities->map(function ($f) use ($origin) {
+                    if ($f->latitude && $f->longitude) {
+                        $f->distance_miles = $this->haversineMiles(
+                            $origin['lat'], $origin['lon'],
+                            (float) $f->latitude, (float) $f->longitude,
+                        );
+                    }
+                    return $f;
+                });
+            }
+            $facilities = $sponsoredFacilities->concat($facilities)->values();
+        }
+
         // Attach live bed availability.
         $availability = Bed::query()
             ->whereIn('facility_id', $facilities->pluck('id'))
@@ -151,6 +177,10 @@ class MarketplaceController extends Controller
             // Defensive against partial data; service returns null when
             // nothing is computable.
             $arr['quality_score'] = QualityScoreService::score($arr);
+            // Surface sponsored status to the frontend so it can render
+            // the FTC-required "Sponsored" badge.
+            $arr['is_sponsored'] = $f->is_sponsored ?? false;
+            $arr['sponsored_campaign_id'] = $f->sponsored_campaign_id ?? null;
             return $arr;
         });
 
@@ -159,6 +189,60 @@ class MarketplaceController extends Controller
             'origin' => $origin,
             'radius_miles' => $origin ? $radiusMiles : null,
         ]);
+    }
+
+    /**
+     * POST /api/marketplace/sponsored/impressions
+     *
+     * Front-end fires this after the search result renders so paced
+     * budgets account for actually-served slots, not just selected.
+     * Unauthenticated, rate-limited (one batch per request).
+     */
+    public function recordSponsoredImpressions(Request $request, SponsoredListingService $sponsored): JsonResponse
+    {
+        $data = $request->validate([
+            'impressions' => ['required', 'array', 'max:5'],
+            'impressions.*.campaign_id' => ['required', 'string'],
+            'impressions.*.facility_id' => ['required', 'string'],
+            'session_id' => ['nullable', 'string', 'max:60'],
+            'search_context' => ['nullable', 'array'],
+        ]);
+
+        foreach ($data['impressions'] as $imp) {
+            $sponsored->recordImpression(
+                $imp['campaign_id'],
+                $imp['facility_id'],
+                $data['session_id'] ?? null,
+                $data['search_context'] ?? [],
+            );
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * POST /api/marketplace/sponsored/clicks
+     *
+     * Records a click + bills the campaign. Rate-limited per IP to
+     * deter click fraud (more sophisticated detection lives in the
+     * scheduled fraud-check job).
+     */
+    public function recordSponsoredClick(Request $request, SponsoredListingService $sponsored): JsonResponse
+    {
+        $throttleKey = 'sponsored-click:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 60)) {
+            return response()->json(['ok' => false, 'reason' => 'rate_limited'], 429);
+        }
+        RateLimiter::hit($throttleKey, 60);
+
+        $data = $request->validate([
+            'campaign_id' => ['required', 'string'],
+            'session_id' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $sponsored->recordClick($data['campaign_id'], $data['session_id'] ?? null, $request);
+
+        return response()->json(['ok' => true]);
     }
 
     /**

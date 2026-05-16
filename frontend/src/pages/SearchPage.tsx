@@ -52,6 +52,24 @@ interface FacilityResult {
   available_beds: number
   distance_miles?: number
   quality_score: QualityScore | null
+  is_sponsored: boolean
+  sponsored_campaign_id: string | null
+}
+
+/**
+ * Stable per-browser session ID for sponsored-listing telemetry.
+ * Generated once, persisted in localStorage. NOT a personal identifier
+ * (no PII) — just a client ID for CTR + frequency-cap math.
+ */
+function getOrCreateSessionId(): string {
+  if (typeof window === "undefined") return ""
+  const KEY = "carepath:session-id"
+  let id = window.localStorage.getItem(KEY)
+  if (!id) {
+    id = `sess_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`
+    window.localStorage.setItem(KEY, id)
+  }
+  return id
 }
 
 interface SearchResponse {
@@ -142,6 +160,21 @@ export function SearchPage() {
           if (!alive) return
           setResults(r.data.data)
           setOrigin(r.data.origin)
+          // Record impressions for any sponsored facilities returned.
+          // Fire-and-forget — failures don't affect the search UX.
+          const sponsored = r.data.data.filter((f) => f.is_sponsored && f.sponsored_campaign_id)
+          if (sponsored.length > 0) {
+            api
+              .post("/marketplace/sponsored/impressions", {
+                impressions: sponsored.map((f) => ({
+                  campaign_id: f.sponsored_campaign_id,
+                  facility_id: f.id,
+                })),
+                session_id: getOrCreateSessionId(),
+                search_context: queryParams,
+              })
+              .catch(() => {})
+          }
         })
         .catch((err) => alive && setError(err.response?.data?.message ?? "Search failed"))
         .finally(() => alive && setLoading(false))
@@ -452,8 +485,30 @@ function ResultCard({ r }: { r: FacilityResult }) {
     saved.toggle({ id: r.id, slug: r.slug, name: r.name, city: r.city, state: r.state })
   }
 
+  const onCardClick = () => {
+    // Fire sponsored-click ping if this is a paid slot. Don't block the
+    // navigation — the Link's default behavior handles routing.
+    if (r.is_sponsored && r.sponsored_campaign_id) {
+      api
+        .post("/marketplace/sponsored/clicks", {
+          campaign_id: r.sponsored_campaign_id,
+          session_id: getOrCreateSessionId(),
+        })
+        .catch(() => {})
+    }
+  }
+
   return (
-    <Link to={`/facility/${r.slug}`} className="relative block">
+    <Link to={`/facility/${r.slug}`} className="relative block" onClick={onCardClick}>
+      {r.is_sponsored && (
+        <span
+          className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border bg-card/95 px-2 py-0.5 text-xs font-medium text-muted-foreground backdrop-blur"
+          title="This facility paid for placement at the top of these results. Listing position is the only thing they pay for — quality data, pricing, and CMS ratings are the same as organic listings."
+        >
+          <Sparkles className="h-3 w-3 text-primary" />
+          Sponsored
+        </span>
+      )}
       <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
         <button
           type="button"

@@ -7,6 +7,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
+use App\Http\Controllers\Facility\SponsoredController as FacilitySponsoredController;
 use App\Http\Controllers\Family\BillingController as FamilyBillingController;
 use App\Http\Controllers\Referral\ReferralController;
 use App\Http\Controllers\Facility\BedController;
@@ -45,6 +46,11 @@ Route::prefix('marketplace')->group(function () {
     Route::post('/leads', [MarketplaceController::class, 'captureLead']);
     Route::get('/guides', [GuideController::class, 'index']);
     Route::post('/guides/{slug}/download', [GuideController::class, 'download']);
+
+    // Sponsored-listing telemetry — public so anonymous search clicks
+    // can be billed. Rate-limited inside the controller.
+    Route::post('/sponsored/impressions', [MarketplaceController::class, 'recordSponsoredImpressions']);
+    Route::post('/sponsored/clicks', [MarketplaceController::class, 'recordSponsoredClick']);
 });
 
 // Public content hub — articles + tools — no auth.
@@ -102,6 +108,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/billing/subscription', [FacilityBillingController::class, 'show']);
         Route::post('/billing/checkout', [FacilityBillingController::class, 'checkout']);
         Route::post('/billing/cancel', [FacilityBillingController::class, 'cancel']);
+
+        // Sponsored-listings self-serve campaign management.
+        Route::get('/sponsored/campaigns', [FacilitySponsoredController::class, 'index']);
+        Route::post('/sponsored/campaigns', [FacilitySponsoredController::class, 'store']);
+        Route::put('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'update']);
+        Route::delete('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'destroy']);
+        Route::get('/sponsored/stats', [FacilitySponsoredController::class, 'stats']);
 
         Route::get('/data/{type}', [FacilityDataController::class, 'index']);
         Route::post('/data/{type}', [FacilityDataController::class, 'store']);

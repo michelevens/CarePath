@@ -50,6 +50,7 @@ const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").t
 const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
 const LeadsPage = lazy(() => import("@/portals/admin/LeadsPage").then(m => ({ default: m.LeadsPage })))
 const BillingPage = lazy(() => import("@/portals/admin/BillingPage").then(m => ({ default: m.BillingPage })))
+const SponsoredCampaignsPage = lazy(() => import("@/portals/admin/SponsoredCampaignsPage").then(m => ({ default: m.SponsoredCampaignsPage })))
 const CarePlanIndex = lazy(() => import("@/portals/staff/CarePlanIndex").then(m => ({ default: m.CarePlanIndex })))
 const CarePlanDetail = lazy(() => import("@/portals/staff/CarePlanDetail").then(m => ({ default: m.CarePlanDetail })))
 
@@ -133,6 +134,7 @@ function App() {
                 <Route path="leads" element={<LeadsPage />} />
                 <Route path="data" element={<FacilityDataPage />} />
                 <Route path="billing" element={<BillingPage />} />
+                <Route path="sponsored" element={<SponsoredCampaignsPage />} />
               </>
             )}
             {path === "staff" && (
