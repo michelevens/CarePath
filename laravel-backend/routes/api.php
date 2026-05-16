@@ -67,6 +67,7 @@ Route::prefix('marketplace')->group(function () {
     // can be billed. Rate-limited inside the controller.
     Route::post('/sponsored/impressions', [MarketplaceController::class, 'recordSponsoredImpressions']);
     Route::post('/sponsored/clicks', [MarketplaceController::class, 'recordSponsoredClick']);
+    Route::post('/sponsored/report', [MarketplaceController::class, 'reportSponsored']);
 });
 
 // Public content hub — articles + tools — no auth.
@@ -117,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/subscriptions', [SuperAdminController::class, 'subscriptions']);
             Route::get('/placements', [SuperAdminController::class, 'placements']);
             Route::get('/sponsored', [SuperAdminController::class, 'sponsored']);
+            Route::post('/sponsored/reports/{id}/resolve', [SuperAdminController::class, 'resolveAdReport']);
 
             // Facility data sources — stats + per-source ingest triggers.
             Route::get('/sources', [SuperAdminSourcesController::class, 'index']);

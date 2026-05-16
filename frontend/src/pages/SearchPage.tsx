@@ -32,7 +32,7 @@ import { FacilityMap } from "@/components/FacilityMap"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
 import { FamilyProModal } from "@/components/FamilyProModal"
-import { Sparkles, Users } from "lucide-react"
+import { Flag, Info, Sparkles, Users } from "lucide-react"
 
 interface FacilityResult {
   id: string
@@ -55,6 +55,11 @@ interface FacilityResult {
   is_sponsored: boolean
   sponsored_campaign_id: string | null
   click_token: string | null
+  sponsored_reason: {
+    facility_name: string
+    matched_on: string[]
+    rank_signal: string
+  } | null
 }
 
 /**
@@ -508,13 +513,11 @@ function ResultCard({ r }: { r: FacilityResult }) {
   return (
     <Link to={`/facility/${r.slug}`} className="relative block" onClick={onCardClick}>
       {r.is_sponsored && (
-        <span
-          className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border bg-card/95 px-2 py-0.5 text-xs font-medium text-muted-foreground backdrop-blur"
-          title="This facility paid for placement at the top of these results. Listing position is the only thing they pay for — quality data, pricing, and CMS ratings are the same as organic listings."
-        >
-          <Sparkles className="h-3 w-3 text-primary" />
-          Sponsored
-        </span>
+        <SponsoredBadge
+          campaignId={r.sponsored_campaign_id}
+          facilityId={r.id}
+          reason={r.sponsored_reason}
+        />
       )}
       <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
         <button
@@ -927,5 +930,245 @@ function SavedFacilitiesStrip() {
       </div>
       <FamilyProModal open={proOpen} onClose={() => setProOpen(false)} trigger="saved-facilities" />
     </>
+  )
+}
+
+/**
+ * Sponsored badge with a "Why am I seeing this?" disclosure popover
+ * and a "Report this ad" action. Click to expand — keeping it click
+ * rather than hover so it's reachable on touch devices and doesn't
+ * fire by accident as users scan results.
+ */
+function SponsoredBadge({
+  campaignId,
+  facilityId,
+  reason,
+}: {
+  campaignId: string | null
+  facilityId: string
+  reason: {
+    facility_name: string
+    matched_on: string[]
+    rank_signal: string
+  } | null
+}) {
+  const [open, setOpen] = useState(false)
+  const [reporting, setReporting] = useState(false)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setOpen((v) => !v)
+        }}
+        className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border bg-card/95 px-2 py-0.5 text-xs font-medium text-muted-foreground backdrop-blur hover:border-primary hover:text-foreground"
+      >
+        <Sparkles className="h-3 w-3 text-primary" />
+        Sponsored
+        <Info className="h-3 w-3 opacity-60" />
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          className="absolute left-3 top-10 z-20 w-72 rounded-md border bg-card p-3 text-xs shadow-lg"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+        >
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <strong className="text-sm">Why am I seeing this?</strong>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Close"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="text-muted-foreground">
+            <strong className="text-foreground">{reason?.facility_name ?? "This facility"}</strong>{" "}
+            paid for placement on searches matching{" "}
+            <em>{reason?.matched_on.join(", ") || "your filters"}</em>.
+          </p>
+          <p className="mt-2 text-muted-foreground">
+            Sponsored slots are ranked by <em>{reason?.rank_signal ?? "bid × quality score"}</em>{" "}
+            — a higher CMS rating beats a higher bid alone. CMS ratings, prices,
+            and reviews shown are identical to organic listings.
+          </p>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2">
+            {campaignId && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setReporting(true)
+                }}
+                className="inline-flex items-center gap-1 text-xs text-destructive hover:underline"
+              >
+                <Flag className="h-3 w-3" />
+                Report this ad
+              </button>
+            )}
+            <button
+              onClick={() => setOpen(false)}
+              className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {reporting && campaignId && (
+        <ReportAdModal
+          campaignId={campaignId}
+          facilityId={facilityId}
+          facilityName={reason?.facility_name ?? "this facility"}
+          onClose={() => {
+            setReporting(false)
+            setOpen(false)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+function ReportAdModal({
+  campaignId,
+  facilityId,
+  facilityName,
+  onClose,
+}: {
+  campaignId: string
+  facilityId: string
+  facilityName: string
+  onClose: () => void
+}) {
+  const [reason, setReason] = useState<string>("misleading")
+  const [notes, setNotes] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setBusy(true)
+    setErr(null)
+    try {
+      await api.post("/marketplace/sponsored/report", {
+        campaign_id: campaignId,
+        facility_id: facilityId,
+        reason,
+        notes: notes || null,
+        session_id: getOrCreateSessionId(),
+      })
+      setDone(true)
+    } catch (e) {
+      const error = e as { response?: { data?: { message?: string } } }
+      setErr(error.response?.data?.message ?? "Could not submit report")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-lg border bg-card shadow-xl"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+      >
+        <div className="flex items-center justify-between border-b p-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Flag className="h-4 w-4 text-destructive" />
+            Report this ad
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {done ? (
+          <div className="p-6 text-sm">
+            <p>Thanks — the CarePath team will review the report on {facilityName}.</p>
+            <Button onClick={onClose} className="mt-4 w-full">
+              Done
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-4 p-4">
+            <p className="text-xs text-muted-foreground">
+              Reporting <strong>{facilityName}</strong>. We review every report; sponsored
+              campaigns can be paused or removed for policy violations.
+            </p>
+            <div className="space-y-1">
+              {[
+                ["misleading", "Misleading claim"],
+                ["wrong_location", "Wrong location / not nearby"],
+                ["low_quality", "Low quality / poor reviews don't match listing"],
+                ["off_policy", "Violates CarePath ad policy"],
+                ["other", "Other"],
+              ].map(([value, label]) => (
+                <label
+                  key={value}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm",
+                    reason === value
+                      ? "border-violet-300 bg-violet-50"
+                      : "hover:bg-muted/30",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="reason"
+                    value={value}
+                    checked={reason === value}
+                    onChange={() => setReason(value)}
+                    className="h-3 w-3"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add detail (optional, max 2000 chars)"
+              maxLength={2000}
+              className="h-20 w-full rounded-md border bg-background p-2 text-sm"
+            />
+            {err && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+                {err}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy} className="gap-1">
+                {busy && <Loader2 className="h-3 w-3 animate-spin" />}
+                Submit report
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   )
 }

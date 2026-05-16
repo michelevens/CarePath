@@ -442,6 +442,16 @@ class SuperAdminController extends Controller
             ];
         });
 
+        // Open user reports for the SuperAdmin to triage. Joined into
+        // the same payload so the page can show "X campaigns have
+        // pending reports" without a second request.
+        $openReports = \App\Models\SponsoredAdReport::query()
+            ->where('status', 'open')
+            ->with(['facility:id,name,slug', 'campaign:id,name'])
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
         return response()->json([
             'data' => $rows,
             'summary' => [
@@ -449,8 +459,46 @@ class SuperAdminController extends Controller
                 'spend_today_cents' => $campaigns->sum('spent_today_cents'),
                 'impressions_today' => $campaigns->sum('impressions_count'),
                 'clicks_today' => $campaigns->sum('clicks_count'),
+                'open_reports_count' => \App\Models\SponsoredAdReport::where('status', 'open')->count(),
             ],
+            'open_reports' => $openReports->map(fn ($r) => [
+                'id' => $r->id,
+                'reason' => $r->reason,
+                'notes' => $r->notes,
+                'created_at' => $r->created_at,
+                'campaign' => $r->campaign ? ['id' => $r->campaign->id, 'name' => $r->campaign->name] : null,
+                'facility' => $r->facility ? ['name' => $r->facility->name, 'slug' => $r->facility->slug] : null,
+            ]),
         ]);
+    }
+
+    /**
+     * POST /api/superadmin/sponsored/reports/{id}/resolve
+     */
+    public function resolveAdReport(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', 'in:warning_sent,campaign_paused,campaign_ended,no_action'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $report = \App\Models\SponsoredAdReport::findOrFail($id);
+        $report->update([
+            'status' => $data['action'] === 'no_action' ? 'dismissed' : 'actioned',
+            'resolution_action' => $data['action'],
+            'resolution_notes' => $data['notes'] ?? null,
+            'resolved_by_user_id' => $request->user()?->id,
+            'resolved_at' => now(),
+        ]);
+
+        // If the action says pause/end, flip the campaign too.
+        if ($data['action'] === 'campaign_paused') {
+            SponsoredCampaign::where('id', $report->campaign_id)->update(['status' => 'paused']);
+        } elseif ($data['action'] === 'campaign_ended') {
+            SponsoredCampaign::where('id', $report->campaign_id)->update(['status' => 'ended']);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     /**

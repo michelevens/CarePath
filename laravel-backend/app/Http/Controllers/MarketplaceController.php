@@ -137,9 +137,20 @@ class MarketplaceController extends Controller
         // Inject sponsored listings at the top of the result set. Each
         // sponsored Facility model is decorated with `is_sponsored` +
         // `sponsored_campaign_id` so the payload mapper picks them up.
-        // Dedup organic results against sponsored so the same facility
-        // doesn't appear twice.
-        $sponsoredFacilities = $sponsored->selectForSearch($data);
+        // The service now enforces surface opt-in, sparse-results
+        // suppression, frequency caps, geographic radius, and a
+        // quality-blend ranking; we hand it the origin + organic count
+        // + session id so all of those work.
+        $originForAds = $origin
+            ? ['lat' => $origin['lat'], 'lon' => $origin['lon'], 'radius_miles' => $radiusMiles]
+            : null;
+        $sponsoredFacilities = $sponsored->selectForSearch(
+            filters: $data,
+            surface: 'search',
+            organicCount: $facilities->count(),
+            origin: $originForAds,
+            sessionId: $request->header('X-Carepath-Session-Id') ?: $request->query('session_id'),
+        );
         if ($sponsoredFacilities->isNotEmpty()) {
             $sponsoredIds = $sponsoredFacilities->pluck('id')->all();
             $facilities = $facilities->reject(fn ($f) => in_array($f->id, $sponsoredIds, true));
@@ -184,6 +195,7 @@ class MarketplaceController extends Controller
             $arr['is_sponsored'] = $f->is_sponsored ?? false;
             $arr['sponsored_campaign_id'] = $f->sponsored_campaign_id ?? null;
             $arr['click_token'] = $f->click_token ?? null;
+            $arr['sponsored_reason'] = $f->sponsored_reason ?? null;
             return $arr;
         });
 
@@ -263,6 +275,44 @@ class MarketplaceController extends Controller
         $billed = $sponsored->recordClick($data['campaign_id'], $data['session_id'], $request);
 
         return response()->json(['ok' => true, 'billed' => $billed]);
+    }
+
+    /**
+     * POST /api/marketplace/sponsored/report
+     *
+     * Public "report this ad" endpoint. Anyone who saw the ad — logged
+     * in or not — can flag it. The report lands in the SuperAdmin
+     * Sponsored review queue. Per-IP rate-limited so a single bad
+     * actor can't drown the queue.
+     */
+    public function reportSponsored(Request $request): JsonResponse
+    {
+        $throttleKey = 'sponsored-report:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 10)) {
+            return response()->json(['ok' => false, 'reason' => 'rate_limited'], 429);
+        }
+        RateLimiter::hit($throttleKey, 3600); // 10/hour per IP
+
+        $data = $request->validate([
+            'campaign_id' => ['required', 'string'],
+            'facility_id' => ['required', 'string'],
+            'reason' => ['required', 'in:misleading,wrong_location,low_quality,off_policy,other'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'session_id' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        \App\Models\SponsoredAdReport::create([
+            'campaign_id' => $data['campaign_id'],
+            'facility_id' => $data['facility_id'],
+            'user_id' => $request->user()?->id,
+            'session_id' => $data['session_id'] ?? null,
+            'ip_address' => $request->ip(),
+            'reason' => $data['reason'],
+            'notes' => $data['notes'] ?? null,
+            'status' => 'open',
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     /**

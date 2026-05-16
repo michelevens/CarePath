@@ -28,6 +28,16 @@ interface Summary {
   spend_today_cents: number
   impressions_today: number
   clicks_today: number
+  open_reports_count: number
+}
+
+interface AdReport {
+  id: string
+  reason: string
+  notes: string | null
+  created_at: string
+  campaign: { id: string; name: string | null } | null
+  facility: { name: string; slug: string } | null
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -56,27 +66,39 @@ function isCtrSuspicious(c: CampaignRow): boolean {
 export function SponsoredPage() {
   const [rows, setRows] = useState<CampaignRow[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [reports, setReports] = useState<AdReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let alive = true
+  const load = () => {
     api
-      .get<{ data: CampaignRow[]; summary: Summary }>("/superadmin/sponsored")
+      .get<{ data: CampaignRow[]; summary: Summary; open_reports: AdReport[] }>("/superadmin/sponsored")
       .then((r) => {
-        if (!alive) return
         setRows(r.data?.data ?? [])
         setSummary(r.data?.summary ?? null)
+        setReports(r.data?.open_reports ?? [])
       })
       .catch((e: unknown) => {
         const err = e as { response?: { data?: { message?: string } } }
-        if (alive) setError(err.response?.data?.message ?? "Failed to load")
+        setError(err.response?.data?.message ?? "Failed to load")
       })
-      .finally(() => alive && setLoading(false))
-    return () => {
-      alive = false
-    }
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const resolve = async (reportId: string, action: string) => {
+    try {
+      await api.post(`/superadmin/sponsored/reports/${reportId}/resolve`, { action })
+      load()
+    } catch {
+      // refresh anyway so the UI doesn't stall on a bad response
+      load()
+    }
+  }
 
   const flagged = rows.filter(isCtrSuspicious)
 
@@ -114,6 +136,65 @@ export function SponsoredPage() {
                 Worth a manual review — anything &gt;5% CTR on facility search is well above industry norms.
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {reports.length > 0 && (
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <h2 className="text-sm font-semibold">
+                Open user reports ({reports.length})
+              </h2>
+            </div>
+            <ul className="space-y-2">
+              {reports.map((r) => (
+                <li
+                  key={r.id}
+                  className="rounded-md border p-3 text-xs"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">
+                        {r.facility?.name ?? "Unknown facility"}
+                        <span className="ml-2 inline-block rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                          {r.reason.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        Campaign: {r.campaign?.name ?? "—"} ·{" "}
+                        {new Date(r.created_at).toLocaleString()}
+                      </div>
+                      {r.notes && (
+                        <p className="mt-1 italic text-muted-foreground">"{r.notes}"</p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button
+                        onClick={() => resolve(r.id, "warning_sent")}
+                        className="rounded border px-2 py-1 text-[11px] hover:bg-muted/40"
+                      >
+                        Warn advertiser
+                      </button>
+                      <button
+                        onClick={() => resolve(r.id, "campaign_paused")}
+                        className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900 hover:bg-amber-100"
+                      >
+                        Pause campaign
+                      </button>
+                      <button
+                        onClick={() => resolve(r.id, "no_action")}
+                        className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

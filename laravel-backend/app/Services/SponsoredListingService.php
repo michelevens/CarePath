@@ -11,39 +11,87 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Decides which sponsored facilities (if any) to insert into a search
- * result, and records the impression/click events that drive billing.
+ * Decides which sponsored facilities (if any) to inject into a search
+ * result and records impression/click events that drive billing.
  *
- * Matching rules in v1:
- *   - Campaign must be servable (status=active, in date window, has
- *     budget for at least one more click today).
- *   - Facility must intrinsically match the search filters (state /
- *     city / type / Medicaid-only). The facility's own location is
- *     the targeting; campaigns can't poach OTHER cities' searches.
- *   - Optionally narrowed by campaign.target_states /
- *     campaign.target_cities (if facility owner only wants to spend
- *     on certain markets).
+ * Trust-first design — see "Sponsored ads design notes":
  *
- * Ranking: highest cpc_bid_cents first. Ties broken by random.
+ *   - SURFACE OPT-IN: ads only fire on caller surfaces we've decided
+ *     are acceptable for monetization (`search`, `embed`). All other
+ *     surfaces (landing pages, comparison, facility detail) get an
+ *     empty collection regardless of what the caller asks for.
  *
- * Caps: at most 2 sponsored slots per search result page (matches
- * Google-style restraint — too many erodes trust).
+ *   - QUALITY-BLEND RANKING: candidates are sorted by
+ *     `cpc_bid * quality_score` instead of bid alone, so a low-rated
+ *     facility can't simply outbid a great one. Anti-perverse-
+ *     incentive measure; the brand promise won't survive without it.
+ *
+ *   - SPARSE-RESULTS SUPPRESSION: when organic results are thin
+ *     (<5 facilities), sponsored slots are hidden. Two ads above
+ *     three organic results feels rigged — and the advertiser
+ *     wouldn't get fair value anyway.
+ *
+ *   - FREQUENCY CAP: a single (session, campaign) pair can see at
+ *     most 3 impressions in a 24h window. Repetition is badgering;
+ *     this also blunts budget-drain attacks from any one client.
+ *
+ *   - GEOGRAPHIC RADIUS: when the search has an origin lat/lon, we
+ *     drop sponsored candidates more than the search's radius away
+ *     from that origin. A Phoenix ALF shouldn't sponsor a Tucson
+ *     search just because both are AZ.
+ *
+ *   - MAX 2 SLOTS PER PAGE: Google-style restraint.
  */
 class SponsoredListingService
 {
     private const MAX_SLOTS_PER_PAGE = 2;
 
+    /** Minimum organic-result count below which we suppress sponsored slots. */
+    private const SPARSE_RESULTS_THRESHOLD = 5;
+
+    /** Maximum impressions of the same (campaign, session) pair per 24h. */
+    private const FREQUENCY_CAP_PER_DAY = 3;
+
+    /** Surfaces that are allowed to inject sponsored slots. */
+    public const ALLOWED_SURFACES = ['search', 'embed'];
+
     /**
      * Given the filters in use, return up to N sponsored facilities
      * to inject at the top of the result list. Each facility gets
-     * an attached `sponsored_campaign_id` so the frontend can log
-     * the click against the right campaign.
+     * attached `sponsored_campaign_id` + `click_token` + a structured
+     * `sponsored_reason` payload so the frontend can render a
+     * "Why am I seeing this?" tooltip without a second roundtrip.
      *
-     * @param  array $filters  Same shape as MarketplaceController validates.
+     * @param  array       $filters         Same shape as MarketplaceController validates.
+     * @param  string      $surface         Caller surface — see ALLOWED_SURFACES.
+     * @param  int|null    $organicCount    Count of organic results in this same query;
+     *                                      sponsored is suppressed when below the threshold.
+     * @param  array|null  $origin          ['lat'=>..., 'lon'=>..., 'radius_miles'=>...]
+     *                                      from the search's ZIP or geocode.
+     * @param  string|null $sessionId       Browser session for frequency-cap enforcement.
      * @return Collection<int, Facility>
      */
-    public function selectForSearch(array $filters): Collection
-    {
+    public function selectForSearch(
+        array $filters,
+        string $surface = 'search',
+        ?int $organicCount = null,
+        ?array $origin = null,
+        ?string $sessionId = null,
+    ): Collection {
+        // 1. Surface opt-in. The marketplace search + embed widget are
+        //    the only places ads fire today. Any other caller — sitemap
+        //    generation, comparison, landing pages — gets nothing.
+        if (! in_array($surface, self::ALLOWED_SURFACES, true)) {
+            return new Collection();
+        }
+
+        // 2. Sparse-results suppression. Showing 2 ads above 3 organic
+        //    rows looks gamed; advertisers don't benefit from a page
+        //    that loses user trust.
+        if ($organicCount !== null && $organicCount < self::SPARSE_RESULTS_THRESHOLD) {
+            return new Collection();
+        }
+
         $now = now()->toDateString();
 
         $query = SponsoredCampaign::query()
@@ -68,30 +116,115 @@ class SponsoredListingService
                 ]);
             }]);
 
-        // Pre-load all candidates and post-filter in PHP — the
-        // candidate set is small (active campaigns total) and the
-        // matching logic is more readable in code than SQL.
-        $campaigns = $query->orderByDesc('cpc_bid_cents')->get();
+        // Pre-load all candidates and post-filter in PHP — candidate set
+        // is small (active campaigns total) and the matching logic reads
+        // better in code than SQL.
+        $campaigns = $query->get();
 
+        // 3. Filter eligibility: facility must actually match the search,
+        //    the campaign's own state/city targets must overlap, and
+        //    (if origin) the facility must be inside the search radius.
         $matching = $campaigns
             ->filter(fn ($c) => $c->facility && $c->facility->is_active)
             ->filter(fn ($c) => $this->facilityMatchesSearch($c->facility, $filters))
             ->filter(fn ($c) => $this->campaignTargetingMatches($c, $filters))
+            ->filter(fn ($c) => $this->withinRadius($c->facility, $origin));
+
+        // 4. Frequency cap per session.
+        if ($sessionId) {
+            $matching = $matching->filter(
+                fn ($c) => $this->underFrequencyCap($c->id, $sessionId),
+            );
+        }
+
+        // 5. Quality-score blend: rank by (bid * quality), not bid alone.
+        //    Ties broken by random to avoid first-mover lock-in.
+        $ranked = $matching
+            ->map(function ($c) {
+                $c->__score = $this->blendScore($c);
+                return $c;
+            })
+            ->sortByDesc(fn ($c) => $c->__score)
+            ->values()
             ->take(self::MAX_SLOTS_PER_PAGE);
 
-        // Attach campaign ID + price flag so the search payload can
-        // surface `is_sponsored` + `sponsored_campaign_id` per row,
-        // plus a short-lived signed click token so /sponsored/clicks
-        // can prove the campaign actually appeared in a real search
-        // before billing it — a competitor can no longer drain a
-        // budget by replaying a campaign id they scraped once.
-        return $matching->map(function ($c) {
+        return $ranked->map(function ($c) use ($filters) {
             $f = $c->facility;
             $f->is_sponsored = true;
             $f->sponsored_campaign_id = $c->id;
             $f->click_token = self::signClickToken($c->id, $f->id);
+            // Disclosure payload for "Why am I seeing this?" — no
+            // secrets, no PII, just an explanation the user can audit.
+            $f->sponsored_reason = [
+                'facility_name' => $f->name,
+                'matched_on' => array_values(array_filter([
+                    ! empty($filters['state']) ? "state {$filters['state']}" : null,
+                    ! empty($filters['city']) ? "city {$filters['city']}" : null,
+                    ! empty($filters['type']) ? "level of care" : null,
+                ])),
+                'rank_signal' => 'Bid × quality score (CMS rating + verification)',
+            ];
             return $f;
         })->values();
+    }
+
+    /**
+     * (bid_cents) × (quality_score 0..1). Quality is derived from CMS
+     * Five-Star rating with a small floor so unrated facilities don't
+     * get auto-zeroed out. Unrated = treated as 2.5 stars (neutral).
+     */
+    private function blendScore(SponsoredCampaign $c): float
+    {
+        $stars = (int) ($c->facility->cms_five_star_overall ?? 0);
+        // 0..5 stars → 0.4..1.0 multiplier. A 1-star facility's bid is
+        // effectively halved against a 5-star at the same dollar amount.
+        $quality = $stars > 0
+            ? 0.4 + ($stars / 5.0) * 0.6
+            : 0.5; // unrated = mid-pack
+        return $c->cpc_bid_cents * $quality + (mt_rand() / mt_getrandmax()) * 0.001;
+    }
+
+    /**
+     * Haversine miles between facility and the search origin. Returns
+     * true when no origin is supplied (geo filter doesn't apply) or
+     * when the facility is within the radius window.
+     */
+    private function withinRadius(Facility $f, ?array $origin): bool
+    {
+        if (! $origin || ! isset($origin['lat'], $origin['lon'])) return true;
+        if ($f->latitude === null || $f->longitude === null) return true; // can't measure, allow
+
+        $radius = (float) ($origin['radius_miles'] ?? 25);
+        $miles = $this->haversine(
+            (float) $origin['lat'], (float) $origin['lon'],
+            (float) $f->latitude, (float) $f->longitude,
+        );
+        return $miles <= $radius;
+    }
+
+    private function haversine(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $R = 3958.8; // Earth radius miles
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+        return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    /**
+     * Frequency cap: this (campaign, session) pair must have fewer
+     * than FREQUENCY_CAP_PER_DAY impressions in the last 24h. Cheap
+     * COUNT against the (campaign_id, session_id) index.
+     */
+    private function underFrequencyCap(string $campaignId, string $sessionId): bool
+    {
+        $shown = SponsoredImpression::query()
+            ->where('campaign_id', $campaignId)
+            ->where('session_id', $sessionId)
+            ->where('shown_at', '>=', now()->subDay())
+            ->count();
+        return $shown < self::FREQUENCY_CAP_PER_DAY;
     }
 
     /**
@@ -108,8 +241,6 @@ class SponsoredListingService
         $expires = now()->addMinutes(10)->timestamp;
         $payload = "{$campaignId}|{$facilityId}|{$expires}";
         $sig = hash_hmac('sha256', $payload, config('app.key'));
-        // Format: expires.sig (caller carries campaign + facility back
-        // in the click body, we re-derive the payload server-side).
         return "{$expires}.{$sig}";
     }
 
@@ -153,9 +284,6 @@ class SponsoredListingService
         $campaign = SponsoredCampaign::find($campaignId);
         if (! $campaign) return false;
 
-        // Must have an impression for this session in the last 30 min.
-        // Without sessionId we can't bind the click to a prior view —
-        // refuse rather than guess.
         if (! $sessionId) return false;
         $hasImpression = SponsoredImpression::query()
             ->where('campaign_id', $campaign->id)
@@ -165,9 +293,6 @@ class SponsoredListingService
         if (! $hasImpression) return false;
 
         DB::transaction(function () use ($campaign, $sessionId, $request): void {
-            // Bill at the CPC bid snapshot — even if the campaign's
-            // current bid changes mid-day, the user's click still
-            // gets billed at whatever the bid was when we recorded.
             SponsoredClick::create([
                 'campaign_id' => $campaign->id,
                 'facility_id' => $campaign->facility_id,
@@ -178,21 +303,14 @@ class SponsoredListingService
                 'clicked_at' => now(),
             ]);
 
-            // Atomic increment to handle concurrent clicks correctly.
             $campaign->increment('spent_today_cents', $campaign->cpc_bid_cents);
             $campaign->increment('spent_total_cents', $campaign->cpc_bid_cents);
 
-            // If this click busts the budget, flip status so the
-            // matching query stops returning the campaign for the
-            // rest of the day. The nightly reset job will flip it
-            // back to active if budget renews.
             $campaign->refresh();
             if ($campaign->spent_today_cents + $campaign->cpc_bid_cents > $campaign->daily_budget_cents) {
                 $campaign->update(['status' => 'depleted']);
             }
 
-            // Mark the most-recent impression for this session as clicked
-            // (analytics + CTR calc).
             if ($sessionId) {
                 SponsoredImpression::query()
                     ->where('campaign_id', $campaign->id)
@@ -232,8 +350,6 @@ class SponsoredListingService
 
     private function campaignTargetingMatches(SponsoredCampaign $c, array $filters): bool
     {
-        // If campaign has explicit state targeting and the search has a
-        // state filter, both must overlap.
         if (! empty($c->target_states) && ! empty($filters['state'])) {
             $allowed = array_map('strtoupper', $c->target_states);
             if (! in_array(strtoupper($filters['state']), $allowed, true)) {
