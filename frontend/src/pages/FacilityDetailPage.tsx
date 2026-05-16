@@ -504,7 +504,7 @@ function Breadcrumbs({ facility }: { facility: Facility }) {
     { label: facility.state, to: `/senior-living/${facility.state}` },
     {
       label: facility.city,
-      to: `/search?state=${facility.state}&city=${encodeURIComponent(facility.city)}`,
+      to: `/senior-living/${facility.state}/${encodeURIComponent(facility.city)}`,
     },
     { label: facility.name, to: null as string | null },
   ]

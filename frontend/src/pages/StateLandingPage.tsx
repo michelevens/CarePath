@@ -206,7 +206,7 @@ export function StateLandingPage() {
                   {data.top_cities.map((c) => (
                     <Link
                       key={c.city}
-                      to={`/search?state=${stateCode}&city=${encodeURIComponent(c.city)}`}
+                      to={`/senior-living/${stateCode}/${encodeURIComponent(c.city)}`}
                       className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/40"
                     >
                       <CityScoreBadge score={c.score} />

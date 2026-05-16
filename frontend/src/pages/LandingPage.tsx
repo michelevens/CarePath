@@ -120,12 +120,19 @@ export function LandingPage() {
       navigate(`/facility/${s.slug}`)
       return
     }
-    const params = new URLSearchParams()
-    if (s.kind === "zip") params.set("zip", s.zip)
     if (s.kind === "city") {
-      params.set("state", s.state)
-      params.set("city", s.city)
+      // City landing page — has its own care-type nav and SEO content.
+      const typeSlug =
+        careType === "assisted_living" ? "/assisted-living" :
+        careType === "memory_care" ? "/memory-care" :
+        careType === "snf" ? "/skilled-nursing" :
+        careType === "ccrc" ? "/continuing-care" : ""
+      navigate(`/senior-living/${s.state}/${encodeURIComponent(s.city)}${typeSlug}`)
+      return
     }
+    // ZIP — keep going to search since we don't have ZIP landing pages
+    const params = new URLSearchParams()
+    params.set("zip", s.zip)
     if (careType) params.set("type", careType)
     navigate(`/search?${params.toString()}`)
   }
@@ -514,7 +521,7 @@ export function LandingPage() {
             {topCities.map((c) => (
               <Link
                 key={`${c.city}-${c.state}`}
-                to={`/search?state=${c.state}&city=${encodeURIComponent(c.city)}`}
+                to={`/senior-living/${c.state}/${encodeURIComponent(c.city)}`}
                 className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/40"
               >
                 <ScoreBadge score={c.score} />
@@ -692,7 +699,7 @@ function SiteFooter({ topCities }: { topCities: TopCity[] }) {
                 colA.slice(0, 10).map((c) => (
                   <FooterLink
                     key={`a-${c.city}-${c.state}`}
-                    to={`/search?state=${c.state}&city=${encodeURIComponent(c.city)}`}
+                    to={`/senior-living/${c.state}/${encodeURIComponent(c.city)}`}
                   >
                     {c.city}, {c.state}
                   </FooterLink>
@@ -710,7 +717,7 @@ function SiteFooter({ topCities }: { topCities: TopCity[] }) {
                 colB.slice(0, 10).map((c) => (
                   <FooterLink
                     key={`b-${c.city}-${c.state}`}
-                    to={`/search?state=${c.state}&city=${encodeURIComponent(c.city)}`}
+                    to={`/senior-living/${c.state}/${encodeURIComponent(c.city)}`}
                   >
                     {c.city}, {c.state}
                   </FooterLink>

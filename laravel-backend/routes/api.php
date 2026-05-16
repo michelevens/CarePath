@@ -26,6 +26,7 @@ Route::prefix('marketplace')->group(function () {
     Route::get('/top-cities', [MarketplaceController::class, 'topCities']);
     Route::get('/stats', [MarketplaceController::class, 'stats']);
     Route::get('/states/{state}', [MarketplaceController::class, 'state']);
+    Route::get('/cities/{state}/{city}', [MarketplaceController::class, 'city']);
     Route::get('/compare', [MarketplaceController::class, 'compare']);
     Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
     Route::get('/facilities/{slug}/tour-slots', [MarketplaceController::class, 'tourSlots']);

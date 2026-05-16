@@ -451,6 +451,227 @@ class MarketplaceController extends Controller
     }
 
     /**
+     * GET /api/marketplace/cities/{state}/{city}
+     *
+     * Aggregates for the city landing page: facility count, by-type
+     * breakdown, price quartiles, CMS averages, average CarePath
+     * Quality Score, payer access, nearby cities, county, top
+     * facilities. Cached 6h.
+     */
+    public function city(string $state, string $city): JsonResponse
+    {
+        $state = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $state) ?? '', 0, 2));
+        $city = trim(urldecode($city));
+        if (strlen($state) !== 2 || $city === '') {
+            abort(404, 'Invalid city or state.');
+        }
+
+        $cacheKey = "city:v1:{$state}:" . md5(mb_strtolower($city));
+        $payload = Cache::remember($cacheKey, 60 * 60 * 6, function () use ($state, $city) {
+            $base = Facility::query()
+                ->where('is_active', true)
+                ->where('state', $state)
+                ->where('city', 'ILIKE', $city); // exact-match on city; ILIKE for casing
+
+            $facilities = (clone $base)->get([
+                'id', 'name', 'slug', 'type', 'address_line_1', 'city', 'state', 'zip',
+                'county', 'latitude', 'longitude',
+                'medicaid_certified', 'medicare_certified',
+                'cms_five_star_overall', 'cms_five_star_health_inspection',
+                'cms_five_star_staffing', 'cms_five_star_quality',
+                'total_beds', 'price_from_cents',
+            ]);
+
+            if ($facilities->isEmpty()) {
+                return null;
+            }
+
+            $totalFacilities = $facilities->count();
+            $byType = $facilities->groupBy('type')->map->count()->all();
+
+            $withPrice = $facilities->filter(fn ($f) => $f->price_from_cents > 0)->values();
+            $prices = $withPrice->pluck('price_from_cents')->sort()->values();
+            $medianPrice = $prices->isNotEmpty()
+                ? (int) $prices[(int) floor($prices->count() / 2)]
+                : null;
+            $minPrice = $prices->isNotEmpty() ? (int) $prices->first() : null;
+            $maxPrice = $prices->isNotEmpty() ? (int) $prices->last() : null;
+            $avgPrice = $prices->isNotEmpty() ? (int) $prices->avg() : null;
+
+            $medicaidCount = $facilities->where('medicaid_certified', true)->count();
+            $medicareCount = $facilities->where('medicare_certified', true)->count();
+
+            $avgCms = [
+                'overall' => self::avg($facilities, 'cms_five_star_overall'),
+                'inspection' => self::avg($facilities, 'cms_five_star_health_inspection'),
+                'staffing' => self::avg($facilities, 'cms_five_star_staffing'),
+                'quality' => self::avg($facilities, 'cms_five_star_quality'),
+            ];
+
+            // Average CarePath Quality Score across facilities in this city
+            // (re-uses the same service we use everywhere else).
+            $cmpAvailability = Bed::query()
+                ->whereIn('facility_id', $facilities->pluck('id'))
+                ->where('status', 'available')
+                ->selectRaw('facility_id, count(*) as available_count')
+                ->groupBy('facility_id')
+                ->pluck('available_count', 'facility_id');
+
+            $scoredFacilities = $facilities->map(function ($f) use ($cmpAvailability) {
+                $arr = $f->toArray();
+                $arr['available_beds'] = (int) ($cmpAvailability[$f->id] ?? 0);
+                $arr['quality_score'] = QualityScoreService::score($arr);
+                return $arr;
+            })->values();
+
+            $qualityScores = $scoredFacilities
+                ->pluck('quality_score.score')
+                ->filter(fn ($v) => $v !== null);
+            $avgQualityScore = $qualityScores->isNotEmpty()
+                ? round((float) $qualityScores->avg(), 1)
+                : null;
+
+            // City centroid for nearby-city distance — average of facility
+            // coordinates (skip nulls).
+            $coords = $facilities->filter(fn ($f) => $f->latitude && $f->longitude);
+            $centroid = null;
+            if ($coords->isNotEmpty()) {
+                $centroid = [
+                    'lat' => (float) $coords->avg('latitude'),
+                    'lon' => (float) $coords->avg('longitude'),
+                ];
+            }
+
+            // Pick the modal county (the most-represented county across
+            // facilities in this city). Counties are nullable per facility.
+            $county = $facilities
+                ->pluck('county')
+                ->filter()
+                ->countBy()
+                ->sortDesc()
+                ->keys()
+                ->first();
+
+            // Top facilities by Quality Score, then CMS overall — for the
+            // mini-list embedded on the city page.
+            $topFacilities = $scoredFacilities
+                ->sortByDesc(fn ($f) => $f['quality_score']['score'] ?? -1)
+                ->take(6)
+                ->map(fn ($f) => [
+                    'name' => $f['name'],
+                    'slug' => $f['slug'],
+                    'type' => $f['type'],
+                    'city' => $f['city'],
+                    'state' => $f['state'],
+                    'cms_five_star_overall' => $f['cms_five_star_overall'],
+                    'price_from_cents' => $f['price_from_cents'],
+                    'medicaid_certified' => (bool) $f['medicaid_certified'],
+                    'medicare_certified' => (bool) $f['medicare_certified'],
+                    'available_beds' => $f['available_beds'],
+                    'quality_score' => $f['quality_score'],
+                ])
+                ->values()
+                ->all();
+
+            // Nearby cities in same state — distance from centroid to other
+            // cities' centroids. Compute per-city centroids in one pass.
+            $nearby = [];
+            if ($centroid) {
+                $stateCities = Facility::query()
+                    ->where('is_active', true)
+                    ->where('state', $state)
+                    ->whereRaw('LOWER(city) != ?', [mb_strtolower($city)])
+                    ->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->select('city',
+                        DB::raw('count(*) as facility_count'),
+                        DB::raw('avg(latitude) as lat'),
+                        DB::raw('avg(longitude) as lon'))
+                    ->groupBy('city')
+                    ->havingRaw('count(*) >= 2')
+                    ->get();
+
+                $nearby = $stateCities
+                    ->map(function ($c) use ($centroid, $state) {
+                        $d = self::haversineMilesStatic(
+                            $centroid['lat'], $centroid['lon'],
+                            (float) $c->lat, (float) $c->lon
+                        );
+                        return [
+                            'city' => $c->city,
+                            'state' => $state,
+                            'facility_count' => (int) $c->facility_count,
+                            'distance_miles' => round($d, 1),
+                        ];
+                    })
+                    ->filter(fn ($r) => $r['distance_miles'] <= 50)
+                    ->sortBy('distance_miles')
+                    ->take(10)
+                    ->values()
+                    ->all();
+            }
+
+            return [
+                'city' => $facilities->first()->city, // canonical casing
+                'state' => $state,
+                'county' => $county,
+                'total_facilities' => $totalFacilities,
+                'by_type' => [
+                    'assisted_living' => (int) ($byType['assisted_living'] ?? 0),
+                    'memory_care' => (int) ($byType['memory_care'] ?? 0),
+                    'snf' => (int) ($byType['snf'] ?? 0),
+                    'ccrc' => (int) ($byType['ccrc'] ?? 0),
+                ],
+                'pricing' => [
+                    'facilities_with_pricing' => $withPrice->count(),
+                    'avg_price_cents' => $avgPrice,
+                    'median_price_cents' => $medianPrice,
+                    'min_price_cents' => $minPrice,
+                    'max_price_cents' => $maxPrice,
+                ],
+                'payers' => [
+                    'medicaid_count' => $medicaidCount,
+                    'medicare_count' => $medicareCount,
+                ],
+                'avg_cms' => $avgCms,
+                'avg_quality_score' => $avgQualityScore,
+                'centroid' => $centroid,
+                'top_facilities' => $topFacilities,
+                'nearby_cities' => $nearby,
+            ];
+        });
+
+        if ($payload === null) {
+            return response()->json([
+                'data' => null,
+                'message' => "We don't have facility data for {$city}, {$state} yet.",
+            ], 404);
+        }
+
+        return response()->json(['data' => $payload]);
+    }
+
+    private static function avg($collection, string $field): ?float
+    {
+        $vals = $collection->pluck($field)->filter();
+        return $vals->isEmpty() ? null : round((float) $vals->avg(), 1);
+    }
+
+    /**
+     * Static-callable variant — closures inside Cache::remember can't
+     * call $this->haversineMiles().
+     */
+    private static function haversineMilesStatic(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $R = 3958.8;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+        return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    /**
      * GET /api/marketplace/facilities/{slug}/brochure
      *
      * One-page branded PDF summarizing the facility — for printing,
