@@ -168,8 +168,10 @@ class MarketplaceController extends Controller
             return response()->json(['facilities' => [], 'cities' => [], 'zip' => null]);
         }
 
-        // Bound the cache key length and normalize whitespace.
-        $cacheKey = 'suggest:' . md5(mb_strtolower($q));
+        // Bound the cache key length and normalize whitespace. v2: cache
+        // plain arrays — v1 stored Collection objects which deserialized as
+        // __PHP_Incomplete_Class placeholders and broke the JSON shape.
+        $cacheKey = 'suggest:v2:' . md5(mb_strtolower($q));
 
         $payload = Cache::remember($cacheKey, 60, function () use ($q, $zipLookup) {
             $facilities = Facility::query()
@@ -186,7 +188,8 @@ class MarketplaceController extends Controller
                     'state' => $f->state,
                     'type' => $f->type,
                 ])
-                ->values();
+                ->values()
+                ->all();
 
             // Prefix match on city for index-friendliness; aggregate so each
             // (city,state) appears once with a facility count.
@@ -203,7 +206,8 @@ class MarketplaceController extends Controller
                     'state' => $r->state,
                     'facility_count' => (int) $r->facility_count,
                 ])
-                ->values();
+                ->values()
+                ->all();
 
             $zip = null;
             if (preg_match('/^\d{5}$/', $q)) {
@@ -240,8 +244,12 @@ class MarketplaceController extends Controller
         $limit = (int) min(60, max(8, (int) $request->query('limit', 32)));
         $minFacilities = (int) max(1, (int) $request->query('min_facilities', 3));
 
+        // v2: cache plain arrays — v1 stored a Collection and PHP cache
+        // serialization round-tripped it as __PHP_Incomplete_Class, which
+        // JSON-encoded as `{__PHP_Incomplete_Class_Name: ...}` and broke the
+        // frontend (it expected an array).
         $payload = Cache::remember(
-            "top-cities:l{$limit}:m{$minFacilities}",
+            "top-cities:v2:l{$limit}:m{$minFacilities}",
             60 * 60 * 6,
             function () use ($limit, $minFacilities) {
                 $rows = Facility::query()
@@ -269,7 +277,7 @@ class MarketplaceController extends Controller
                         'facility_count' => (int) $r->facility_count,
                         'score' => $score,
                     ];
-                })->values();
+                })->values()->all();
             }
         );
 

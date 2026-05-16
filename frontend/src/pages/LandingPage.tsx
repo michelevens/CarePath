@@ -92,11 +92,22 @@ export function LandingPage() {
     let alive = true
     api
       .get<{ data: PreviewArticle[] }>("/content/articles", { params: { limit: 3 } })
-      .then((r) => alive && setPreviewArticles(r.data.data.slice(0, 3)))
+      .then((r) => {
+        if (!alive) return
+        const arr = Array.isArray(r.data?.data) ? r.data.data : []
+        setPreviewArticles(arr.slice(0, 3))
+      })
       .catch(() => {})
     api
       .get<{ data: TopCity[] }>("/marketplace/top-cities", { params: { limit: 32 } })
-      .then((r) => alive && setTopCities(r.data.data))
+      .then((r) => {
+        if (!alive) return
+        // Guard against malformed responses (e.g., a poisoned cache returning
+        // {data: {...}} instead of {data: [...]}) — otherwise SiteFooter
+        // calls .slice on a non-array and crashes the whole page.
+        const arr = Array.isArray(r.data?.data) ? r.data.data : []
+        setTopCities(arr)
+      })
       .catch(() => {})
     return () => {
       alive = false
