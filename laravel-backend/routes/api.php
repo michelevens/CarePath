@@ -4,7 +4,9 @@ use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Facility\AdmissionController;
+use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityDataController;
@@ -18,6 +20,10 @@ use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => ['ok' => true, 'service' => 'carepath-api']);
+
+// Stripe webhook — unauthenticated, signature-verified inside the
+// controller via STRIPE_WEBHOOK_SECRET.
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
 // Public marketplace — no auth.
 Route::prefix('marketplace')->group(function () {
@@ -84,6 +90,13 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
     Route::prefix('facility')->middleware('facility.scope')->group(function () {
+        // Billing — list available plans, fetch current subscription,
+        // start checkout, cancel at period end.
+        Route::get('/billing/plans', [FacilityBillingController::class, 'plans']);
+        Route::get('/billing/subscription', [FacilityBillingController::class, 'show']);
+        Route::post('/billing/checkout', [FacilityBillingController::class, 'checkout']);
+        Route::post('/billing/cancel', [FacilityBillingController::class, 'cancel']);
+
         Route::get('/data/{type}', [FacilityDataController::class, 'index']);
         Route::post('/data/{type}', [FacilityDataController::class, 'store']);
         Route::put('/data/{type}/{id}', [FacilityDataController::class, 'update']);

@@ -62,6 +62,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/admin/leads", label: "Leads", icon: HeartHandshake },
       { to: "/admin/compliance", label: "Compliance", icon: Shield },
       { to: "/admin/data", label: "Facility data", icon: ClipboardList },
+      { to: "/admin/billing", label: "Billing & plan", icon: BarChart3 },
       { to: "/admin/reports", label: "Reports", icon: BarChart3 },
       { to: "/admin/settings", label: "Settings", icon: Settings },
     ],
