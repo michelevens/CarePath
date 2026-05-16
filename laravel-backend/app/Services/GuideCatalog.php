@@ -13,6 +13,31 @@ namespace App\Services;
  */
 class GuideCatalog
 {
+    /**
+     * Editorial team — the named humans who write and review guides.
+     * Surfaced on the /guides page, on each PDF cover, and the
+     * /about/editorial page. Establishes authority that lead-gen
+     * competitors (APFM, Caring.com) don't build.
+     *
+     * Add real reviewers here as they sign on. Keep entries factual —
+     * fabricating credentials on a healthcare site is both unethical
+     * and a legal exposure.
+     */
+    public const EDITORS = [
+        'editorial_team' => [
+            'name' => 'CarePath Editorial',
+            'role' => 'Plain-English long-term care guides',
+            'bio' => 'A small team of writers and researchers focused on translating Medicare, Medicaid, VA, and state LTC rules into language families can act on. Each guide cites federal/state agency sources and is updated when the underlying rules change.',
+        ],
+    ];
+
+    /**
+     * Default authorship for every guide. Per-guide overrides go in the
+     * GUIDES rows below (`author` / `reviewer` keys) once we have real
+     * reviewers willing to be cited by name.
+     */
+    public const DEFAULT_AUTHOR = 'editorial_team';
+
     public const GUIDES = [
         [
             'slug' => 'tour-day-question-sheet',
@@ -72,16 +97,31 @@ class GuideCatalog
 
     public static function all(): array
     {
-        return self::GUIDES;
+        return array_map([self::class, 'hydrate'], self::GUIDES);
     }
 
     public static function find(string $slug): ?array
     {
         foreach (self::GUIDES as $g) {
             if ($g['slug'] === $slug) {
-                return $g;
+                return self::hydrate($g);
             }
         }
         return null;
+    }
+
+    /**
+     * Attach the resolved author/reviewer records to a guide row, so the
+     * controller and Blade templates can render `{{ $guide['author']['name'] }}`
+     * without doing the lookup themselves.
+     */
+    private static function hydrate(array $guide): array
+    {
+        $authorKey = $guide['author'] ?? self::DEFAULT_AUTHOR;
+        $guide['author'] = self::EDITORS[$authorKey] ?? self::EDITORS[self::DEFAULT_AUTHOR];
+        if (isset($guide['reviewer']) && is_string($guide['reviewer'])) {
+            $guide['reviewer'] = self::EDITORS[$guide['reviewer']] ?? null;
+        }
+        return $guide;
     }
 }

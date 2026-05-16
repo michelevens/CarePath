@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import {
   ArrowLeft,
   CheckCircle2,
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
+import { TrustStrip } from "@/components/TrustStrip"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+interface Person {
+  name: string
+  role: string
+  bio: string
+}
+
 interface Guide {
   slug: string
   title: string
@@ -30,6 +37,8 @@ interface Guide {
   category: string
   page_count: number
   audience: string
+  author: Person | null
+  reviewer: Person | null
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -44,6 +53,10 @@ const CATEGORY_LABEL: Record<string, string> = {
 }
 
 export function GuidesPage() {
+  const location = useLocation()
+  const navState = location.state as { openGuide?: string } | null
+  const requestedSlug = navState?.openGuide
+
   const [guides, setGuides] = useState<Guide[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Guide | null>(null)
@@ -55,14 +68,21 @@ export function GuidesPage() {
       .get<{ data: Guide[] }>("/marketplace/guides")
       .then((r) => {
         if (!alive) return
-        setGuides(Array.isArray(r.data?.data) ? r.data.data : [])
+        const list = Array.isArray(r.data?.data) ? r.data.data : []
+        setGuides(list)
+        // If we arrived from another page asking to open a specific guide,
+        // auto-pop the dialog once the catalog is loaded.
+        if (requestedSlug) {
+          const hit = list.find((g) => g.slug === requestedSlug)
+          if (hit) setSelected(hit)
+        }
       })
       .catch(() => alive && setGuides([]))
       .finally(() => alive && setLoading(false))
     return () => {
       alive = false
     }
-  }, [])
+  }, [requestedSlug])
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,6 +121,7 @@ export function GuidesPage() {
             change.
           </p>
         </div>
+        <TrustStrip className="mt-8" />
 
         {loading ? (
           <div className="mt-12 flex items-center gap-2 text-sm text-muted-foreground">
@@ -167,14 +188,24 @@ function GuideCard({ guide, onDownload }: { guide: Guide; onDownload: () => void
         <p className="mt-3 flex-1 text-sm text-muted-foreground">
           {guide.description}
         </p>
-        <div className="mt-5 flex items-center justify-between border-t pt-4">
-          <span className="text-xs text-muted-foreground">
-            For: <span className="font-medium text-foreground">{guide.audience}</span>
-          </span>
-          <Button size="sm" onClick={onDownload}>
-            <Download className="h-3.5 w-3.5" />
-            Download
-          </Button>
+        <div className="mt-5 border-t pt-4">
+          {guide.author && (
+            <div className="mb-3 text-xs text-muted-foreground">
+              By <span className="font-medium text-foreground">{guide.author.name}</span>
+              {guide.reviewer && (
+                <> · Reviewed by <span className="font-medium text-foreground">{guide.reviewer.name}</span></>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              For: <span className="font-medium text-foreground">{guide.audience}</span>
+            </span>
+            <Button size="sm" onClick={onDownload}>
+              <Download className="h-3.5 w-3.5" />
+              Download
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

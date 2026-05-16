@@ -1,12 +1,17 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
+  Building2,
   CheckCircle2,
   ClipboardList,
+  Download,
   Heart,
   Brain,
+  MapPin,
+  Star,
   Stethoscope,
   Activity,
   Search,
@@ -431,6 +436,10 @@ function ResultView({
         </CardContent>
       </Card>
 
+      <PersonalizedMatches level={recommendedLevel} zip={zip} setZip={setZip} />
+
+      <RecommendedGuides level={recommendedLevel} />
+
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button onClick={onSearch} size="lg" className="flex-1">
           <Search className="h-4 w-4" />
@@ -493,5 +502,241 @@ function ResultView({
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+/* ──────────────── Personalized facility matches ──────────────── */
+
+interface MatchFacility {
+  id: string
+  slug: string
+  name: string
+  city: string
+  state: string
+  cms_five_star_overall: number | null
+  price_from_cents: number | null
+  available_beds: number
+  distance_miles?: number
+}
+
+function PersonalizedMatches({
+  level,
+  zip,
+  setZip,
+}: {
+  level: Level
+  zip: string
+  setZip: (z: string) => void
+}) {
+  const [results, setResults] = useState<MatchFacility[]>([])
+  const [loading, setLoading] = useState(false)
+  const [fetched, setFetched] = useState(false)
+  const careType = typeForLevel(level)
+
+  useEffect(() => {
+    if (zip.length !== 5) {
+      setResults([])
+      setFetched(false)
+      return
+    }
+    let alive = true
+    setLoading(true)
+    const t = setTimeout(() => {
+      api
+        .get<{ data: MatchFacility[] }>("/marketplace/facilities", {
+          params: { zip, radius_miles: 25, type: careType, sort: "distance", limit: 3 },
+        })
+        .then((r) => {
+          if (!alive) return
+          setResults(Array.isArray(r.data?.data) ? r.data.data.slice(0, 3) : [])
+          setFetched(true)
+        })
+        .catch(() => alive && setResults([]))
+        .finally(() => alive && setLoading(false))
+    }, 250)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [zip, careType])
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-lg font-semibold">3 facilities matching your needs</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Enter a ZIP — we'll show the closest {LEVEL_DETAILS[level].title.toLowerCase()} facilities. No email, no advisor assignment.
+      </p>
+      <div className="mt-3 flex max-w-xs items-center gap-2 rounded-full border bg-card px-3 py-1.5">
+        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <input
+          inputMode="numeric"
+          value={zip}
+          onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+          placeholder="ZIP code"
+          maxLength={5}
+          className="flex-1 bg-transparent text-sm outline-hidden"
+        />
+        {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
+      </div>
+
+      {zip.length === 5 && fetched && (
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {results.length === 0 ? (
+            <div className="col-span-3 rounded-lg border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+              No {LEVEL_DETAILS[level].title.toLowerCase()} facilities within 25mi of {zip}.{" "}
+              <Link to={`/search?type=${careType}&zip=${zip}&radius=100`} className="underline">
+                Widen the search to 100 miles
+              </Link>.
+            </div>
+          ) : (
+            results.map((f) => <MatchCard key={f.id} f={f} />)
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function MatchCard({ f }: { f: MatchFacility }) {
+  const monthly = f.price_from_cents
+    ? Math.round(f.price_from_cents / 100).toLocaleString()
+    : null
+  return (
+    <Link to={`/facility/${f.slug}`} className="block">
+      <Card className="hover-lift h-full">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold leading-tight">{f.name}</div>
+              <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3" />
+                {f.city}, {f.state}
+                {f.distance_miles !== undefined && (
+                  <span className="font-medium text-foreground"> · {f.distance_miles} mi</span>
+                )}
+              </div>
+            </div>
+            {f.cms_five_star_overall && (
+              <span className="flex shrink-0 items-center gap-0.5 text-xs">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                <span className="font-semibold">{f.cms_five_star_overall}</span>
+              </span>
+            )}
+          </div>
+          <div className="mt-3 flex items-end justify-between text-xs">
+            <div>
+              {monthly ? (
+                <>
+                  <span className="text-sm font-semibold">${monthly}</span>
+                  <span className="text-muted-foreground"> /mo</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">Pricing on tour</span>
+              )}
+            </div>
+            {f.available_beds > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-700 dark:text-emerald-400">
+                <Building2 className="h-3 w-3" />
+                {f.available_beds} open
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Waitlist</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+/* ──────────────── Recommended guides by quiz level ──────────────── */
+
+const GUIDES_FOR_LEVEL: Record<Level, Array<{ slug: string; title: string; subtitle: string }>> = {
+  assisted: [
+    {
+      slug: "what-is-assisted-living",
+      title: "What is Assisted Living?",
+      subtitle: "Plain-English intro for first-time families",
+    },
+    {
+      slug: "choosing-assisted-living",
+      title: "How to Choose the Right Assisted Living",
+      subtitle: "9-step decision framework",
+    },
+    {
+      slug: "tour-day-question-sheet",
+      title: "Tour Day: 47 Questions to Ask",
+      subtitle: "Printable checklist for your tours",
+    },
+  ],
+  memory: [
+    {
+      slug: "choosing-assisted-living",
+      title: "How to Choose the Right Assisted Living",
+      subtitle: "Most ALF guidance applies to memory care selection too",
+    },
+    {
+      slug: "tour-day-question-sheet",
+      title: "Tour Day: 47 Questions to Ask",
+      subtitle: "Includes memory-care-specific questions",
+    },
+    {
+      slug: "medicaid-lookback-checklist",
+      title: "Medicaid 5-Year Look-Back Checklist",
+      subtitle: "Memory care stays often outlast private funds — plan now",
+    },
+  ],
+  skilled: [
+    {
+      slug: "medicare-ltc-cheat-sheet",
+      title: "Medicare for LTC Cheat Sheet",
+      subtitle: "Day-count rules — skilled nursing is the one slice Medicare covers",
+    },
+    {
+      slug: "tour-day-question-sheet",
+      title: "Tour Day: 47 Questions to Ask",
+      subtitle: "Printable checklist for your tours",
+    },
+    {
+      slug: "medicaid-lookback-checklist",
+      title: "Medicaid 5-Year Look-Back Checklist",
+      subtitle: "For when Medicare's 100 days run out",
+    },
+  ],
+}
+
+function RecommendedGuides({ level }: { level: Level }) {
+  const guides = GUIDES_FOR_LEVEL[level]
+  return (
+    <section className="mt-8">
+      <h2 className="flex items-center gap-2 text-lg font-semibold">
+        <BookOpen className="h-5 w-5 text-primary" />
+        Recommended reading for {LEVEL_DETAILS[level].title.toLowerCase()}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Free, branded PDFs. Email only — no phone calls.
+      </p>
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
+        {guides.map((g) => (
+          <Link
+            key={g.slug}
+            to={`/guides`}
+            state={{ openGuide: g.slug }}
+            className="block"
+          >
+            <Card className="hover-lift h-full">
+              <CardContent className="p-4">
+                <div className="text-sm font-semibold leading-tight">{g.title}</div>
+                <div className="mt-2 text-xs text-muted-foreground">{g.subtitle}</div>
+                <div className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                  <Download className="h-3.5 w-3.5" />
+                  Download free
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }

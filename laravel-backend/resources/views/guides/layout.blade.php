@@ -67,6 +67,12 @@
         }
         .cover .meta span { display: inline-block; margin-right: 22pt; }
         .cover .meta strong { color: #1c1917; }
+        .cover .byline {
+            margin-top: 9pt;
+            font-size: 9pt;
+            color: #78716c;
+        }
+        .cover .byline strong { color: #1c1917; font-weight: 600; }
         h2 {
             font-size: 15pt;
             font-weight: bold;
@@ -161,6 +167,14 @@
             <span><strong>Pages:</strong> {{ $guide['page_count'] }}</span>
             <span><strong>Updated:</strong> {{ $today }}</span>
         </div>
+        @if(! empty($guide['author']))
+            <div class="byline">
+                Written by <strong>{{ $guide['author']['name'] }}</strong>
+                @if(! empty($guide['reviewer']))
+                    &nbsp;·&nbsp; Reviewed by <strong>{{ $guide['reviewer']['name'] }}</strong>
+                @endif
+            </div>
+        @endif
     </div>
 
     @yield('content')

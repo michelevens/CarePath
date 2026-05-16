@@ -285,6 +285,156 @@ class MarketplaceController extends Controller
     }
 
     /**
+     * GET /api/marketplace/stats
+     *
+     * The numbers that go in the TrustStrip / hero stat row. Cached 1h —
+     * they don't change minute-to-minute and we render them on every page.
+     */
+    public function stats(): JsonResponse
+    {
+        $payload = Cache::remember('marketplace-stats:v1', 60 * 60, function () {
+            $totalFacilities = Facility::where('is_active', true)->count();
+            $facilitiesWithPrice = Facility::where('is_active', true)
+                ->whereNotNull('price_from_cents')
+                ->where('price_from_cents', '>', 0)
+                ->count();
+            $statesCovered = Facility::where('is_active', true)
+                ->whereNotNull('state')
+                ->distinct('state')
+                ->count('state');
+            $citiesCovered = Facility::where('is_active', true)
+                ->whereNotNull('city')
+                ->whereNotNull('state')
+                ->select('city', 'state')
+                ->distinct()
+                ->count();
+
+            $pricingPct = $totalFacilities > 0
+                ? (int) round(($facilitiesWithPrice / $totalFacilities) * 100)
+                : 0;
+
+            return [
+                'total_facilities' => $totalFacilities,
+                'facilities_with_pricing' => $facilitiesWithPrice,
+                'pricing_transparency_pct' => $pricingPct,
+                'states_covered' => $statesCovered,
+                'cities_covered' => $citiesCovered,
+            ];
+        });
+
+        return response()->json(['data' => $payload]);
+    }
+
+    /**
+     * GET /api/marketplace/states/{state}
+     *
+     * Per-state landing page data: totals, top cities, top facilities.
+     * Cached 6h. SEO entry point — every state gets its own page even
+     * with thin inventory.
+     */
+    public function state(string $state): JsonResponse
+    {
+        $state = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $state) ?? '', 0, 2));
+        if (strlen($state) !== 2) {
+            abort(404, 'Invalid state code.');
+        }
+
+        $payload = Cache::remember("state:v1:{$state}", 60 * 60 * 6, function () use ($state) {
+            $base = Facility::query()
+                ->where('is_active', true)
+                ->where('state', $state);
+
+            $totalFacilities = (clone $base)->count();
+            if ($totalFacilities === 0) {
+                return null;
+            }
+
+            $byType = (clone $base)
+                ->select('type', DB::raw('count(*) as n'))
+                ->groupBy('type')
+                ->pluck('n', 'type')
+                ->all();
+
+            $avgRating = (clone $base)
+                ->whereNotNull('cms_five_star_overall')
+                ->avg('cms_five_star_overall');
+            $avgScore = $avgRating === null ? null : round(((float) $avgRating) * 2, 1);
+
+            $medicaidCount = (clone $base)->where('medicaid_certified', true)->count();
+
+            $topCities = (clone $base)
+                ->whereNotNull('city')
+                ->select('city',
+                    DB::raw('count(*) as facility_count'),
+                    DB::raw('avg(cms_five_star_overall) as avg_rating'))
+                ->groupBy('city')
+                ->orderByDesc(DB::raw('count(*)'))
+                ->limit(12)
+                ->get()
+                ->map(fn ($r) => [
+                    'city' => $r->city,
+                    'facility_count' => (int) $r->facility_count,
+                    'score' => $r->avg_rating === null ? null : round(((float) $r->avg_rating) * 2, 1),
+                ])
+                ->values()
+                ->all();
+
+            $topFacilities = (clone $base)
+                ->whereNotNull('cms_five_star_overall')
+                ->orderByDesc('cms_five_star_overall')
+                ->orderBy('name')
+                ->limit(8)
+                ->get(['id', 'name', 'slug', 'type', 'city', 'state',
+                    'cms_five_star_overall', 'price_from_cents',
+                    'medicaid_certified', 'medicare_certified'])
+                ->map(fn ($f) => [
+                    'name' => $f->name,
+                    'slug' => $f->slug,
+                    'type' => $f->type,
+                    'city' => $f->city,
+                    'state' => $f->state,
+                    'cms_five_star_overall' => $f->cms_five_star_overall,
+                    'price_from_cents' => $f->price_from_cents,
+                    'medicaid_certified' => (bool) $f->medicaid_certified,
+                    'medicare_certified' => (bool) $f->medicare_certified,
+                ])
+                ->values()
+                ->all();
+
+            return [
+                'state' => $state,
+                'total_facilities' => $totalFacilities,
+                'medicaid_count' => $medicaidCount,
+                'avg_score' => $avgScore,
+                'by_type' => [
+                    'assisted_living' => (int) ($byType['assisted_living'] ?? 0),
+                    'memory_care' => (int) ($byType['memory_care'] ?? 0),
+                    'snf' => (int) ($byType['snf'] ?? 0),
+                    'ccrc' => (int) ($byType['ccrc'] ?? 0),
+                ],
+                'top_cities' => $topCities,
+                'top_facilities' => $topFacilities,
+            ];
+        });
+
+        if ($payload === null) {
+            return response()->json([
+                'data' => [
+                    'state' => $state,
+                    'total_facilities' => 0,
+                    'medicaid_count' => 0,
+                    'avg_score' => null,
+                    'by_type' => ['assisted_living' => 0, 'memory_care' => 0, 'snf' => 0, 'ccrc' => 0],
+                    'top_cities' => [],
+                    'top_facilities' => [],
+                ],
+            ]);
+        }
+
+        return response()->json(['data' => $payload]);
+    }
+
+    /**
      * Great-circle distance in miles between two lat/lon points.
      */
     private function haversineMiles(float $lat1, float $lon1, float $lat2, float $lon2): float

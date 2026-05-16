@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
+import { TrustStrip } from "@/components/TrustStrip"
 
 const CARE_TYPES = [
   {
@@ -237,13 +238,7 @@ export function LandingPage() {
           </Button>
         </form>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
-            <Stat label="real facilities" value="8,400+" />
-            <span>·</span>
-            <Stat label="states covered" value="15" />
-            <span>·</span>
-            <Stat label="CMS data sync" value="Daily" />
-          </div>
+          <TrustStrip className="mt-10" />
         </div>
       </section>
 
@@ -535,6 +530,33 @@ export function LandingPage() {
             ))}
           </div>
         )}
+        {topCities.length > 0 && (() => {
+          // Distinct states present in top cities — short browse-by-state nav.
+          const seen = new Set<string>()
+          const states = topCities.filter((c) => {
+            if (seen.has(c.state)) return false
+            seen.add(c.state)
+            return true
+          })
+          return (
+            <div className="mt-8 border-t pt-6">
+              <div className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Or browse a state
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {states.map((s) => (
+                  <Link
+                    key={s.state}
+                    to={`/senior-living/${s.state}`}
+                    className="rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                  >
+                    {s.state}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
       </section>
 
       {/* ARTICLES PREVIEW */}
@@ -650,6 +672,7 @@ function SiteFooter({ topCities }: { topCities: TopCity[] }) {
           <div>
             <h3 className="text-sm font-semibold">Tools</h3>
             <ul className="mt-3 space-y-2 text-sm">
+              <FooterLink to="/why-carepath">Why CarePath</FooterLink>
               <FooterLink to="/guides">Free PDF guides</FooterLink>
               <FooterLink to="/tools/care-level-quiz">Care-level quiz</FooterLink>
               <FooterLink to="/search">Cost projection</FooterLink>
@@ -801,15 +824,6 @@ function ScoreBadge({ score }: { score: number | null }) {
     >
       {score === null ? "—" : score.toFixed(1)}
     </span>
-  )
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-base font-semibold text-foreground">{value}</span>
-      <span>{label}</span>
-    </div>
   )
 }
 

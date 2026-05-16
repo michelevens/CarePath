@@ -32,6 +32,8 @@ class GuideController extends Controller
                 'category' => $g['category'],
                 'page_count' => $g['page_count'],
                 'audience' => $g['audience'],
+                'author' => $g['author'] ?? null,
+                'reviewer' => $g['reviewer'] ?? null,
             ], GuideCatalog::all()),
         ]);
     }
