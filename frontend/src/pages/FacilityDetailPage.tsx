@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Link, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
   Calculator,
   Check,
   CheckCircle2,
+  Download,
   GitCompareArrows,
   Heart,
   Loader2,
@@ -151,6 +152,20 @@ export function FacilityDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [tourOpen, setTourOpen] = useState(false)
 
+  // Sticky tour bar: shown when the sidebar CTA card scrolls out of view.
+  // Mirrors APFM's most-clicked CTA placement, minus the lead-gen pressure.
+  const sidebarCardRef = useRef<HTMLDivElement | null>(null)
+  const [sidebarVisible, setSidebarVisible] = useState(true)
+  useEffect(() => {
+    if (!sidebarCardRef.current || typeof IntersectionObserver === "undefined") return
+    const observer = new IntersectionObserver(
+      ([entry]) => setSidebarVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    )
+    observer.observe(sidebarCardRef.current)
+    return () => observer.disconnect()
+  }, [facility])
+
   useEffect(() => {
     if (!slug) return
     let alive = true
@@ -246,6 +261,7 @@ export function FacilityDetailPage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-6 py-8">
+        <Breadcrumbs facility={facility} />
         <PhotoGallery photos={facility.photos} facilityName={facility.name} />
 
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
@@ -255,26 +271,46 @@ export function FacilityDetailPage() {
                 <h1 className="text-3xl font-semibold tracking-tight">{facility.name}</h1>
                 <CompareToggle id={facility.id} slug={facility.slug} name={facility.name} />
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
                   {facility.city}, {facility.state} {facility.zip}
                 </span>
                 <span>·</span>
                 <span>{TYPE_LABEL[facility.type] ?? facility.type}</span>
-                {facility.cms_five_star_overall && (
-                  <>
-                    <span>·</span>
-                    <span className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-current text-foreground" />
-                      <span className="font-medium text-foreground">
-                        {facility.cms_five_star_overall}
-                      </span>
-                      CMS Five-Star
-                    </span>
-                  </>
-                )}
+                <VerifiedBadge />
               </div>
+
+              {/* Big-number review score + CMS one-liner — the at-a-glance
+                  gestalt families look at first, alongside the QualityScore tile. */}
+              {facility.review_stats.count > 0 && (
+                <div className="mt-4 inline-flex items-center gap-3 rounded-lg border bg-card px-4 py-2.5">
+                  <span className="text-3xl font-bold tabular-nums">
+                    {facility.review_stats.average.toFixed(1)}
+                  </span>
+                  <div className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star
+                          key={n}
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            n <= Math.round(facility.review_stats.average)
+                              ? "fill-amber-400 text-amber-500"
+                              : "text-muted-foreground/30"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-0.5">
+                      {facility.review_stats.count} review{facility.review_stats.count === 1 ? "" : "s"}
+                      {facility.review_stats.verified_count > 0 && (
+                        <> · {facility.review_stats.verified_count} verified</>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -373,7 +409,7 @@ export function FacilityDetailPage() {
           </div>
 
           <aside>
-            <Card className="sticky top-6">
+            <Card className="sticky top-6" ref={sidebarCardRef as React.RefObject<HTMLDivElement>}>
               <CardContent className="p-6">
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -402,6 +438,7 @@ export function FacilityDetailPage() {
                   city={facility.city}
                   state={facility.state}
                 />
+                <BrochureDownloadButton slug={facility.slug} />
 
                 <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
                   <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -413,6 +450,29 @@ export function FacilityDetailPage() {
         </div>
       </div>
 
+      {!sidebarVisible && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">{facility.name}</div>
+              <div className="truncate text-xs text-muted-foreground">
+                {monthly ? (
+                  <>
+                    From <span className="font-medium text-foreground">${monthly}/mo</span>
+                    {" · "}
+                  </>
+                ) : null}
+                {facility.available_beds} bed{facility.available_beds === 1 ? "" : "s"} available
+              </div>
+            </div>
+            <Button onClick={() => setTourOpen(true)} size="lg">
+              <Calendar className="h-4 w-4" />
+              Request a tour
+            </Button>
+          </div>
+        </div>
+      )}
+
       <TourRequestDialog
         open={tourOpen}
         onClose={() => setTourOpen(false)}
@@ -420,6 +480,70 @@ export function FacilityDetailPage() {
         facilityName={facility.name}
       />
     </div>
+  )
+}
+
+function VerifiedBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary"
+      title="Listing data is refreshed daily from CMS Nursing Home Compare and the facility's own systems. Pricing is the facility's published rate, not a commissioned-advisor quote."
+    >
+      <ShieldCheck className="h-3 w-3" />
+      Verified data
+    </span>
+  )
+}
+
+function Breadcrumbs({ facility }: { facility: Facility }) {
+  const typeLabel = TYPE_LABEL[facility.type] ?? facility.type
+  const items = [
+    { label: "Home", to: "/" },
+    { label: "Long-term care", to: "/search" },
+    { label: typeLabel, to: `/search?type=${facility.type}` },
+    { label: facility.state, to: `/senior-living/${facility.state}` },
+    {
+      label: facility.city,
+      to: `/search?state=${facility.state}&city=${encodeURIComponent(facility.city)}`,
+    },
+    { label: facility.name, to: null as string | null },
+  ]
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.label,
+      ...(it.to ? { item: typeof window !== "undefined" ? window.location.origin + it.to : it.to } : {}),
+    })),
+  }
+  return (
+    <>
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground"
+      >
+        {items.map((it, i) => (
+          <span key={`${it.label}-${i}`} className="flex items-center gap-1">
+            {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/60" />}
+            {it.to ? (
+              <Link to={it.to} className="hover:text-foreground hover:underline">
+                {it.label}
+              </Link>
+            ) : (
+              <span className="text-foreground" aria-current="page">
+                {it.label}
+              </span>
+            )}
+          </span>
+        ))}
+      </nav>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+    </>
   )
 }
 
@@ -1863,6 +1987,42 @@ function CompareToggle({ id, slug, name }: { id: string; slug: string; name: str
         </Button>
       )}
     </div>
+  )
+}
+
+function BrochureDownloadButton({ slug }: { slug: string }) {
+  const [loading, setLoading] = useState(false)
+  const onClick = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get(`/marketplace/facilities/${slug}/brochure`, {
+        responseType: "blob",
+      })
+      const blob = new Blob([res.data as BlobPart], { type: "application/pdf" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `carepath-${slug}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch {
+      // Best-effort; brochure rendering is non-critical.
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <Button
+      variant="ghost"
+      className="mt-2 w-full text-muted-foreground hover:text-foreground"
+      onClick={onClick}
+      disabled={loading}
+    >
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      Download brochure (PDF)
+    </Button>
   )
 }
 

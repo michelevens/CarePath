@@ -29,6 +29,7 @@ Route::prefix('marketplace')->group(function () {
     Route::get('/compare', [MarketplaceController::class, 'compare']);
     Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
     Route::get('/facilities/{slug}/tour-slots', [MarketplaceController::class, 'tourSlots']);
+    Route::get('/facilities/{slug}/brochure', [MarketplaceController::class, 'brochure']);
     Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);
     Route::post('/tours', [MarketplaceController::class, 'bookTour']);
     Route::post('/cost-projection', [MarketplaceController::class, 'costProjection']);

@@ -10,9 +10,11 @@ use App\Models\Tour;
 use App\Services\CostProjectionService;
 use App\Services\QualityScoreService;
 use App\Services\ZipLookupService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
@@ -446,6 +448,43 @@ class MarketplaceController extends Controller
         }
 
         return response()->json(['data' => $payload]);
+    }
+
+    /**
+     * GET /api/marketplace/facilities/{slug}/brochure
+     *
+     * One-page branded PDF summarizing the facility — for printing,
+     * sharing in family meetings, or taking to tours. Public, ungated:
+     * the brochure IS the value; we're not pretending it costs an email.
+     */
+    public function brochure(string $slug): Response
+    {
+        $facility = Facility::query()
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->with([
+                'pricingTiers' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                'amenities' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+            ])
+            ->firstOrFail();
+
+        $availableBeds = Bed::query()
+            ->where('facility_id', $facility->id)
+            ->where('status', 'available')
+            ->count();
+
+        $facilityArr = $facility->toArray();
+        $facilityArr['available_beds'] = $availableBeds;
+        $qualityScore = QualityScoreService::score($facilityArr);
+
+        $pdf = Pdf::loadView('brochures.facility', [
+            'facility' => $facility,
+            'available_beds' => $availableBeds,
+            'quality_score' => $qualityScore,
+            'today' => now()->format('F j, Y'),
+        ])->setPaper('letter');
+
+        return $pdf->download('carepath-' . $facility->slug . '.pdf');
     }
 
     /**
