@@ -134,6 +134,9 @@ class BackfillFacilityPhotos extends Command
             'memory_care' => 'memory',
             'assisted_living' => 'assisted',
             'ccrc' => 'assisted',
+            'independent_living' => 'assisted',
+            'group_home', 'adult_family_home' => 'assisted',
+            'icf_iid' => 'skilled',
             default => 'assisted',
         };
 

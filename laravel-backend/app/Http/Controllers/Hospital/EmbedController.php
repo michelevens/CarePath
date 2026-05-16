@@ -67,7 +67,7 @@ class EmbedController extends Controller
             'city' => ['nullable', 'string', 'max:120'],
             'zip' => ['nullable', 'string', 'max:10'],
             'radius_miles' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'type' => ['nullable', 'in:snf,assisted_living,memory_care,ccrc'],
+            'type' => ['nullable', 'in:snf,assisted_living,memory_care,ccrc,independent_living,group_home,adult_family_home,icf_iid'],
             'medicaid_only' => ['nullable', 'boolean'],
             'min_five_star' => ['nullable', 'integer', 'min:1', 'max:5'],
             'q' => ['nullable', 'string', 'max:120'],

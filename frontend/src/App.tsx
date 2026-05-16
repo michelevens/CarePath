@@ -56,6 +56,7 @@ const VerificationsPage = lazy(() => import("@/portals/superadmin/VerificationsP
 const SubscriptionsPage = lazy(() => import("@/portals/superadmin/SubscriptionsPage").then(m => ({ default: m.SubscriptionsPage })))
 const PlacementsPage = lazy(() => import("@/portals/superadmin/PlacementsPage").then(m => ({ default: m.PlacementsPage })))
 const SponsoredOversightPage = lazy(() => import("@/portals/superadmin/SponsoredPage").then(m => ({ default: m.SponsoredPage })))
+const SourcesPage = lazy(() => import("@/portals/superadmin/SourcesPage").then(m => ({ default: m.SourcesPage })))
 const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
 const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").then(m => ({ default: m.AdmissionsKanban })))
 const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
@@ -146,6 +147,7 @@ function App() {
                 <Route path="placements" element={<PlacementsPage />} />
                 <Route path="subscriptions" element={<SubscriptionsPage />} />
                 <Route path="sponsored" element={<SponsoredOversightPage />} />
+                <Route path="sources" element={<SourcesPage />} />
               </>
             )}
             {path === "admin" && (

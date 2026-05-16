@@ -42,7 +42,7 @@ class MarketplaceController extends Controller
             'city' => ['nullable', 'string', 'max:120'],
             'zip' => ['nullable', 'string', 'max:10'],
             'radius_miles' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'type' => ['nullable', 'in:snf,assisted_living,memory_care,ccrc'],
+            'type' => ['nullable', 'in:snf,assisted_living,memory_care,ccrc,independent_living,group_home,adult_family_home,icf_iid'],
             'max_price_cents' => ['nullable', 'integer', 'min:0'],
             'medicaid_only' => ['nullable', 'boolean'],
             'min_five_star' => ['nullable', 'integer', 'min:1', 'max:5'],
@@ -526,12 +526,7 @@ class MarketplaceController extends Controller
                 'total_facilities' => $totalFacilities,
                 'medicaid_count' => $medicaidCount,
                 'avg_score' => $avgScore,
-                'by_type' => [
-                    'assisted_living' => (int) ($byType['assisted_living'] ?? 0),
-                    'memory_care' => (int) ($byType['memory_care'] ?? 0),
-                    'snf' => (int) ($byType['snf'] ?? 0),
-                    'ccrc' => (int) ($byType['ccrc'] ?? 0),
-                ],
+                'by_type' => $this->buildByType($byType),
                 'top_cities' => $topCities,
                 'top_facilities' => $topFacilities,
             ];
@@ -544,7 +539,7 @@ class MarketplaceController extends Controller
                     'total_facilities' => 0,
                     'medicaid_count' => 0,
                     'avg_score' => null,
-                    'by_type' => ['assisted_living' => 0, 'memory_care' => 0, 'snf' => 0, 'ccrc' => 0],
+                    'by_type' => $this->buildByType([]),
                     'top_cities' => [],
                     'top_facilities' => [],
                 ],
@@ -720,12 +715,7 @@ class MarketplaceController extends Controller
                 'state' => $state,
                 'county' => $county,
                 'total_facilities' => $totalFacilities,
-                'by_type' => [
-                    'assisted_living' => (int) ($byType['assisted_living'] ?? 0),
-                    'memory_care' => (int) ($byType['memory_care'] ?? 0),
-                    'snf' => (int) ($byType['snf'] ?? 0),
-                    'ccrc' => (int) ($byType['ccrc'] ?? 0),
-                ],
+                'by_type' => $this->buildByType($byType),
                 'pricing' => [
                     'facilities_with_pricing' => $withPrice->count(),
                     'avg_price_cents' => $avgPrice,
@@ -810,6 +800,23 @@ class MarketplaceController extends Controller
         ])->setPaper('letter');
 
         return $pdf->download('carepath-' . $facility->slug . '.pdf');
+    }
+
+    /**
+     * Emit a stable by_type payload using the canonical Facility::TYPES
+     * set. Guarantees every type appears (with 0 default) so the
+     * frontend can render filter chips without per-type defensive ??s.
+     *
+     * @param  array<string, int>  $byType
+     * @return array<string, int>
+     */
+    private function buildByType(array $byType): array
+    {
+        $out = [];
+        foreach (\App\Models\Facility::TYPES as $t) {
+            $out[$t] = (int) ($byType[$t] ?? 0);
+        }
+        return $out;
     }
 
     /**

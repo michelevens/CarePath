@@ -54,6 +54,10 @@ const TYPE_LABEL: Record<string, string> = {
   assisted_living: "Assisted Living",
   memory_care: "Memory Care",
   ccrc: "Continuing Care",
+  independent_living: "Independent Living",
+  group_home: "Group Home",
+  adult_family_home: "Adult Family Home",
+  icf_iid: "ICF/IID",
 }
 
 function dollars(cents: number | null | undefined): string {

@@ -42,6 +42,10 @@ class SitemapController extends Controller
         'memory_care' => 'memory-care',
         'snf' => 'skilled-nursing',
         'ccrc' => 'continuing-care',
+        'independent_living' => 'independent-living',
+        'group_home' => 'group-home',
+        'adult_family_home' => 'adult-family-home',
+        'icf_iid' => 'icf-iid',
     ];
 
     public function index(): Response

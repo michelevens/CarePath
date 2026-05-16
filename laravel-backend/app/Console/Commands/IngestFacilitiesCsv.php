@@ -125,6 +125,10 @@ class IngestFacilitiesCsv extends Command
             in_array($t, ['memory_care', 'memory care', 'alzheimer', 'dementia'], true) => 'memory_care',
             in_array($t, ['ccrc', 'continuing care', 'life plan'], true) => 'ccrc',
             in_array($t, ['alf', 'assisted_living', 'assisted living'], true) => 'assisted_living',
+            in_array($t, ['il', 'independent_living', 'independent living', 'retirement community', '55+'], true) => 'independent_living',
+            in_array($t, ['group_home', 'group home'], true) => 'group_home',
+            in_array($t, ['afh', 'adult_family_home', 'adult family home'], true) => 'adult_family_home',
+            in_array($t, ['icf_iid', 'icf/iid', 'icf-iid', 'intermediate care'], true) => 'icf_iid',
             default => null,
         };
     }

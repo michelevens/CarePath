@@ -14,11 +14,25 @@ class Facility extends Model
 {
     use Auditable, HasFactory, HasUuids;
 
+    /**
+     * Canonical facility types. Kept as a class constant so every
+     * validator + filter UI references one source of truth. New values:
+     *   - independent_living: 55+ housing without daily care
+     *   - group_home / adult_family_home: small (typically <=10 beds)
+     *     residential settings; AFH is the WA/OR-favored term
+     *   - icf_iid: intermediate care for individuals with intellectual
+     *     / developmental disabilities (federally-regulated, not SNF)
+     */
+    public const TYPES = [
+        'snf', 'assisted_living', 'memory_care', 'ccrc',
+        'independent_living', 'group_home', 'adult_family_home', 'icf_iid',
+    ];
+
     protected $fillable = [
         'cms_certification_number',
         'name',
         'slug',
-        'type', // snf | assisted_living | memory_care | ccrc
+        'type',
         'ownership_type',
         'address_line_1',
         'address_line_2',
