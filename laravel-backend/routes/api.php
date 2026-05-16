@@ -24,6 +24,7 @@ use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\SuperAdmin\SourcesController as SuperAdminSourcesController;
 use App\Http\Controllers\SuperAdmin\SuperAdminController;
+use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -121,6 +122,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/sources/cms/run', [SuperAdminSourcesController::class, 'runCms']);
             Route::post('/sources/osm/run', [SuperAdminSourcesController::class, 'runOsm']);
             Route::post('/sources/csv/upload', [SuperAdminSourcesController::class, 'uploadCsv']);
+
+            // Platform-wide user management — invite, list, role assignment.
+            Route::get('/users', [SuperAdminUsersController::class, 'index']);
+            Route::post('/users/invite', [SuperAdminUsersController::class, 'invite']);
+            Route::put('/users/{id}/roles', [SuperAdminUsersController::class, 'updateRoles']);
+            Route::post('/users/{id}/resend-invite', [SuperAdminUsersController::class, 'resendInvite']);
 
             // Specific routes must precede the {type} wildcard.
             Route::post('/master-data/sync', [MasterDataController::class, 'sync']);

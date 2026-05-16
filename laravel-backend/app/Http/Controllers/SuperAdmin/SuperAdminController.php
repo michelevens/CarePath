@@ -199,12 +199,25 @@ class SuperAdminController extends Controller
 
     /**
      * POST /api/superadmin/verifications/advisors/{id}/approve
+     *
+     * Stamps verified_at AND grants the referral_partner role on the
+     * owning user (idempotent). Without the role grant, an advisor
+     * whose profile was created out-of-band (or before the role
+     * existed) would stay locked out of the portal even after we'd
+     * "approved" them in the queue.
      */
     public function approveAdvisor(string $id): JsonResponse
     {
         $profile = AdvisorProfile::findOrFail($id);
         $profile->update(['verified_at' => now()]);
-        return response()->json(['ok' => true, 'verified_at' => $profile->verified_at]);
+        if ($profile->user) {
+            $profile->user->assignRole('referral_partner');
+        }
+        return response()->json([
+            'ok' => true,
+            'verified_at' => $profile->verified_at,
+            'role_granted' => 'referral_partner',
+        ]);
     }
 
     /**
@@ -214,7 +227,14 @@ class SuperAdminController extends Controller
     {
         $partner = HospitalPartner::findOrFail($id);
         $partner->update(['verified_at' => now()]);
-        return response()->json(['ok' => true, 'verified_at' => $partner->verified_at]);
+        if ($partner->user) {
+            $partner->user->assignRole('hospital_partner');
+        }
+        return response()->json([
+            'ok' => true,
+            'verified_at' => $partner->verified_at,
+            'role_granted' => 'hospital_partner',
+        ]);
     }
 
     /**
