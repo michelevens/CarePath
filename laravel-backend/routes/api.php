@@ -126,10 +126,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/sources/osm/run', [SuperAdminSourcesController::class, 'runOsm']);
             Route::post('/sources/csv/upload', [SuperAdminSourcesController::class, 'uploadCsv']);
 
-            // Platform-wide user management — invite, list, role assignment.
+            // Platform-wide user management — invite, list, role assignment,
+            // per-user detail page, facility memberships.
             Route::get('/users', [SuperAdminUsersController::class, 'index']);
+            Route::get('/users/facility-picker', [SuperAdminUsersController::class, 'facilityPicker']);
             Route::post('/users/invite', [SuperAdminUsersController::class, 'invite']);
+            Route::get('/users/{id}', [SuperAdminUsersController::class, 'show']);
             Route::put('/users/{id}/roles', [SuperAdminUsersController::class, 'updateRoles']);
+            Route::put('/users/{id}/memberships', [SuperAdminUsersController::class, 'updateMemberships']);
             Route::post('/users/{id}/resend-invite', [SuperAdminUsersController::class, 'resendInvite']);
 
             // SubscriptionPlan management — limited-field updates only.

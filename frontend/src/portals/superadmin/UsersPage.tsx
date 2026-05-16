@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { Link } from "react-router-dom"
 import {
+  Building2,
   Check,
+  ChevronRight,
+  Heart,
+  Hospital,
   Loader2,
   Mail,
   Search,
@@ -12,6 +17,13 @@ import {
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+
+interface FacilityPick {
+  id: string
+  name: string
+  city: string
+  state: string
+}
 
 interface UserRow {
   id: number
@@ -238,14 +250,26 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{timeAgo(u.created_at)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditing(u)}
-                        className="gap-1 text-xs"
-                      >
-                        <Shield className="h-3 w-3" /> Roles
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditing(u)}
+                          className="gap-1 text-xs"
+                        >
+                          <Shield className="h-3 w-3" /> Roles
+                        </Button>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-xs"
+                        >
+                          <Link to={`/superadmin/users/${u.id}`}>
+                            Open <ChevronRight className="h-3 w-3" />
+                          </Link>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -281,6 +305,60 @@ export function UsersPage() {
   )
 }
 
+interface RoleMeta {
+  label: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+  needsFacility?: boolean
+  multiFacility?: boolean
+  needsAgency?: boolean
+  needsOrg?: boolean
+}
+
+const ROLE_META: Record<string, RoleMeta> = {
+  facility_admin: {
+    label: "Facility administrator",
+    description: "Manages a single facility — census, beds, compliance, billing, staff.",
+    icon: Building2,
+    needsFacility: true,
+  },
+  facility_staff: {
+    label: "Facility staff",
+    description: "Care team — residents, care plans, MDS, handoffs.",
+    icon: Heart,
+    needsFacility: true,
+  },
+  network_admin: {
+    label: "Network / corporate admin",
+    description: "Cross-facility analytics + master data for a multi-site operator.",
+    icon: Building2,
+    needsFacility: true,
+    multiFacility: true,
+  },
+  referral_partner: {
+    label: "Placement advisor",
+    description: "Independent advisor or agency that sources family placements.",
+    icon: UsersIcon,
+    needsAgency: true,
+  },
+  hospital_partner: {
+    label: "Hospital case manager",
+    description: "Discharge planner that embeds the CarePath widget and routes referrals.",
+    icon: Hospital,
+    needsOrg: true,
+  },
+  family_member: {
+    label: "Family member",
+    description: "Adult child, spouse, or POA looking for care.",
+    icon: Heart,
+  },
+  resident: {
+    label: "Resident",
+    description: "Resident themselves (or POA acting on their behalf).",
+    icon: UsersIcon,
+  },
+}
+
 function InviteModal({
   onClose,
   onInvited,
@@ -293,15 +371,28 @@ function InviteModal({
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [role, setRole] = useState(assignable[0] ?? "facility_admin")
+  const [facilityIds, setFacilityIds] = useState<string[]>([])
+  const [agencyName, setAgencyName] = useState("")
+  const [orgName, setOrgName] = useState("")
+  const [partnerType, setPartnerType] = useState("hospital")
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  const meta = ROLE_META[role] ?? { label: role, description: "", icon: UsersIcon }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
     setErr(null)
     try {
-      await api.post("/superadmin/users/invite", { email, name, role })
+      const body: Record<string, unknown> = { email, name, role }
+      if (meta.needsFacility) body.facility_ids = facilityIds
+      if (meta.needsAgency) body.agency_name = agencyName
+      if (meta.needsOrg) {
+        body.org_name = orgName
+        body.partner_type = partnerType
+      }
+      await api.post("/superadmin/users/invite", body)
       onInvited()
     } catch (e) {
       const error = e as { response?: { data?: { message?: string } } }
@@ -312,49 +403,136 @@ function InviteModal({
   }
 
   return (
-    <Modal onClose={onClose} title="Invite user">
-      <form onSubmit={submit} className="space-y-4">
-        <p className="text-xs text-muted-foreground">
-          Creates the account and emails them a set-password link. They'll land
-          on the portal matching their role after first login.
-        </p>
-        <Field label="Name">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={120}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-          />
-        </Field>
-        <Field label="Email">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-          />
-        </Field>
-        <Field label="Role">
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+    <Modal onClose={onClose} title="Invite user" wide>
+      <form onSubmit={submit} className="space-y-5">
+        {/* Role picker: 7 cards, click to select. More discoverable than
+            a dropdown and surfaces the type-specific context inline. */}
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
+            Who are you inviting?
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {assignable.map((r) => {
+              const m = ROLE_META[r] ?? { label: r, description: "", icon: UsersIcon }
+              const Icon = m.icon
+              const selected = role === r
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`flex items-start gap-2 rounded-md border p-2 text-left transition-colors ${
+                    selected
+                      ? "border-violet-300 bg-violet-50"
+                      : "hover:border-violet-200 hover:bg-muted/30"
+                  }`}
+                >
+                  <Icon
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      selected ? "text-violet-700" : "text-muted-foreground"
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{m.label}</div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">
+                      {m.description}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Identity */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Full name">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={120}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            />
+          </Field>
+          <Field label="Email">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            />
+          </Field>
+        </div>
+
+        {/* Per-role context */}
+        {meta.needsFacility && (
+          <Field
+            label={
+              meta.multiFacility
+                ? "Facilities (select all they cover)"
+                : "Facility"
+            }
           >
-            {assignable.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABEL[r] ?? r}
-              </option>
-            ))}
-          </select>
-        </Field>
+            <FacilityMultiPicker
+              value={facilityIds}
+              onChange={setFacilityIds}
+              multi={meta.multiFacility ?? false}
+            />
+          </Field>
+        )}
+
+        {meta.needsAgency && (
+          <Field label="Agency name (optional)">
+            <input
+              value={agencyName}
+              onChange={(e) => setAgencyName(e.target.value)}
+              maxLength={191}
+              placeholder="Demo Senior Placement"
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Creates an AdvisorProfile shell. Advisor lands in the Verifications
+              queue and isn't payout-ready until ops verifies + they complete
+              Stripe Connect onboarding.
+            </p>
+          </Field>
+        )}
+
+        {meta.needsOrg && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Organization name">
+              <input
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                maxLength={191}
+                placeholder="Demo Regional Medical Center"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </Field>
+            <Field label="Partner type">
+              <select
+                value={partnerType}
+                onChange={(e) => setPartnerType(e.target.value)}
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              >
+                <option value="hospital">Hospital</option>
+                <option value="health_system">Health system</option>
+                <option value="rehab">Rehab / IRF</option>
+                <option value="snf_discharge">SNF discharge</option>
+                <option value="accountable_care">ACO</option>
+              </select>
+            </Field>
+          </div>
+        )}
+
         {err && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
             {err}
           </div>
         )}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 border-t pt-3">
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
@@ -365,6 +543,87 @@ function InviteModal({
         </div>
       </form>
     </Modal>
+  )
+}
+
+function FacilityMultiPicker({
+  value,
+  onChange,
+  multi,
+}: {
+  value: string[]
+  onChange: (ids: string[]) => void
+  multi: boolean
+}) {
+  const [q, setQ] = useState("")
+  const [opts, setOpts] = useState<FacilityPick[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading(true)
+      api
+        .get<{ data: FacilityPick[] }>("/superadmin/users/facility-picker", { params: { q } })
+        .then((r) => setOpts(r.data?.data ?? []))
+        .finally(() => setLoading(false))
+    }, 200)
+    return () => clearTimeout(t)
+  }, [q])
+
+  const toggle = (id: string) => {
+    if (multi) {
+      onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id])
+    } else {
+      onChange(value.includes(id) ? [] : [id])
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by name or city…"
+          className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
+        />
+      </div>
+      <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
+        {loading && (
+          <div className="p-2 text-xs text-muted-foreground">Loading…</div>
+        )}
+        {!loading && opts.length === 0 && (
+          <div className="p-2 text-xs text-muted-foreground">No facilities match.</div>
+        )}
+        {opts.map((f) => {
+          const on = value.includes(f.id)
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => toggle(f.id)}
+              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted/40 ${
+                on ? "bg-violet-50" : ""
+              }`}
+            >
+              <div>
+                <div className="font-medium">{f.name}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {f.city}, {f.state}
+                </div>
+              </div>
+              {on && <Check className="h-4 w-4 text-violet-700" />}
+            </button>
+          )
+        })}
+      </div>
+      {value.length > 0 && (
+        <div className="text-[11px] text-muted-foreground">
+          {value.length} selected
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -484,14 +743,20 @@ function Modal({
   title,
   children,
   onClose,
+  wide,
 }: {
   title: string
   children: React.ReactNode
   onClose: () => void
+  wide?: boolean
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg border bg-card shadow-xl">
+      <div
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border bg-card shadow-xl ${
+          wide ? "max-w-2xl" : "max-w-md"
+        }`}
+      >
         <div className="flex items-center justify-between border-b p-4">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <UsersIcon className="h-4 w-4" />
