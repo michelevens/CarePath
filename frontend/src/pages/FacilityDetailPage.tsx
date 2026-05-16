@@ -28,6 +28,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
 import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
+import { FamilyProModal } from "@/components/FamilyProModal"
+import { Sparkles } from "lucide-react"
 
 interface Photo {
   id: string
@@ -1624,11 +1626,40 @@ function CostProjectionCalculator({
                 projectionInputs={inputs}
                 projectionTotals={result.totals}
               />
+
+              <CostProjectionProUpsell />
             </div>
           )}
         </CardContent>
       </Card>
     </section>
+  )
+}
+
+function CostProjectionProUpsell() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm transition-colors hover:bg-primary/10"
+      >
+        <div>
+          <div className="flex items-center gap-2 font-medium text-primary">
+            <Sparkles className="h-4 w-4" />
+            Export this projection as a PDF
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            CarePath Pro · branded PDF for family meetings or your elder-law attorney
+          </div>
+        </div>
+        <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+          See Pro
+        </span>
+      </button>
+      <FamilyProModal open={open} onClose={() => setOpen(false)} trigger="cost-projection" />
+    </>
   )
 }
 

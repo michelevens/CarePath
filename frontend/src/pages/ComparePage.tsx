@@ -17,6 +17,8 @@ import { useCompare } from "@/lib/useCompare"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
+import { FamilyProModal } from "@/components/FamilyProModal"
+import { Download, Sparkles } from "lucide-react"
 
 interface CompareFacility {
   id: string
@@ -71,6 +73,7 @@ export function ComparePage() {
   const [amenityRows, setAmenityRows] = useState<AmenityRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [proOpen, setProOpen] = useState(false)
 
   // Resolve IDs from URL params first, then from localStorage compare list.
   const ids = useMemo(() => {
@@ -169,12 +172,25 @@ export function ComparePage() {
               Up to {compare.max} facilities.
             </p>
           </div>
-          {facilities.length > 0 && (
-            <Button variant="outline" onClick={() => { compare.clear(); setParams({}, { replace: true }) }}>
-              Clear all
-            </Button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {facilities.length >= 2 && (
+              <Button onClick={() => setProOpen(true)}>
+                <Download className="h-4 w-4" />
+                Export as PDF
+                <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs">
+                  <Sparkles className="h-3 w-3" />
+                  Pro
+                </span>
+              </Button>
+            )}
+            {facilities.length > 0 && (
+              <Button variant="outline" onClick={() => { compare.clear(); setParams({}, { replace: true }) }}>
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
+        <FamilyProModal open={proOpen} onClose={() => setProOpen(false)} trigger="compare" />
 
         {loading && (
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-muted-foreground">

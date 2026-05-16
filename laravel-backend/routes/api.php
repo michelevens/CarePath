@@ -7,6 +7,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
+use App\Http\Controllers\Family\BillingController as FamilyBillingController;
 use App\Http\Controllers\Referral\ReferralController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
@@ -51,6 +52,10 @@ Route::prefix('content')->group(function () {
     Route::get('/articles', [ArticleController::class, 'index']);
     Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 });
+
+// Family Pro plan catalog — public so the upsell modal can render
+// even before signup. Personal-sub endpoints below require auth.
+Route::get('/family/billing/plans', [FamilyBillingController::class, 'plans']);
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -141,6 +146,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/leads', [LeadController::class, 'index']);
         Route::put('/leads/{id}/status', [LeadController::class, 'updateStatus']);
+    });
+
+    // Family-side personal subscriptions (Family Pro). plans endpoint
+    // is public above; show/checkout/cancel require auth.
+    Route::prefix('family/billing')->group(function () {
+        Route::get('/subscription', [FamilyBillingController::class, 'show']);
+        Route::post('/checkout', [FamilyBillingController::class, 'checkout']);
+        Route::post('/cancel', [FamilyBillingController::class, 'cancel']);
     });
 
     // Placement-advisor / referral-partner portal

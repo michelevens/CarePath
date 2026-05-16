@@ -31,6 +31,8 @@ import { Meta } from "@/components/Meta"
 import { FacilityMap } from "@/components/FacilityMap"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
+import { FamilyProModal } from "@/components/FamilyProModal"
+import { Sparkles, Users } from "lucide-react"
 
 interface FacilityResult {
   id: string
@@ -819,34 +821,49 @@ function SearchHeaderSuggest({
 
 function SavedFacilitiesStrip() {
   const saved = useSaved()
+  const [proOpen, setProOpen] = useState(false)
 
   if (saved.list.length === 0) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs">
-      <span className="inline-flex items-center gap-1.5 font-medium">
-        <Heart className="h-3.5 w-3.5 fill-primary text-primary" />
-        Saved facilities ({saved.list.length})
-      </span>
-      {saved.list.map((f) => (
-        <span
-          key={f.id}
-          className="group inline-flex items-center gap-1 rounded-full border bg-background pl-2.5 pr-1 py-0.5"
-        >
-          <Link to={`/facility/${f.slug}`} className="text-foreground hover:text-primary">
-            {f.name}
-            <span className="ml-1 text-muted-foreground">· {f.city}, {f.state}</span>
-          </Link>
+    <>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-medium">
+          <Heart className="h-3.5 w-3.5 fill-primary text-primary" />
+          Saved facilities ({saved.list.length})
+        </span>
+        {saved.list.map((f) => (
+          <span
+            key={f.id}
+            className="group inline-flex items-center gap-1 rounded-full border bg-background pl-2.5 pr-1 py-0.5"
+          >
+            <Link to={`/facility/${f.slug}`} className="text-foreground hover:text-primary">
+              {f.name}
+              <span className="ml-1 text-muted-foreground">· {f.city}, {f.state}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => saved.remove(f.id)}
+              aria-label="Remove saved facility"
+              className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        {saved.list.length >= 3 && (
           <button
             type="button"
-            onClick={() => saved.remove(f.id)}
-            aria-label="Remove saved facility"
-            className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setProOpen(true)}
+            className="ml-auto inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10"
           >
-            <X className="h-3 w-3" />
+            <Users className="h-3 w-3" />
+            Share with family
+            <Sparkles className="h-3 w-3" />
           </button>
-        </span>
-      ))}
-    </div>
+        )}
+      </div>
+      <FamilyProModal open={proOpen} onClose={() => setProOpen(false)} trigger="saved-facilities" />
+    </>
   )
 }
