@@ -16,6 +16,27 @@
       rel="stylesheet"
     />
     <script>
+      // Defensive URL normalizer — runs BEFORE the SPA fallback and BEFORE
+      // React Router. Catches URLs like /CarePathsearch?... where someone
+      // shared / typed / autocompleted a path missing the slash separator
+      // between the project base and the route. Rewrites to /CarePath/...
+      // so React Router (basename="/CarePath/") can match.
+      (function () {
+        var BASE = "/CarePath";
+        var p = location.pathname;
+        if (
+          p.length > BASE.length &&
+          p.indexOf(BASE) === 0 &&
+          p.charAt(BASE.length) !== "/"
+        ) {
+          history.replaceState(
+            null,
+            "",
+            BASE + "/" + p.slice(BASE.length) + location.search + location.hash
+          );
+        }
+      })();
+
       // GitHub Pages SPA fallback unpacker — pairs with public/404.html.
       (function () {
         if (location.search.startsWith("?/")) {
