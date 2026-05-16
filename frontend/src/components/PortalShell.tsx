@@ -100,7 +100,11 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     title: "Super admin",
     items: [
       { to: "/superadmin", label: "Overview", icon: Home },
-      { to: "/superadmin/tenants", label: "Tenants", icon: Building2 },
+      { to: "/superadmin/tenants", label: "Facilities", icon: Building2 },
+      { to: "/superadmin/verifications", label: "Verifications", icon: ShieldCheck },
+      { to: "/superadmin/placements", label: "Placements", icon: HeartHandshake },
+      { to: "/superadmin/subscriptions", label: "Subscriptions", icon: BarChart3 },
+      { to: "/superadmin/sponsored", label: "Sponsored", icon: Sparkles },
       { to: "/superadmin/master-data", label: "Master data", icon: ClipboardList },
       { to: "/superadmin/audit", label: "Audit log", icon: Shield },
     ],

@@ -51,6 +51,8 @@ const EmbedSearchPage = lazy(() => import("@/pages/EmbedSearchPage").then(m => (
 const SuperAdminDashboard = lazy(() => import("@/portals/superadmin/SuperAdminDashboard").then(m => ({ default: m.SuperAdminDashboard })))
 const MasterDataPage = lazy(() => import("@/portals/superadmin/MasterDataPage").then(m => ({ default: m.MasterDataPage })))
 const AuditLogPage = lazy(() => import("@/portals/superadmin/AuditLogPage").then(m => ({ default: m.AuditLogPage })))
+const TenantsPage = lazy(() => import("@/portals/superadmin/TenantsPage").then(m => ({ default: m.TenantsPage })))
+const SuperAdminComingSoon = lazy(() => import("@/portals/superadmin/ComingSoonPage").then(m => ({ default: m.ComingSoonPage })))
 const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
 const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").then(m => ({ default: m.AdmissionsKanban })))
 const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
@@ -133,8 +135,14 @@ function App() {
             <Route index element={<Dashboard />} />
             {path === "superadmin" && (
               <>
+                <Route path="tenants" element={<TenantsPage />} />
                 <Route path="master-data" element={<MasterDataPage />} />
+                <Route path="master-data/:type" element={<MasterDataPage />} />
                 <Route path="audit" element={<AuditLogPage />} />
+                <Route path="verifications" element={<SuperAdminComingSoon />} />
+                <Route path="placements" element={<SuperAdminComingSoon />} />
+                <Route path="subscriptions" element={<SuperAdminComingSoon />} />
+                <Route path="sponsored" element={<SuperAdminComingSoon />} />
               </>
             )}
             {path === "admin" && (

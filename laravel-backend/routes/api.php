@@ -22,6 +22,7 @@ use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\Facility\TourController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
+use App\Http\Controllers\SuperAdmin\SuperAdminController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -101,6 +102,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('superadmin')
         ->middleware('role:super_admin')
         ->group(function () {
+            // Dashboard payloads.
+            Route::get('/stats', [SuperAdminController::class, 'stats']);
+            Route::get('/recent-facilities', [SuperAdminController::class, 'recentFacilities']);
+            Route::get('/tenants', [SuperAdminController::class, 'tenants']);
+
             // Specific routes must precede the {type} wildcard.
             Route::post('/master-data/sync', [MasterDataController::class, 'sync']);
             Route::post('/cms/ingest', [MasterDataController::class, 'ingestCms']);
