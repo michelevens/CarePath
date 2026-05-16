@@ -107,6 +107,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/recent-facilities', [SuperAdminController::class, 'recentFacilities']);
             Route::get('/tenants', [SuperAdminController::class, 'tenants']);
 
+            // Cross-tenant oversight tabs.
+            Route::get('/verifications', [SuperAdminController::class, 'verifications']);
+            Route::post('/verifications/advisors/{id}/approve', [SuperAdminController::class, 'approveAdvisor']);
+            Route::post('/verifications/hospitals/{id}/approve', [SuperAdminController::class, 'approveHospital']);
+            Route::get('/subscriptions', [SuperAdminController::class, 'subscriptions']);
+            Route::get('/placements', [SuperAdminController::class, 'placements']);
+            Route::get('/sponsored', [SuperAdminController::class, 'sponsored']);
+
             // Specific routes must precede the {type} wildcard.
             Route::post('/master-data/sync', [MasterDataController::class, 'sync']);
             Route::post('/cms/ingest', [MasterDataController::class, 'ingestCms']);

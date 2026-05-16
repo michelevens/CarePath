@@ -1,0 +1,341 @@
+import { useEffect, useState } from "react"
+import { Check, Hospital, Loader2, ShieldCheck, UserCheck } from "lucide-react"
+import { api } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+
+interface PendingAdvisor {
+  id: string
+  user_id: number
+  agency_name: string | null
+  agency_slug: string | null
+  licensed_states: string[] | null
+  stripe_account_status: string
+  is_active: boolean
+  is_accepting_referrals: boolean
+  created_at: string
+  user: { id: number; name: string; email: string; created_at: string } | null
+}
+
+interface PendingHospital {
+  id: string
+  user_id: number
+  name: string
+  slug: string
+  partner_type: string
+  service_area_states: string[] | null
+  stripe_account_status: string
+  is_active: boolean
+  is_accepting_referrals: boolean
+  created_at: string
+  user: { id: number; name: string; email: string; created_at: string } | null
+}
+
+interface RecentRow {
+  id: string
+  user_id: number
+  agency_name?: string | null
+  name?: string
+  verified_at: string
+  user: { id: number; name: string; email: string } | null
+}
+
+interface VerificationsPayload {
+  pending_advisors: PendingAdvisor[]
+  pending_hospitals: PendingHospital[]
+  recent_advisors: RecentRow[]
+  recent_hospitals: RecentRow[]
+}
+
+function daysAgo(iso: string): number {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+}
+
+export function VerificationsPage() {
+  const [data, setData] = useState<VerificationsPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    api
+      .get<{ data: VerificationsPayload }>("/superadmin/verifications")
+      .then((r) => setData(r.data?.data ?? null))
+      .catch((e: unknown) => {
+        const err = e as { response?: { data?: { message?: string } } }
+        setError(err.response?.data?.message ?? "Failed to load")
+      })
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  const approveAdvisor = async (id: string) => {
+    setBusyId(id)
+    try {
+      await api.post(`/superadmin/verifications/advisors/${id}/approve`)
+      load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const approveHospital = async (id: string) => {
+    setBusyId(id)
+    try {
+      await api.post(`/superadmin/verifications/hospitals/${id}/approve`)
+      load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (loading && !data) {
+    return <div className="p-8 text-sm text-muted-foreground">Loading verification queue…</div>
+  }
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {error}
+        </div>
+      </div>
+    )
+  }
+  if (!data) return null
+
+  const advisorCount = data.pending_advisors.length
+  const hospitalCount = data.pending_hospitals.length
+
+  return (
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Verifications</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {advisorCount + hospitalCount === 0
+            ? "All caught up — no pending verifications."
+            : `${advisorCount} advisor${advisorCount !== 1 ? "s" : ""} · ${hospitalCount} hospital${hospitalCount !== 1 ? "s" : ""} awaiting review.`}
+        </p>
+      </div>
+
+      {/* Advisors */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex items-center gap-2 border-b p-4">
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Pending advisors</h2>
+            <span className="ml-auto text-xs text-muted-foreground">{advisorCount} waiting</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium">User</th>
+                  <th className="px-4 py-2 text-left font-medium">Agency</th>
+                  <th className="px-4 py-2 text-left font-medium">Licensed</th>
+                  <th className="px-4 py-2 text-left font-medium">Connect</th>
+                  <th className="px-4 py-2 text-left font-medium">Waiting</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {advisorCount === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                      No advisors pending verification.
+                    </td>
+                  </tr>
+                )}
+                {data.pending_advisors.map((a) => {
+                  const wait = daysAgo(a.created_at)
+                  const stale = wait >= 7
+                  return (
+                    <tr key={a.id} className="border-b last:border-b-0">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{a.user?.name ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground">{a.user?.email}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {a.agency_name || <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {a.licensed_states?.length
+                          ? a.licensed_states.join(", ")
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill status={a.stripe_account_status} />
+                      </td>
+                      <td className={`px-4 py-3 ${stale ? "text-amber-700" : "text-muted-foreground"}`}>
+                        {wait}d
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => approveAdvisor(a.id)}
+                          disabled={busyId === a.id}
+                          className="gap-1"
+                        >
+                          {busyId === a.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
+                          Approve
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Hospitals */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex items-center gap-2 border-b p-4">
+            <Hospital className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Pending hospital partners</h2>
+            <span className="ml-auto text-xs text-muted-foreground">{hospitalCount} waiting</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium">User</th>
+                  <th className="px-4 py-2 text-left font-medium">Organization</th>
+                  <th className="px-4 py-2 text-left font-medium">Type</th>
+                  <th className="px-4 py-2 text-left font-medium">States</th>
+                  <th className="px-4 py-2 text-left font-medium">Connect</th>
+                  <th className="px-4 py-2 text-left font-medium">Waiting</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {hospitalCount === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                      No hospital partners pending verification.
+                    </td>
+                  </tr>
+                )}
+                {data.pending_hospitals.map((h) => {
+                  const wait = daysAgo(h.created_at)
+                  const stale = wait >= 7
+                  return (
+                    <tr key={h.id} className="border-b last:border-b-0">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{h.user?.name ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground">{h.user?.email}</div>
+                      </td>
+                      <td className="px-4 py-3">{h.name || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground capitalize">
+                        {h.partner_type.replace(/_/g, " ")}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {h.service_area_states?.length ? h.service_area_states.join(", ") : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill status={h.stripe_account_status} />
+                      </td>
+                      <td className={`px-4 py-3 ${stale ? "text-amber-700" : "text-muted-foreground"}`}>
+                        {wait}d
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => approveHospital(h.id)}
+                          disabled={busyId === h.id}
+                          className="gap-1"
+                        >
+                          {busyId === h.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
+                          Approve
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent approvals */}
+      {(data.recent_advisors.length > 0 || data.recent_hospitals.length > 0) && (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              <h2 className="text-sm font-semibold">Recently verified</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                  Advisors
+                </div>
+                {data.recent_advisors.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No recent approvals.</p>
+                )}
+                <ul className="space-y-1 text-sm">
+                  {data.recent_advisors.map((r) => (
+                    <li key={r.id} className="flex justify-between">
+                      <span>{r.agency_name ?? r.user?.name ?? "—"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(r.verified_at).toLocaleDateString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                  Hospitals
+                </div>
+                {data.recent_hospitals.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No recent approvals.</p>
+                )}
+                <ul className="space-y-1 text-sm">
+                  {data.recent_hospitals.map((r) => (
+                    <li key={r.id} className="flex justify-between">
+                      <span>{r.name ?? r.user?.name ?? "—"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(r.verified_at).toLocaleDateString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+function StatusPill({ status }: { status: string }) {
+  const palette: Record<string, string> = {
+    active: "bg-emerald-100 text-emerald-800",
+    verifying: "bg-amber-100 text-amber-800",
+    pending: "bg-amber-100 text-amber-800",
+    restricted: "bg-destructive/10 text-destructive",
+    rejected: "bg-destructive/10 text-destructive",
+    not_connected: "bg-stone-200 text-stone-700",
+  }
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status] ?? palette.not_connected}`}
+    >
+      {status.replace(/_/g, " ")}
+    </span>
+  )
+}

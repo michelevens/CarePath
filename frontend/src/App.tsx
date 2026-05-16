@@ -52,7 +52,10 @@ const SuperAdminDashboard = lazy(() => import("@/portals/superadmin/SuperAdminDa
 const MasterDataPage = lazy(() => import("@/portals/superadmin/MasterDataPage").then(m => ({ default: m.MasterDataPage })))
 const AuditLogPage = lazy(() => import("@/portals/superadmin/AuditLogPage").then(m => ({ default: m.AuditLogPage })))
 const TenantsPage = lazy(() => import("@/portals/superadmin/TenantsPage").then(m => ({ default: m.TenantsPage })))
-const SuperAdminComingSoon = lazy(() => import("@/portals/superadmin/ComingSoonPage").then(m => ({ default: m.ComingSoonPage })))
+const VerificationsPage = lazy(() => import("@/portals/superadmin/VerificationsPage").then(m => ({ default: m.VerificationsPage })))
+const SubscriptionsPage = lazy(() => import("@/portals/superadmin/SubscriptionsPage").then(m => ({ default: m.SubscriptionsPage })))
+const PlacementsPage = lazy(() => import("@/portals/superadmin/PlacementsPage").then(m => ({ default: m.PlacementsPage })))
+const SponsoredOversightPage = lazy(() => import("@/portals/superadmin/SponsoredPage").then(m => ({ default: m.SponsoredPage })))
 const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
 const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").then(m => ({ default: m.AdmissionsKanban })))
 const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
@@ -139,10 +142,10 @@ function App() {
                 <Route path="master-data" element={<MasterDataPage />} />
                 <Route path="master-data/:type" element={<MasterDataPage />} />
                 <Route path="audit" element={<AuditLogPage />} />
-                <Route path="verifications" element={<SuperAdminComingSoon />} />
-                <Route path="placements" element={<SuperAdminComingSoon />} />
-                <Route path="subscriptions" element={<SuperAdminComingSoon />} />
-                <Route path="sponsored" element={<SuperAdminComingSoon />} />
+                <Route path="verifications" element={<VerificationsPage />} />
+                <Route path="placements" element={<PlacementsPage />} />
+                <Route path="subscriptions" element={<SubscriptionsPage />} />
+                <Route path="sponsored" element={<SponsoredOversightPage />} />
               </>
             )}
             {path === "admin" && (
