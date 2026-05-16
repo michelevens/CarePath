@@ -1992,13 +1992,33 @@ function CompareToggle({ id, slug, name }: { id: string; slug: string; name: str
 
 function BrochureDownloadButton({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   const onClick = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await api.get(`/marketplace/facilities/${slug}/brochure`, {
         responseType: "blob",
       })
-      const blob = new Blob([res.data as BlobPart], { type: "application/pdf" })
+      // Server may return an error payload even with a blob responseType
+      // (we asked for blob, but a 500 still comes back as text/json wrapped
+      // in a Blob). Detect by content-type.
+      const contentType = (res.headers as Record<string, string>)["content-type"] ?? ""
+      const data = res.data as Blob
+      if (!contentType.includes("pdf")) {
+        const text = await data.text()
+        let message = "Brochure download failed."
+        try {
+          const json = JSON.parse(text)
+          message = json.message ?? message
+        } catch {
+          /* not JSON */
+        }
+        setError(message)
+        return
+      }
+      const blob = new Blob([data], { type: "application/pdf" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
@@ -2007,22 +2027,40 @@ function BrochureDownloadButton({ slug }: { slug: string }) {
       a.click()
       document.body.removeChild(a)
       setTimeout(() => URL.revokeObjectURL(url), 0)
-    } catch {
-      // Best-effort; brochure rendering is non-critical.
+    } catch (err) {
+      const e = err as { response?: { data?: Blob }; message?: string }
+      let message = e.message ?? "Brochure download failed."
+      if (e.response?.data instanceof Blob) {
+        try {
+          const text = await e.response.data.text()
+          const json = JSON.parse(text)
+          message = json.message ?? message
+        } catch {
+          /* leave default */
+        }
+      }
+      setError(message)
     } finally {
       setLoading(false)
     }
   }
   return (
-    <Button
-      variant="ghost"
-      className="mt-2 w-full text-muted-foreground hover:text-foreground"
-      onClick={onClick}
-      disabled={loading}
-    >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      Download brochure (PDF)
-    </Button>
+    <>
+      <Button
+        variant="ghost"
+        className="mt-2 w-full text-muted-foreground hover:text-foreground"
+        onClick={onClick}
+        disabled={loading}
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        Download brochure (PDF)
+      </Button>
+      {error && (
+        <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+    </>
   )
 }
 

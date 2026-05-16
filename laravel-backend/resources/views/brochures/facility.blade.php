@@ -16,21 +16,19 @@
             border-bottom: 3px solid #7c3aed;
             padding-bottom: 7pt;
             margin-bottom: 14pt;
-            overflow: hidden;
         }
+        .brandbar table { width: 100%; border-collapse: collapse; }
+        .brandbar td { padding: 0; vertical-align: top; }
         .brandbar .logo {
-            float: left;
             font-size: 14pt;
             font-weight: bold;
             letter-spacing: -0.3pt;
             color: #1c1917;
         }
         .brandbar .meta {
-            float: right;
             font-size: 8pt;
             color: #78716c;
             text-align: right;
-            padding-top: 4pt;
         }
         h1 {
             font-size: 22pt;
@@ -42,90 +40,63 @@
         .address {
             font-size: 10pt;
             color: #57534e;
-            margin-bottom: 10pt;
+            margin-bottom: 12pt;
         }
-        .topgrid {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 14pt;
-        }
-        .topgrid td {
-            vertical-align: top;
-            padding: 0;
-        }
+        .topgrid { width: 100%; border-collapse: collapse; margin-bottom: 14pt; }
+        .topgrid td { vertical-align: top; padding: 0; }
         .qs-tile {
             background: #f5f3ff;
             border: 1px solid #c4b5fd;
             border-radius: 8pt;
-            padding: 10pt 12pt;
-            width: 100%;
+            padding: 12pt;
         }
-        .qs-tile .label {
+        .qs-tile .qs-label {
             font-size: 7pt;
             font-weight: bold;
             color: #5b21b6;
             text-transform: uppercase;
             letter-spacing: 0.6pt;
         }
-        .qs-tile .score {
+        .qs-tile .qs-score {
             font-size: 26pt;
             font-weight: bold;
             color: #5b21b6;
             line-height: 1;
-            margin-top: 3pt;
+            margin-top: 4pt;
         }
-        .qs-tile .score .denom {
-            font-size: 12pt;
-            color: #78716c;
-            font-weight: normal;
-        }
-        .qs-tile .tier {
-            font-size: 9pt;
-            color: #78716c;
-            margin-top: 3pt;
-        }
-        .stat-row {
-            margin-top: 8pt;
-            font-size: 9pt;
-        }
-        .stat-row .stat {
+        .qs-tile .qs-denom { font-size: 12pt; color: #78716c; font-weight: normal; }
+        .qs-tile .qs-tier { font-size: 9pt; color: #78716c; margin-top: 4pt; }
+        .statbox { padding-left: 12pt; }
+        .statbox .stat {
             display: inline-block;
-            margin-right: 14pt;
-            padding-right: 14pt;
-            border-right: 1px solid #e7e5e4;
+            margin-right: 16pt;
+            margin-bottom: 6pt;
         }
-        .stat-row .stat:last-child { border: 0; }
-        .stat-row strong { color: #1c1917; font-size: 11pt; }
-
+        .statbox .stat .v { font-size: 14pt; font-weight: bold; display: block; }
+        .statbox .stat .l { font-size: 8pt; color: #78716c; display: block; }
+        .badges { margin-top: 6pt; }
+        .badge {
+            display: inline-block;
+            background: #f5f3ff;
+            color: #5b21b6;
+            padding: 2pt 8pt;
+            border-radius: 10pt;
+            font-size: 8pt;
+            font-weight: bold;
+            margin-right: 4pt;
+        }
         h2 {
             font-size: 12pt;
             font-weight: bold;
             color: #1c1917;
-            margin: 14pt 0 4pt 0;
+            margin: 16pt 0 5pt 0;
             border-bottom: 1px solid #e7e5e4;
             padding-bottom: 3pt;
         }
-        .col2 {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .col2 td {
-            vertical-align: top;
-            padding: 0;
-            width: 50%;
-        }
-        .col2 td.l { padding-right: 8pt; }
-        .col2 td.r { padding-left: 8pt; }
-
-        table.data {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9pt;
-            margin-top: 4pt;
-        }
+        table.data { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 5pt; }
         table.data th, table.data td {
             text-align: left;
-            padding: 4pt 6pt;
+            padding: 5pt 7pt;
             border-bottom: 1px solid #f5f5f4;
             vertical-align: top;
         }
@@ -137,37 +108,21 @@
             letter-spacing: 0.4pt;
             color: #57534e;
         }
-        ul.amenities {
-            list-style: none;
-            padding: 0;
-            margin: 4pt 0 0 0;
+        .amen-table { width: 100%; border-collapse: collapse; margin-top: 5pt; }
+        .amen-table td {
+            width: 50%;
+            vertical-align: top;
             font-size: 9pt;
-            column-count: 2;
-            column-gap: 14pt;
+            padding: 2pt 8pt 2pt 0;
         }
-        ul.amenities li {
-            margin-bottom: 3pt;
-            -webkit-column-break-inside: avoid;
-            page-break-inside: avoid;
-        }
-        ul.amenities li:before {
-            content: "✓ ";
-            color: #7c3aed;
-            font-weight: bold;
-            margin-right: 3pt;
-        }
-        .cms-row {
-            display: block;
-            margin-top: 4pt;
-            font-size: 9pt;
-        }
-        .cms-row span {
-            display: inline-block;
-            margin-right: 12pt;
-        }
-        .cms-row strong { color: #1c1917; }
+        .check { color: #7c3aed; font-weight: bold; margin-right: 4pt; }
+        .cms-line { font-size: 9pt; margin-top: 4pt; }
+        .cms-line span { display: inline-block; margin-right: 12pt; }
+        .cms-line strong { color: #1c1917; }
+        .questions { font-size: 9pt; padding-left: 16pt; margin-top: 5pt; }
+        .questions li { margin-bottom: 3pt; }
         .footer-callout {
-            margin-top: 14pt;
+            margin-top: 16pt;
             background: #f5f3ff;
             border: 1px solid #c4b5fd;
             border-radius: 6pt;
@@ -191,88 +146,77 @@
 </head>
 <body>
     <div class="brandbar">
-        <span class="logo">CarePath</span>
-        <span class="meta">
-            Brochure · Generated {{ $today }}<br>
-            carepath.io/facility/{{ $facility->slug }}
-        </span>
+        <table>
+            <tr>
+                <td><span class="logo">CarePath</span></td>
+                <td class="meta">
+                    Brochure · Generated {{ $today }}<br>
+                    carepath.io/facility/{{ $facility->slug }}
+                </td>
+            </tr>
+        </table>
     </div>
 
     <h1>{{ $facility->name }}</h1>
     <div class="address">
-        {{ $facility->address_line_1 }}@if($facility->address_line_2), {{ $facility->address_line_2 }}@endif,
-        {{ $facility->city }}, {{ $facility->state }} {{ $facility->zip }}
+        @if($facility->address_line_1){{ $facility->address_line_1 }}@endif@if($facility->address_line_2), {{ $facility->address_line_2 }}@endif@if($facility->address_line_1 || $facility->address_line_2),@endif
+        {{ $facility->city }}, {{ $facility->state }} {{ $facility->zip ?? '' }}
         @if($facility->phone) &nbsp;·&nbsp; {{ $facility->phone }} @endif
     </div>
 
     <table class="topgrid">
         <tr>
             @if($quality_score)
+                @php
+                    $s = (float) $quality_score['score'];
+                    $tier = $s >= 8.5 ? 'Excellent' : ($s >= 7.0 ? 'Good' : ($s >= 5.5 ? 'Fair' : 'Needs work'));
+                @endphp
                 <td style="width: 35%;">
                     <div class="qs-tile">
-                        <div class="label">CarePath Quality Score</div>
-                        <div class="score">{{ number_format($quality_score['score'], 1) }}<span class="denom"> / 10</span></div>
-                        <div class="tier">
-                            @php
-                                $s = $quality_score['score'];
-                                $tier = $s >= 8.5 ? 'Excellent' : ($s >= 7.0 ? 'Good' : ($s >= 5.5 ? 'Fair' : 'Needs work'));
-                            @endphp
-                            {{ $tier }} · methodology: carepath.io/why-carepath
-                        </div>
+                        <div class="qs-label">CarePath Quality Score</div>
+                        <div class="qs-score">{{ number_format($s, 1) }}<span class="qs-denom"> / 10</span></div>
+                        <div class="qs-tier">{{ $tier }} · methodology at carepath.io/why-carepath</div>
                     </div>
                 </td>
-                <td style="width: 5%;"></td>
             @endif
-            <td>
-                <div class="stat-row">
+            <td class="statbox">
+                <span class="stat">
+                    <span class="v">{{ ucfirst(str_replace('_', ' ', (string) $facility->type)) }}</span>
+                    <span class="l">Care type</span>
+                </span>
+                <span class="stat">
+                    <span class="v">{{ (int) $facility->total_beds }}</span>
+                    <span class="l">Total beds</span>
+                </span>
+                <span class="stat">
+                    <span class="v">{{ (int) $available_beds }}</span>
+                    <span class="l">Available now</span>
+                </span>
+                @if($facility->price_from_cents)
                     <span class="stat">
-                        <strong>{{ ucfirst(str_replace('_', ' ', $facility->type)) }}</strong><br>
-                        <span class="small">Care type</span>
+                        <span class="v">${{ number_format($facility->price_from_cents / 100, 0) }}</span>
+                        <span class="l">From / mo</span>
                     </span>
-                    <span class="stat">
-                        <strong>{{ $facility->total_beds }}</strong><br>
-                        <span class="small">Total beds</span>
-                    </span>
-                    <span class="stat">
-                        <strong>{{ $available_beds }}</strong><br>
-                        <span class="small">Available now</span>
-                    </span>
-                    @if($facility->price_from_cents)
-                        <span class="stat">
-                            <strong>${{ number_format($facility->price_from_cents / 100, 0) }}</strong><br>
-                            <span class="small">From / mo</span>
-                        </span>
-                    @endif
-                </div>
+                @endif
 
                 @if($facility->cms_five_star_overall)
-                    <div class="cms-row">
+                    <div class="cms-line">
                         <span>CMS Overall: <strong>{{ $facility->cms_five_star_overall }}/5</strong></span>
-                        @if($facility->cms_five_star_health_inspection)
-                            <span>Inspection: <strong>{{ $facility->cms_five_star_health_inspection }}/5</strong></span>
-                        @endif
-                        @if($facility->cms_five_star_staffing)
-                            <span>Staffing: <strong>{{ $facility->cms_five_star_staffing }}/5</strong></span>
-                        @endif
-                        @if($facility->cms_five_star_quality)
-                            <span>Quality: <strong>{{ $facility->cms_five_star_quality }}/5</strong></span>
-                        @endif
+                        @if($facility->cms_five_star_health_inspection)<span>Inspection: <strong>{{ $facility->cms_five_star_health_inspection }}/5</strong></span>@endif
+                        @if($facility->cms_five_star_staffing)<span>Staffing: <strong>{{ $facility->cms_five_star_staffing }}/5</strong></span>@endif
+                        @if($facility->cms_five_star_quality)<span>Quality: <strong>{{ $facility->cms_five_star_quality }}/5</strong></span>@endif
                     </div>
                 @endif
 
-                <div class="cms-row">
-                    @if($facility->medicaid_certified)
-                        <span style="background: #f5f3ff; color: #5b21b6; padding: 1pt 6pt; border-radius: 8pt;">Medicaid certified</span>
-                    @endif
-                    @if($facility->medicare_certified)
-                        <span style="background: #f5f3ff; color: #5b21b6; padding: 1pt 6pt; border-radius: 8pt;">Medicare certified</span>
-                    @endif
+                <div class="badges">
+                    @if($facility->medicaid_certified)<span class="badge">Medicaid certified</span>@endif
+                    @if($facility->medicare_certified)<span class="badge">Medicare certified</span>@endif
                 </div>
             </td>
         </tr>
     </table>
 
-    @if(! empty($facility->pricingTiers) && count($facility->pricingTiers) > 0)
+    @if(isset($facility->pricingTiers) && $facility->pricingTiers->isNotEmpty())
         <h2>Pricing breakdown</h2>
         <table class="data">
             <thead>
@@ -286,9 +230,7 @@
                     <tr>
                         <td>
                             {{ $tier->name }}
-                            @if($tier->notes)
-                                <br><span class="small">{{ $tier->notes }}</span>
-                            @endif
+                            @if($tier->notes)<br><span class="small">{{ $tier->notes }}</span>@endif
                         </td>
                         <td style="text-align: right;">
                             <strong>${{ number_format($tier->amount_cents / 100, 0) }}</strong>
@@ -300,43 +242,55 @@
         </table>
     @endif
 
-    @if(! empty($facility->amenities) && count($facility->amenities) > 0)
+    @if(isset($facility->amenities) && $facility->amenities->isNotEmpty())
+        @php
+            $amenList = $facility->amenities->take(20)->values();
+            $half = (int) ceil($amenList->count() / 2);
+            $col1 = $amenList->slice(0, $half);
+            $col2 = $amenList->slice($half);
+        @endphp
         <h2>Amenities &amp; services</h2>
-        <ul class="amenities">
-            @foreach($facility->amenities->take(20) as $a)
-                <li>{{ $a->name }}</li>
-            @endforeach
-        </ul>
-        @if(count($facility->amenities) > 20)
-            <div class="small" style="margin-top: 4pt;">+ {{ count($facility->amenities) - 20 }} more on carepath.io/facility/{{ $facility->slug }}</div>
+        <table class="amen-table">
+            <tr>
+                <td>
+                    @foreach($col1 as $a)
+                        <div><span class="check">✓</span>{{ $a->name }}</div>
+                    @endforeach
+                </td>
+                <td>
+                    @foreach($col2 as $a)
+                        <div><span class="check">✓</span>{{ $a->name }}</div>
+                    @endforeach
+                </td>
+            </tr>
+        </table>
+        @if($facility->amenities->count() > 20)
+            <div class="small" style="margin-top: 5pt;">+ {{ $facility->amenities->count() - 20 }} more on carepath.io/facility/{{ $facility->slug }}</div>
         @endif
     @endif
 
     <h2>Questions to ask on your tour</h2>
-    <ul style="font-size: 9pt; padding-left: 14pt; margin-top: 4pt;">
+    <ol class="questions">
         <li>What is your nurse-to-resident ratio on day, night, and weekend shifts?</li>
         <li>What's your annual staff turnover?</li>
-        <li>If care needs increase, do you transition residents in-house or do they need to move?</li>
+        <li>If care needs increase, do you transition residents in-house or do they have to move?</li>
         <li>What's not included in the monthly cost? (Meds, supplies, beauty, laundry, cable.)</li>
         <li>What's your discharge policy — under what conditions might my loved one have to leave?</li>
         <li>Can I see the last state inspection report?</li>
         <li>Do you accept Medicaid? Long-term care insurance? VA Aid &amp; Attendance?</li>
-    </ul>
-    <div class="small" style="margin-top: 4pt;">
-        Full 47-question checklist: carepath.io/guides
-    </div>
+    </ol>
+    <div class="small" style="margin-top: 4pt;">Full 47-question checklist: carepath.io/guides</div>
 
     <div class="footer-callout">
         <strong>How CarePath is different.</strong> We don't sell leads. When you
         request a tour, only this facility sees your info — not 30 others. Live
         bed availability, transparent pricing, federal CMS data refreshed daily.
         Take this brochure to your tour, your family meeting, or your elder-law
-        attorney. Updated facility data: carepath.io/facility/{{ $facility->slug }}
+        attorney. Live data: carepath.io/facility/{{ $facility->slug }}
     </div>
 
     <div class="pagefoot">
-        <strong>CarePath</strong> &nbsp;·&nbsp; carepath.io &nbsp;·&nbsp;
-        Brochure for {{ $facility->name }} &nbsp;·&nbsp; Data current as of {{ $today }}
+        <strong>CarePath</strong> · carepath.io · Brochure for {{ $facility->name }} · Data current {{ $today }}
     </div>
 </body>
 </html>
