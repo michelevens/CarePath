@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             DemoAmenitiesSeeder::class,
             DemoArticlesSeeder::class,
             StateLicenseCategoriesSeeder::class,
+            DataSourceSchemasSeeder::class,
             DemoMonetizationSeeder::class,
             DemoExpandedUsersSeeder::class,
         ]);

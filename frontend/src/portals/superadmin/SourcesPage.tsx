@@ -22,12 +22,35 @@ interface SourceRow {
   by_type: Record<string, number>
 }
 
+interface DataSourceSchemaRow {
+  id: string
+  source_key: string
+  display_name: string
+  state: string | null
+  regulator: string | null
+  access_tier: number
+  update_frequency: string
+  cost: string
+  api_endpoint: string | null
+  docs_url: string | null
+  default_canonical_type: string | null
+  default_license_subtype: string | null
+  column_mappings: Record<string, string> | null
+  access_instructions: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  last_imported_at: string | null
+  last_imported_count: number | null
+}
+
 interface SourcesPayload {
   sources: SourceRow[]
   totals: {
     facility_count: number
     by_type: Record<string, number>
   }
+  schemas: DataSourceSchemaRow[]
+  tier_labels: Record<number, string>
 }
 
 const STATES = [
@@ -185,8 +208,11 @@ export function SourcesPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <CmsRunPanel onDone={load} />
         <OsmRunPanel onDone={load} />
-        <CsvUploadPanel onDone={load} />
+        <CsvUploadPanel schemas={data.schemas ?? []} onDone={load} />
       </div>
+
+      {/* Reference catalog — per-source detail panels */}
+      <SchemaCatalog schemas={data.schemas ?? []} tierLabels={data.tier_labels ?? {}} />
 
       <div className="rounded-md border bg-muted/30 p-4 text-xs text-muted-foreground">
         <p className="font-medium text-foreground">National-scale runs</p>
@@ -351,10 +377,16 @@ function OsmRunPanel({ onDone }: { onDone: () => void }) {
   )
 }
 
-function CsvUploadPanel({ onDone }: { onDone: () => void }) {
+function CsvUploadPanel({
+  schemas,
+  onDone,
+}: {
+  schemas: DataSourceSchemaRow[]
+  onDone: () => void
+}) {
   const [file, setFile] = useState<File | null>(null)
   const [state, setState] = useState("FL")
-  const [source, setSource] = useState("fl_ahca")
+  const [source, setSource] = useState(schemas[0]?.source_key ?? "manual_upload")
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -421,13 +453,17 @@ function CsvUploadPanel({ onDone }: { onDone: () => void }) {
                 </option>
               ))}
             </select>
-            <input
-              type="text"
+            <select
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              placeholder="source tag"
               className="h-9 rounded-md border bg-background px-2 text-sm"
-            />
+            >
+              {schemas.map((s) => (
+                <option key={s.source_key} value={s.source_key}>
+                  {s.display_name}
+                </option>
+              ))}
+            </select>
           </div>
           <Button type="submit" disabled={busy || !file} className="w-full gap-2">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -437,6 +473,217 @@ function CsvUploadPanel({ onDone }: { onDone: () => void }) {
         <Result ok={result} err={err} />
       </CardContent>
     </Card>
+  )
+}
+
+// ─── Schema catalog (per-source reference panels) ─────────────────────────────
+
+function SchemaCatalog({
+  schemas,
+  tierLabels,
+}: {
+  schemas: DataSourceSchemaRow[]
+  tierLabels: Record<number, string>
+}) {
+  const [openId, setOpenId] = useState<string | null>(null)
+  const byTier = schemas.reduce<Record<number, DataSourceSchemaRow[]>>((acc, s) => {
+    ;(acc[s.access_tier] ??= []).push(s)
+    return acc
+  }, {})
+
+  if (schemas.length === 0) return null
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div>
+          <h2 className="text-sm font-semibold">Source reference catalog</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            What each source publishes, how to access it, what columns we map.
+            Tier 1 sources are automated; Tier 3-4 require manual download or
+            public records requests.
+          </p>
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((tier) => {
+            const list = byTier[tier] ?? []
+            if (list.length === 0) return null
+            return (
+              <div key={tier}>
+                <div className="mb-2 flex items-center gap-2">
+                  <TierBadge tier={tier} />
+                  <span className="text-xs text-muted-foreground">
+                    {tierLabels[tier]}
+                  </span>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {list.map((s) => (
+                    <SchemaCard
+                      key={s.source_key}
+                      schema={s}
+                      open={openId === s.id}
+                      onToggle={() => setOpenId(openId === s.id ? null : s.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TierBadge({ tier }: { tier: number }) {
+  const palette: Record<number, string> = {
+    1: "bg-emerald-100 text-emerald-800",
+    2: "bg-violet-100 text-violet-800",
+    3: "bg-amber-100 text-amber-800",
+    4: "bg-destructive/10 text-destructive",
+  }
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
+        palette[tier] ?? "bg-stone-100 text-stone-700"
+      }`}
+    >
+      TIER {tier}
+    </span>
+  )
+}
+
+function SchemaCard({
+  schema,
+  open,
+  onToggle,
+}: {
+  schema: DataSourceSchemaRow
+  open: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="rounded-md border bg-background">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/30"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{schema.display_name}</span>
+            {schema.state && (
+              <span className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px]">
+                {schema.state}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+            <span>updates {schema.update_frequency.replace(/_/g, " ")}</span>
+            <span>·</span>
+            <span>{schema.cost.replace(/_/g, " ")}</span>
+            {schema.regulator && (
+              <>
+                <span>·</span>
+                <span>{schema.regulator}</span>
+              </>
+            )}
+            {schema.last_imported_at && (
+              <>
+                <span>·</span>
+                <span>
+                  last import {new Date(schema.last_imported_at).toLocaleDateString()}
+                  {schema.last_imported_count != null && ` (${schema.last_imported_count} rows)`}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <span className="text-xs text-muted-foreground">{open ? "−" : "+"}</span>
+      </button>
+      {open && (
+        <div className="space-y-3 border-t bg-muted/10 p-3 text-xs">
+          {schema.access_instructions && (
+            <div>
+              <div className="mb-1 font-semibold text-foreground">How to access</div>
+              <pre className="whitespace-pre-wrap font-sans text-muted-foreground">
+                {schema.access_instructions}
+              </pre>
+            </div>
+          )}
+          {(schema.contact_email || schema.contact_phone) && (
+            <div className="text-muted-foreground">
+              {schema.contact_email && (
+                <div>
+                  Email:{" "}
+                  <a
+                    href={`mailto:${schema.contact_email}`}
+                    className="text-violet-700 hover:underline"
+                  >
+                    {schema.contact_email}
+                  </a>
+                </div>
+              )}
+              {schema.contact_phone && <div>Phone: {schema.contact_phone}</div>}
+            </div>
+          )}
+          {schema.docs_url && (
+            <div>
+              <a
+                href={schema.docs_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-violet-700 hover:underline"
+              >
+                Docs / source ↗
+              </a>
+            </div>
+          )}
+          {schema.column_mappings && Object.keys(schema.column_mappings).length > 0 && (
+            <div>
+              <div className="mb-1 font-semibold text-foreground">
+                Column mapping ({Object.keys(schema.column_mappings).length})
+              </div>
+              <div className="max-h-40 overflow-y-auto rounded border bg-background p-2">
+                <table className="w-full text-[11px]">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="pr-2 text-left font-medium">Their column</th>
+                      <th className="text-left font-medium">→ our column</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(schema.column_mappings).map(([k, v]) => (
+                      <tr key={k}>
+                        <td className="pr-2 font-mono">{k}</td>
+                        <td className="font-mono text-violet-700">{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {schema.default_canonical_type && (
+            <div className="text-muted-foreground">
+              All rows default to canonical type{" "}
+              <code className="rounded bg-stone-100 px-1">
+                {schema.default_canonical_type}
+              </code>
+              {schema.default_license_subtype && (
+                <>
+                  {" "}
+                  · subtype{" "}
+                  <code className="rounded bg-stone-100 px-1">
+                    {schema.default_license_subtype}
+                  </code>
+                </>
+              )}
+              .
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

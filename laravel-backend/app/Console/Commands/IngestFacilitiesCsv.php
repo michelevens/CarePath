@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DataSourceSchema;
 use App\Models\Facility;
 use App\Services\FacilityTypeNormalizer;
 use Illuminate\Console\Command;
@@ -50,7 +51,21 @@ class IngestFacilitiesCsv extends Command
         }
 
         $defaultState = $this->option('state') ? strtoupper($this->option('state')) : null;
-        $source = $this->option('source') ?: 'manual';
+        $source = $this->option('source') ?: 'manual_upload';
+
+        // Look up the per-source schema. Falls back to the generic
+        // manual upload mapping so back-compat with raw canonical-
+        // header CSVs is preserved.
+        $schema = DataSourceSchema::where('source_key', $source)->first()
+            ?? DataSourceSchema::where('source_key', 'manual_upload')->first();
+
+        if (! $schema) {
+            $this->error("Unknown source '{$source}' and no manual_upload fallback found. Run StateLicenseCategoriesSeeder + DataSourceSchemasSeeder.");
+            return self::FAILURE;
+        }
+
+        $this->info("Using schema: {$schema->display_name}");
+        $defaultState ??= $schema->state;
 
         $fh = fopen($path, 'r');
         if (! $fh) {
@@ -63,7 +78,8 @@ class IngestFacilitiesCsv extends Command
             $this->error('Empty CSV — no header row.');
             return self::FAILURE;
         }
-        $header = array_map(fn ($h) => Str::snake(strtolower(trim($h))), $header);
+        // Keep headers verbatim — the schema's applyMapping()
+        // tolerates case + whitespace variation.
 
         $upserted = 0;
         $skipped = 0;
@@ -71,11 +87,17 @@ class IngestFacilitiesCsv extends Command
 
         while (($row = fgetcsv($fh)) !== false) {
             $rowNum++;
-            $data = array_combine($header, array_pad($row, count($header), null));
+            $sourceRow = array_combine($header, array_pad($row, count($header), null));
+            $data = $schema->applyMapping($sourceRow);
 
             $name = trim((string) ($data['name'] ?? ''));
             $licenseNo = trim((string) ($data['license_no'] ?? ''));
-            $rawType = (string) ($data['type'] ?? '');
+            // Source default type wins when the source is single-type
+            // (e.g. fl_apd is always group_home). Otherwise use the
+            // raw value from the mapped row.
+            $rawType = $schema->default_canonical_type
+                ? $schema->default_canonical_type
+                : (string) ($data['license_category'] ?? '');
 
             if ($name === '' || $licenseNo === '' || $rawType === '') {
                 $skipped++;
@@ -90,20 +112,38 @@ class IngestFacilitiesCsv extends Command
 
             // State-aware type normalization. Pulls in eligibility
             // + payer data from state_license_categories so the
-            // ingested facility row carries the full context, not
-            // just the canonical type.
-            $resolved = $normalizer->normalize($rawType, $state);
-
-            if ($resolved['rejected']) {
-                $skipped++;
-                continue;
-            }
-            if (! $resolved['canonical']) {
-                // Unmatched + not aliased — log for SuperAdmin to
-                // add to state_license_categories.
-                $this->warn("Unmapped type '{$rawType}' for state {$state} (row {$rowNum}) — skipping");
-                $skipped++;
-                continue;
+            // ingested facility row carries the full context.
+            //
+            // For single-type sources (FL APD = group_home, CMS =
+            // snf), skip the rawType lookup and pull the eligibility
+            // row by canonical_type+subtype instead.
+            if ($schema->default_canonical_type) {
+                $eligibility = \App\Models\StateLicenseCategory::query()
+                    ->where('state', $state)
+                    ->where('canonical_type', $schema->default_canonical_type)
+                    ->when($schema->default_license_subtype,
+                        fn ($q) => $q->where('license_subtype', $schema->default_license_subtype))
+                    ->first();
+                $resolved = [
+                    'canonical' => $schema->default_canonical_type,
+                    'license_subtype' => $schema->default_license_subtype,
+                    'license_category' => $eligibility->source_term ?? $schema->default_canonical_type,
+                    'rejected' => false,
+                    'accepted_populations' => $eligibility->accepted_populations ?? null,
+                    'payer_programs' => $eligibility->payer_programs ?? null,
+                    'funding_authority' => $eligibility->funding_authority ?? null,
+                ];
+            } else {
+                $resolved = $normalizer->normalize($rawType, $state);
+                if ($resolved['rejected']) {
+                    $skipped++;
+                    continue;
+                }
+                if (! $resolved['canonical']) {
+                    $this->warn("Unmapped type '{$rawType}' for state {$state} (row {$rowNum}) — skipping");
+                    $skipped++;
+                    continue;
+                }
             }
 
             $slug = strtolower($state) . '-lic-' . preg_replace('/[^a-z0-9]/i', '', $licenseNo);
@@ -136,6 +176,13 @@ class IngestFacilitiesCsv extends Command
         }
 
         fclose($fh);
+
+        // Stamp last-imported on the schema so the SuperAdmin Data
+        // Sources tab can show "last ingested 12d ago, 247 rows."
+        $schema->update([
+            'last_imported_at' => now(),
+            'last_imported_count' => $upserted,
+        ]);
 
         $this->info("✓ rows: " . ($rowNum - 1) . " — upserted: {$upserted}, skipped: {$skipped}");
         return self::SUCCESS;

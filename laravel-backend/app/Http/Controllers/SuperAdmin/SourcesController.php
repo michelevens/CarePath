@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DataSourceSchema;
 use App\Models\Facility;
 use App\Services\CmsIngestService;
 use App\Services\OsmIngestService;
@@ -88,6 +89,16 @@ class SourcesController extends Controller
                         ->mapWithKeys(fn ($t) => [$t => (int) ($byType[$t] ?? 0)])
                         ->all(),
                 ],
+                // Reference schemas seeded from research — drives the
+                // per-source detail panel + the upload form's source
+                // picker. Sorted by access tier so the easy ones
+                // (CMS, OSM) show first.
+                'schemas' => DataSourceSchema::query()
+                    ->orderBy('access_tier')
+                    ->orderBy('state')
+                    ->orderBy('display_name')
+                    ->get(),
+                'tier_labels' => DataSourceSchema::TIERS,
             ],
         ]);
     }
@@ -166,9 +177,18 @@ class SourcesController extends Controller
     {
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'], // 20MB
-            'state' => ['required', 'string', 'size:2'],
-            'source' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9_]+$/i'],
+            'state' => ['nullable', 'string', 'size:2'],     // optional when source is single-state
+            'source' => ['required', 'string', Rule::exists('data_source_schemas', 'source_key')],
         ]);
+        // Default state to the schema's pinned state if the user
+        // didn't override (e.g. fl_apd is always FL).
+        if (empty($data['state'])) {
+            $schema = DataSourceSchema::where('source_key', $data['source'])->first();
+            $data['state'] = $schema?->state ?? '';
+        }
+        if (strlen((string) $data['state']) !== 2) {
+            return response()->json(['ok' => false, 'message' => 'State is required'], 422);
+        }
 
         $file = $request->file('file');
         // Stage outside the public storage dir; we just need a temp
