@@ -33,6 +33,11 @@ class Facility extends Model
         'name',
         'slug',
         'type',
+        'license_category',
+        'license_subtype',
+        'accepted_populations',
+        'payer_programs',
+        'funding_authority',
         'ownership_type',
         'address_line_1',
         'address_line_2',
@@ -69,6 +74,8 @@ class Facility extends Model
         'longitude' => 'float',
         'average_residents_per_day' => 'float',
         'cms_synced_at' => 'datetime',
+        'accepted_populations' => 'array',
+        'payer_programs' => 'array',
     ];
 
     public function beds(): HasMany

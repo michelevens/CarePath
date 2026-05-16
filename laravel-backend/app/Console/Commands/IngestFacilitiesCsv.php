@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Facility;
+use App\Services\FacilityTypeNormalizer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -40,7 +41,7 @@ class IngestFacilitiesCsv extends Command
 
     protected $description = 'Bulk-import facilities from a CSV (state licensure files)';
 
-    public function handle(): int
+    public function handle(FacilityTypeNormalizer $normalizer): int
     {
         $path = $this->argument('path');
         if (! is_file($path)) {
@@ -74,9 +75,9 @@ class IngestFacilitiesCsv extends Command
 
             $name = trim((string) ($data['name'] ?? ''));
             $licenseNo = trim((string) ($data['license_no'] ?? ''));
-            $type = $this->normalizeType($data['type'] ?? '');
+            $rawType = (string) ($data['type'] ?? '');
 
-            if ($name === '' || $licenseNo === '' || ! $type) {
+            if ($name === '' || $licenseNo === '' || $rawType === '') {
                 $skipped++;
                 continue;
             }
@@ -87,12 +88,35 @@ class IngestFacilitiesCsv extends Command
                 continue;
             }
 
+            // State-aware type normalization. Pulls in eligibility
+            // + payer data from state_license_categories so the
+            // ingested facility row carries the full context, not
+            // just the canonical type.
+            $resolved = $normalizer->normalize($rawType, $state);
+
+            if ($resolved['rejected']) {
+                $skipped++;
+                continue;
+            }
+            if (! $resolved['canonical']) {
+                // Unmatched + not aliased — log for SuperAdmin to
+                // add to state_license_categories.
+                $this->warn("Unmapped type '{$rawType}' for state {$state} (row {$rowNum}) — skipping");
+                $skipped++;
+                continue;
+            }
+
             $slug = strtolower($state) . '-lic-' . preg_replace('/[^a-z0-9]/i', '', $licenseNo);
 
             $attrs = [
                 'slug' => $slug,
                 'name' => Str::title(Str::lower($name)),
-                'type' => $type,
+                'type' => $resolved['canonical'],
+                'license_category' => $resolved['license_category'],
+                'license_subtype' => $resolved['license_subtype'],
+                'accepted_populations' => $resolved['accepted_populations'],
+                'payer_programs' => $resolved['payer_programs'],
+                'funding_authority' => $resolved['funding_authority'],
                 'address_line_1' => $this->nullableStr($data['address_line_1'] ?? null),
                 'city' => $this->titleStr($data['city'] ?? null),
                 'state' => $state,

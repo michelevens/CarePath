@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sliders,
   Sparkles,
+  HelpCircle,
   LogOut,
   MailWarning,
 } from "lucide-react"
@@ -104,6 +105,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/superadmin/users", label: "Users", icon: Users },
       { to: "/superadmin/tenants", label: "Facilities", icon: Building2 },
       { to: "/superadmin/sources", label: "Data sources", icon: ClipboardList },
+      { to: "/superadmin/licensing", label: "State licensing", icon: Shield },
       { to: "/superadmin/verifications", label: "Verifications", icon: ShieldCheck },
       { to: "/superadmin/placements", label: "Placements", icon: HeartHandshake },
       { to: "/superadmin/subscriptions", label: "Subscriptions", icon: BarChart3 },
@@ -176,6 +178,16 @@ export function PortalShell({ portal }: { portal: Portal }) {
             </div>
           )}
           <FacilitySwitcher />
+          <Button
+            asChild
+            variant="ghost"
+            className="w-full justify-start gap-3 text-muted-foreground"
+          >
+            <Link to={`/${portal}/help`}>
+              <HelpCircle className="h-4 w-4" />
+              Help
+            </Link>
+          </Button>
           <Button
             asChild
             variant="ghost"

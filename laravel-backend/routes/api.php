@@ -21,6 +21,7 @@ use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\Facility\TourController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
+use App\Http\Controllers\SuperAdmin\LicensingController as SuperAdminLicensingController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
 use App\Http\Controllers\SuperAdmin\SourcesController as SuperAdminSourcesController;
@@ -140,6 +141,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/plans', [SuperAdminPlansController::class, 'index']);
             Route::put('/plans/{id}', [SuperAdminPlansController::class, 'update']);
             Route::post('/plans/{id}/test-stripe-price', [SuperAdminPlansController::class, 'testStripePrice']);
+
+            // State licensing reference data — browse + edit.
+            Route::get('/licensing', [SuperAdminLicensingController::class, 'index']);
+            Route::post('/licensing', [SuperAdminLicensingController::class, 'store']);
+            Route::put('/licensing/{id}', [SuperAdminLicensingController::class, 'update']);
+            Route::delete('/licensing/{id}', [SuperAdminLicensingController::class, 'destroy']);
 
             // Specific routes must precede the {type} wildcard.
             Route::post('/master-data/sync', [MasterDataController::class, 'sync']);
