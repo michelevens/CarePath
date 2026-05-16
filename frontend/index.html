@@ -38,21 +38,29 @@
       })();
 
       // GitHub Pages SPA fallback unpacker — pairs with public/404.html.
+      // Matches the canonical rafgraph/spa-github-pages decoder.
+      //
+      // 404.html builds a URL like: /CarePath/?/senior-living/FL/Clermont
+      // The bit after "?/" is the original path (sans the base segment)
+      // with '&' chars escaped as '~and~' so we can re-split safely.
+      //
+      // We previously used .slice(2) here, which stripped both the '?'
+      // AND the leading '/', producing /CarePathsenior-living/... (no
+      // slash between base and route). Result: refresh on any deep URL
+      // blanked the page. Use .slice(1) so the leading '/' survives.
       (function () {
-        if (location.search.startsWith("?/")) {
+        if (location.search.charAt(1) === "/") {
           var decoded = location.search
-            .slice(2)
+            .slice(1)
             .split("&")
-            .map(function (p) {
-              return p.replace(/~and~/g, "&");
-            });
+            .map(function (s) {
+              return s.replace(/~and~/g, "&");
+            })
+            .join("?");
           history.replaceState(
             null,
             "",
-            location.pathname.slice(0, -1) +
-              decoded[0] +
-              (decoded.slice(1).join("&") ? "?" + decoded.slice(1).join("&") : "") +
-              location.hash
+            location.pathname.slice(0, -1) + decoded + location.hash
           );
         }
       })();
