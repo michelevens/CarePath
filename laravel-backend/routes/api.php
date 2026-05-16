@@ -21,9 +21,11 @@ use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\Facility\TourController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
+use App\Http\Controllers\SuperAdmin\CcldHelperController;
 use App\Http\Controllers\SuperAdmin\LicensingController as SuperAdminLicensingController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
+use App\Http\Controllers\SuperAdmin\PrrController;
 use App\Http\Controllers\SuperAdmin\SourcesController as SuperAdminSourcesController;
 use App\Http\Controllers\SuperAdmin\SuperAdminController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
@@ -125,7 +127,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/sources', [SuperAdminSourcesController::class, 'index']);
             Route::post('/sources/cms/run', [SuperAdminSourcesController::class, 'runCms']);
             Route::post('/sources/osm/run', [SuperAdminSourcesController::class, 'runOsm']);
+            Route::post('/sources/socrata/run', [SuperAdminSourcesController::class, 'runSocrata']);
             Route::post('/sources/csv/upload', [SuperAdminSourcesController::class, 'uploadCsv']);
+
+            // CCLD (California) county-by-county worklist helper.
+            Route::get('/sources/ccld/worklist', [CcldHelperController::class, 'worklist']);
+
+            // Public Records Request tracker for Tier-4 sources.
+            Route::get('/prr', [PrrController::class, 'index']);
+            Route::post('/prr', [PrrController::class, 'store']);
+            Route::get('/prr/template/{source_key}', [PrrController::class, 'template']);
+            Route::post('/prr/{id}/mark-received', [PrrController::class, 'markReceived']);
 
             // Platform-wide user management — invite, list, role assignment,
             // per-user detail page, facility memberships.

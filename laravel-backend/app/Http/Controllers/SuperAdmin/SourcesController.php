@@ -7,6 +7,7 @@ use App\Models\DataSourceSchema;
 use App\Models\Facility;
 use App\Services\CmsIngestService;
 use App\Services\OsmIngestService;
+use App\Services\SocrataIngestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -162,6 +163,33 @@ class SourcesController extends Controller
                 'ok' => false,
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * POST /api/superadmin/sources/socrata/run
+     *
+     * Pulls from any Socrata-backed open data source (NY DOH, etc.)
+     * via the SocrataIngestService. The source's api_endpoint +
+     * column_mappings live in data_source_schemas.
+     */
+    public function runSocrata(Request $request, SocrataIngestService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'source_key' => ['required', 'string', Rule::exists('data_source_schemas', 'source_key')],
+            'state' => ['nullable', 'string', 'size:2'],
+            'max' => ['nullable', 'integer', 'min:1', 'max:50000'],
+        ]);
+
+        try {
+            $result = $service->ingest($data['source_key'], $data['state'] ?? null, $data['max'] ?? null);
+            return response()->json(['ok' => true, 'result' => $result]);
+        } catch (\Throwable $e) {
+            Log::error('SourcesController::runSocrata failed', [
+                'source' => $data['source_key'],
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
 

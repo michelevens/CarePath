@@ -5,9 +5,13 @@ import {
   Check,
   Database,
   Download,
+  ExternalLink,
+  FileText,
   Loader2,
+  Mail,
   Map,
   Upload,
+  Zap,
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -212,7 +216,17 @@ export function SourcesPage() {
       </div>
 
       {/* Reference catalog — per-source detail panels */}
-      <SchemaCatalog schemas={data.schemas ?? []} tierLabels={data.tier_labels ?? {}} />
+      <SchemaCatalog
+        schemas={data.schemas ?? []}
+        tierLabels={data.tier_labels ?? {}}
+        onChange={load}
+      />
+
+      {/* CCLD county-by-county helper for California */}
+      <CcldWorklist />
+
+      {/* Public Records Request tracker (Tier 4 sources) */}
+      <PrrTracker schemas={data.schemas ?? []} />
 
       <div className="rounded-md border bg-muted/30 p-4 text-xs text-muted-foreground">
         <p className="font-medium text-foreground">National-scale runs</p>
@@ -481,9 +495,11 @@ function CsvUploadPanel({
 function SchemaCatalog({
   schemas,
   tierLabels,
+  onChange,
 }: {
   schemas: DataSourceSchemaRow[]
   tierLabels: Record<number, string>
+  onChange: () => void
 }) {
   const [openId, setOpenId] = useState<string | null>(null)
   const byTier = schemas.reduce<Record<number, DataSourceSchemaRow[]>>((acc, s) => {
@@ -523,6 +539,7 @@ function SchemaCatalog({
                       schema={s}
                       open={openId === s.id}
                       onToggle={() => setOpenId(openId === s.id ? null : s.id)}
+                      onChange={onChange}
                     />
                   ))}
                 </div>
@@ -557,10 +574,12 @@ function SchemaCard({
   schema,
   open,
   onToggle,
+  onChange,
 }: {
   schema: DataSourceSchemaRow
   open: boolean
   onToggle: () => void
+  onChange: () => void
 }) {
   return (
     <div className="rounded-md border bg-background">
@@ -681,6 +700,11 @@ function SchemaCard({
               .
             </div>
           )}
+
+          {/* Action buttons — tier-specific. Tier 1 with api_endpoint
+              gets a "Run now" button (Socrata); Tier 4 with contact_email
+              gets a "File PRR" mailto helper. */}
+          <SchemaActions schema={schema} onChange={onChange} />
         </div>
       )}
     </div>
@@ -702,5 +726,353 @@ function Result({ ok, err }: { ok: string | null; err: string | null }) {
       <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <span>{ok}</span>
     </div>
+  )
+}
+
+// ─── SchemaActions: per-tier run/PRR buttons inside schema cards ──────────────
+
+function SchemaActions({
+  schema,
+  onChange,
+}: {
+  schema: DataSourceSchemaRow
+  onChange: () => void
+}) {
+  // Built-in adapters already have their own panels at the top; skip
+  // to avoid duplicate buttons.
+  if (schema.source_key === "cms_pdc" || schema.source_key === "osm_overpass") {
+    return null
+  }
+
+  // Tier 1 with api_endpoint = Socrata-runnable.
+  if (schema.access_tier === 1 && schema.api_endpoint) {
+    return <SocrataRunButton schema={schema} onChange={onChange} />
+  }
+
+  // Tier 4 with contact_email = PRR-fileable.
+  if (schema.access_tier === 4 && schema.contact_email) {
+    return <PrrFileButton schema={schema} onChange={onChange} />
+  }
+
+  return null
+}
+
+function SocrataRunButton({
+  schema,
+  onChange,
+}: {
+  schema: DataSourceSchemaRow
+  onChange: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const run = async () => {
+    setBusy(true)
+    setResult(null)
+    setErr(null)
+    try {
+      const r = await api.post<{ result?: { upserted?: number; skipped?: number; rejected?: number } }>(
+        "/superadmin/sources/socrata/run",
+        { source_key: schema.source_key },
+      )
+      const x = r.data?.result ?? {}
+      setResult(`${x.upserted ?? 0} upserted, ${x.skipped ?? 0} skipped, ${x.rejected ?? 0} rejected`)
+      onChange()
+    } catch (e) {
+      const error = e as { response?: { data?: { error?: string; message?: string } } }
+      setErr(error.response?.data?.error ?? error.response?.data?.message ?? "Run failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button onClick={run} disabled={busy} size="sm" className="gap-2">
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+        Run now (Socrata API)
+      </Button>
+      <Result ok={result} err={err} />
+    </div>
+  )
+}
+
+function PrrFileButton({
+  schema,
+  onChange,
+}: {
+  schema: DataSourceSchemaRow
+  onChange: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const file = async () => {
+    setBusy(true)
+    setErr(null)
+    try {
+      // 1. Get a pre-filled template from the backend.
+      const tpl = await api.get<{
+        data: {
+          source_key: string
+          contact_email: string
+          subject: string
+          body: string
+          follow_up_days: number
+        }
+      }>(`/superadmin/prr/template/${schema.source_key}`)
+      const t = tpl.data.data
+      // 2. Open user's mail client with the pre-filled message.
+      const mailto = `mailto:${encodeURIComponent(t.contact_email)}?subject=${encodeURIComponent(
+        t.subject,
+      )}&body=${encodeURIComponent(t.body)}`
+      window.open(mailto, "_blank")
+      // 3. Persist the bookkeeping so it shows up in the PRR tracker.
+      await api.post("/superadmin/prr", {
+        source_key: t.source_key,
+        contact_email: t.contact_email,
+        subject: t.subject,
+        body: t.body,
+        follow_up_days: t.follow_up_days,
+      })
+      setDone(true)
+      onChange()
+    } catch (e) {
+      const error = e as { response?: { data?: { message?: string } } }
+      setErr(error.response?.data?.message ?? "Failed to file")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t pt-2">
+      <Button onClick={file} disabled={busy || done} size="sm" className="gap-2">
+        {done ? <Check className="h-3 w-3" /> : busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+        {done ? "Filed — check tracker below" : "File Public Records Request"}
+      </Button>
+      <p className="text-[11px] text-muted-foreground">
+        Opens your mail client with a pre-filled template + records the
+        filing in the PRR tracker with a 30-day follow-up reminder.
+      </p>
+      {err && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+          {err}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── CCLD California county worklist ──────────────────────────────────────────
+
+interface CcldCounty {
+  county: string
+  rcfe_search_url: string
+  facility_count_ingested: number
+}
+
+function CcldWorklist() {
+  const [items, setItems] = useState<CcldCounty[]>([])
+  const [summary, setSummary] = useState<{ total_counties: number; covered: number; remaining: number; total_ingested: number } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showAll, setShowAll] = useState(false)
+
+  useEffect(() => {
+    api
+      .get<{ data: CcldCounty[]; summary: typeof summary }>("/superadmin/sources/ccld/worklist")
+      .then((r) => {
+        setItems(r.data?.data ?? [])
+        setSummary(r.data?.summary ?? null)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return null
+  if (items.length === 0) return null
+
+  const visible = showAll ? items : items.filter((i) => i.facility_count_ingested === 0).slice(0, 12)
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">California CCLD — county worklist</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              CCLD blocks bulk download — but the per-county search URL
+              pre-fills the form. Click each county → search → export →
+              upload. Progress tracked by counting CA facilities with
+              data_source=ca_cdss per county.
+            </p>
+          </div>
+          {summary && (
+            <div className="text-right text-xs">
+              <div className="font-semibold tabular-nums">
+                {summary.covered} / {summary.total_counties}
+              </div>
+              <div className="text-muted-foreground">counties covered</div>
+              <div className="mt-1 text-muted-foreground">
+                {summary.total_ingested.toLocaleString()} facilities
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+          {visible.map((c) => (
+            <a
+              key={c.county}
+              href={c.rcfe_search_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center justify-between gap-2 rounded-md border p-2 text-xs hover:bg-muted/40 ${
+                c.facility_count_ingested > 0
+                  ? "border-emerald-200 bg-emerald-50/50"
+                  : ""
+              }`}
+            >
+              <span className="truncate">{c.county}</span>
+              <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+                {c.facility_count_ingested > 0 && (
+                  <span className="rounded-full bg-emerald-200 px-1.5 py-0.5 font-medium text-emerald-900">
+                    {c.facility_count_ingested}
+                  </span>
+                )}
+                <ExternalLink className="h-3 w-3" />
+              </span>
+            </a>
+          ))}
+        </div>
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          className="text-xs text-violet-700 hover:underline"
+        >
+          {showAll ? "Show only remaining" : `Show all ${items.length} counties`}
+        </button>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── PRR (Public Records Request) tracker ─────────────────────────────────────
+
+interface PrrRow {
+  id: string
+  source_key: string
+  source_display: string | null
+  contact_email: string
+  subject: string
+  filed_at: string
+  follow_up_on: string
+  response_received_at: string | null
+  is_open: boolean
+  is_overdue: boolean
+  notes: string | null
+}
+
+function PrrTracker({ schemas }: { schemas: DataSourceSchemaRow[] }) {
+  const [items, setItems] = useState<PrrRow[]>([])
+  const [summary, setSummary] = useState<{ open: number; overdue: number; total: number } | null>(null)
+  const [loading, setLoading] = useState(true)
+  // intentionally unused for now — schemas might be referenced by a future
+  // "file new PRR for source X" button on this card.
+  void schemas
+
+  const load = () => {
+    setLoading(true)
+    api
+      .get<{ data: PrrRow[]; summary: typeof summary }>("/superadmin/prr")
+      .then((r) => {
+        setItems(r.data?.data ?? [])
+        setSummary(r.data?.summary ?? null)
+      })
+      .finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const markReceived = async (id: string) => {
+    await api.post(`/superadmin/prr/${id}/mark-received`)
+    load()
+  }
+
+  if (loading) return null
+  // Show the section even with zero rows so SuperAdmins know it exists.
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <FileText className="h-4 w-4" />
+              Public Records Requests
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tier-4 sources (FL APD, similar). Filed PRRs land here so
+              you don't lose track of who owes a response.
+            </p>
+          </div>
+          {summary && (
+            <div className="flex gap-2 text-xs">
+              <span className="rounded-full bg-stone-100 px-2 py-0.5">
+                {summary.open} open
+              </span>
+              {summary.overdue > 0 && (
+                <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
+                  {summary.overdue} overdue
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        {items.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No PRRs filed yet. Use the "File Public Records Request" button on a
+            Tier-4 source card above.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {items.map((p) => (
+              <li
+                key={p.id}
+                className={`rounded-md border p-2.5 text-xs ${
+                  p.is_overdue ? "border-destructive/30 bg-destructive/5" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">{p.source_display ?? p.source_key}</div>
+                    <div className="text-muted-foreground">
+                      Sent to{" "}
+                      <a href={`mailto:${p.contact_email}`} className="text-violet-700 hover:underline">
+                        {p.contact_email}
+                      </a>{" "}
+                      on {new Date(p.filed_at).toLocaleDateString()} ·{" "}
+                      Follow up by {new Date(p.follow_up_on).toLocaleDateString()}
+                      {p.is_overdue && (
+                        <span className="ml-1 font-medium text-destructive">— OVERDUE</span>
+                      )}
+                    </div>
+                  </div>
+                  {p.is_open ? (
+                    <Button size="sm" variant="outline" onClick={() => markReceived(p.id)} className="gap-1">
+                      <Check className="h-3 w-3" />
+                      Mark received
+                    </Button>
+                  ) : (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+                      ✓ received
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }
