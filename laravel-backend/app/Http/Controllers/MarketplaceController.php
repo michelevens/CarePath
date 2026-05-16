@@ -178,9 +178,12 @@ class MarketplaceController extends Controller
             // nothing is computable.
             $arr['quality_score'] = QualityScoreService::score($arr);
             // Surface sponsored status to the frontend so it can render
-            // the FTC-required "Sponsored" badge.
+            // the FTC-required "Sponsored" badge. click_token is the
+            // HMAC the frontend must pass back on /sponsored/clicks for
+            // the click to bill — see SponsoredListingService::signClickToken.
             $arr['is_sponsored'] = $f->is_sponsored ?? false;
             $arr['sponsored_campaign_id'] = $f->sponsored_campaign_id ?? null;
+            $arr['click_token'] = $f->click_token ?? null;
             return $arr;
         });
 
@@ -237,12 +240,29 @@ class MarketplaceController extends Controller
 
         $data = $request->validate([
             'campaign_id' => ['required', 'string'],
-            'session_id' => ['nullable', 'string', 'max:60'],
+            'facility_id' => ['required', 'string'],
+            'click_token' => ['required', 'string'],
+            'session_id'  => ['required', 'string', 'max:60'],
         ]);
 
-        $sponsored->recordClick($data['campaign_id'], $data['session_id'] ?? null, $request);
+        // 1. Signature: prove the (campaign, facility) pair was minted
+        //    by us within the last 10 min. Defeats off-page replay of
+        //    a scraped campaign id.
+        if (! SponsoredListingService::verifyClickToken(
+            $data['campaign_id'],
+            $data['facility_id'],
+            $data['click_token']
+        )) {
+            return response()->json(['ok' => false, 'reason' => 'invalid_token'], 400);
+        }
 
-        return response()->json(['ok' => true]);
+        // 2. Impression-precedence: recordClick() refuses to bill if no
+        //    impression was logged for this session+campaign within 30
+        //    minutes. Together with (1) a click must follow a real
+        //    search render in the same browser.
+        $billed = $sponsored->recordClick($data['campaign_id'], $data['session_id'], $request);
+
+        return response()->json(['ok' => true, 'billed' => $billed]);
     }
 
     /**

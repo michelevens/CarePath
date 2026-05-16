@@ -67,6 +67,7 @@ class DemoUserSeeder extends Seeder
             ['admin',      'admin.demo@carepath.io',      'Demo Admin',       'admin',     'facility_admin'],
             ['network',    'network.demo@carepath.io',    'Demo Network',     'network',   'network_admin'],
             ['referral',   'referral.demo@carepath.io',   'Demo Referral',    'referral',  'referral_partner'],
+            ['hospital',   'hospital.demo@carepath.io',   'Demo Hospital CM', null,        'hospital_partner'],
             ['superadmin', 'superadmin.demo@carepath.io', 'Demo Super Admin', null,        'super_admin'],
         ];
 

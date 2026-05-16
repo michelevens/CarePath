@@ -41,7 +41,14 @@ return new class extends Migration
         // store the morph so gating can be uniform across tenant types.
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuidMorphs('subscriber');         // subscriber_type + subscriber_id
+            // Polymorphic. Facility ids are uuid, User ids are bigint —
+            // we need a column wide enough for either, so we hand-roll
+            // the morph instead of uuidMorphs (uuid-only) or morphs
+            // (bigint-only). String storage + composite index gives us
+            // the same lookup performance as the helpers.
+            $table->string('subscriber_type');
+            $table->string('subscriber_id', 36);
+            $table->index(['subscriber_type', 'subscriber_id']);
             $table->foreignUuid('subscription_plan_id')->constrained();
             $table->string('stripe_subscription_id')->nullable()->unique();
             $table->string('stripe_customer_id')->nullable();

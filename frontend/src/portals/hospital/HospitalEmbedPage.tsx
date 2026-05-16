@@ -4,8 +4,15 @@ import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
+interface ApiKeyResponse {
+  api_key: string | null
+  api_key_prefix: string | null
+  api_key_rotated_at?: string | null
+}
+
 export function HospitalEmbedPage() {
   const [apiKey, setApiKey] = useState<string | null>(null)
+  const [keyPrefix, setKeyPrefix] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [regenerating, setRegenerating] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -14,8 +21,12 @@ export function HospitalEmbedPage() {
   useEffect(() => {
     let alive = true
     api
-      .get<{ data: { api_key: string } }>("/hospital/api-key")
-      .then((r) => alive && setApiKey(r.data?.data?.api_key ?? null))
+      .get<{ data: ApiKeyResponse }>("/hospital/api-key")
+      .then((r) => {
+        if (!alive) return
+        setApiKey(r.data?.data?.api_key ?? null)
+        setKeyPrefix(r.data?.data?.api_key_prefix ?? null)
+      })
       .catch((e) => {
         const err = e as { response?: { data?: { message?: string } } }
         if (alive) setError(err.response?.data?.message ?? "Failed to load API key")
@@ -31,8 +42,9 @@ export function HospitalEmbedPage() {
     setRegenerating(true)
     setError(null)
     try {
-      const r = await api.post<{ data: { api_key: string } }>("/hospital/regenerate-api-key")
+      const r = await api.post<{ data: ApiKeyResponse }>("/hospital/regenerate-api-key")
       setApiKey(r.data?.data?.api_key ?? null)
+      setKeyPrefix(r.data?.data?.api_key_prefix ?? null)
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } }
       setError(err.response?.data?.message ?? "Failed to regenerate key")
@@ -79,7 +91,7 @@ export function HospitalEmbedPage() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Widget &amp; embed code</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Widget & embed code</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Drop this snippet into your discharge-planning EHR or any internal
           page. Case managers get an in-context facility search. Every
@@ -159,11 +171,12 @@ export function HospitalEmbedPage() {
           </p>
           <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3">
             <code className="flex-1 overflow-x-auto font-mono text-xs">
-              {apiKey ?? "—"}
+              {apiKey ?? (keyPrefix ? `${keyPrefix}…  (hidden — rotate to view)` : "—")}
             </code>
             <Button
               size="sm"
               variant="outline"
+              disabled={!apiKey}
               onClick={() => {
                 if (apiKey) {
                   void navigator.clipboard.writeText(apiKey)
@@ -173,6 +186,13 @@ export function HospitalEmbedPage() {
               <Copy className="h-3.5 w-3.5" />
             </Button>
           </div>
+          {!apiKey && keyPrefix && (
+            <p className="text-xs text-muted-foreground">
+              The full key is shown only at generation time. The embed is
+              still working — your existing iframe URL holds the secret.
+              If you've lost it, rotate to mint a new one.
+            </p>
+          )}
           <Button
             variant="outline"
             onClick={onRegenerate}

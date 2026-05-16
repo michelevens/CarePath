@@ -54,6 +54,7 @@ interface FacilityResult {
   quality_score: QualityScore | null
   is_sponsored: boolean
   sponsored_campaign_id: string | null
+  click_token: string | null
 }
 
 /**
@@ -488,10 +489,12 @@ function ResultCard({ r }: { r: FacilityResult }) {
   const onCardClick = () => {
     // Fire sponsored-click ping if this is a paid slot. Don't block the
     // navigation — the Link's default behavior handles routing.
-    if (r.is_sponsored && r.sponsored_campaign_id) {
+    if (r.is_sponsored && r.sponsored_campaign_id && r.click_token) {
       api
         .post("/marketplace/sponsored/clicks", {
           campaign_id: r.sponsored_campaign_id,
+          facility_id: r.id,
+          click_token: r.click_token,
           session_id: getOrCreateSessionId(),
         })
         .catch(() => {})

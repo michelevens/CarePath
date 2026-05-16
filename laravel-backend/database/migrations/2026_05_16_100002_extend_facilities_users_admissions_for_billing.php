@@ -44,7 +44,8 @@ return new class extends Migration
         });
 
         Schema::table('admissions', function (Blueprint $table) {
-            $table->foreignUuid('sourced_by_user_id')
+            // users.id is bigint — FK must match.
+            $table->foreignId('sourced_by_user_id')
                 ->nullable()
                 ->after('facility_id')
                 ->constrained('users');

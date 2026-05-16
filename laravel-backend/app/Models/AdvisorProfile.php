@@ -24,12 +24,19 @@ class AdvisorProfile extends Model
         'rejected',
     ];
 
+    /**
+     * commission_split_* are explicitly NOT fillable. They're a contract
+     * term set by the platform (per advisor tier) and must only be
+     * changed via direct DB / SuperAdmin tooling so a request payload
+     * can never bump an advisor's take by re-posting their profile.
+     * See ReferralController::updateProfile for the matching validator
+     * scope.
+     */
     protected $fillable = [
         'user_id',
         'agency_name', 'agency_slug', 'agency_website', 'bio', 'phone',
         'licensed_states', 'service_area_zips',
         'stripe_account_id', 'stripe_account_status',
-        'commission_split_advisor_pct', 'commission_split_platform_pct',
         'charges_families', 'family_consultation_fee_cents',
         'is_active', 'is_accepting_referrals',
         'verified_at',

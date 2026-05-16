@@ -31,7 +31,22 @@ class FacilityScope
             ], 403);
         }
 
-        // TODO: verify user actually has access to this facility via facility_user pivot
+        // Authorization gate: the requested facility must be one the user is
+        // actually a member of via facility_user pivot. Without this check,
+        // any authenticated user could read another tenant's PHI by passing
+        // X-Facility-Id: <other_facility_uuid>. super_admin bypasses since
+        // they legitimately need cross-tenant read for ops.
+        if (! $user->hasRole('super_admin')) {
+            $isMember = $user->facilities()
+                ->where('facilities.id', $facilityId)
+                ->exists();
+
+            if (! $isMember) {
+                return response()->json([
+                    'message' => 'Forbidden: not a member of the requested facility',
+                ], 403);
+            }
+        }
 
         $request->attributes->set('facility_id', $facilityId);
 

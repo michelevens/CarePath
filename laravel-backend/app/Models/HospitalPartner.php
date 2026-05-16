@@ -16,13 +16,19 @@ class HospitalPartner extends Model
 
     public const STRIPE_ACCOUNT_STATUSES = AdvisorProfile::STRIPE_ACCOUNT_STATUSES;
 
+    /**
+     * api_key_hash / api_key_prefix / api_key_rotated_at are NEVER
+     * mass-assignable — they're only written through rotateApiKey()
+     * below, which derives them from a freshly-minted plaintext.
+     * commission_split_* are also excluded for the same reason as
+     * AdvisorProfile: contract terms set by the platform, not
+     * user-editable.
+     */
     protected $fillable = [
         'user_id', 'name', 'slug', 'partner_type',
         'contact_phone',
         'service_area_zips', 'service_area_states',
-        'api_key',
         'stripe_account_id', 'stripe_account_status',
-        'commission_split_partner_pct', 'commission_split_platform_pct',
         'is_active', 'is_accepting_referrals',
         'verified_at',
     ];
@@ -33,9 +39,10 @@ class HospitalPartner extends Model
         'is_active' => 'boolean',
         'is_accepting_referrals' => 'boolean',
         'verified_at' => 'datetime',
+        'api_key_rotated_at' => 'datetime',
     ];
 
-    protected $hidden = ['api_key'];
+    protected $hidden = ['api_key_hash'];
 
     public function user(): BelongsTo
     {
@@ -59,12 +66,36 @@ class HospitalPartner extends Model
     }
 
     /**
-     * Generate a fresh widget API key. Called on first create and on
-     * explicit "regenerate" from the portal. Key surfaced to the user
-     * exactly once — stored hashed for runtime lookup.
+     * Mints a fresh widget API key. Returns the plaintext (shown to
+     * the partner exactly once) and persists only the hash + a short
+     * prefix for identification. The plaintext is never read back
+     * from storage; if the partner loses it they must rotate.
      */
-    public static function generateApiKey(): string
+    public function rotateApiKey(): string
+    {
+        $plaintext = self::mintPlaintext();
+        $this->forceFill([
+            'api_key_hash' => self::hashKey($plaintext),
+            'api_key_prefix' => substr($plaintext, 0, 10),
+            'api_key_rotated_at' => now(),
+        ])->save();
+        return $plaintext;
+    }
+
+    public static function mintPlaintext(): string
     {
         return 'wk_' . Str::random(48);
+    }
+
+    /**
+     * Deterministic hash for lookup. sha256 is fine here because the
+     * plaintext is 48 chars of secure random — a rainbow-table attack
+     * is computationally infeasible against that keyspace, and we
+     * need an exact-match lookup (so password_hash() / bcrypt with
+     * their per-call salt would not work).
+     */
+    public static function hashKey(string $plaintext): string
+    {
+        return hash('sha256', $plaintext);
     }
 }

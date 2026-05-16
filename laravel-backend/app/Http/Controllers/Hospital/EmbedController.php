@@ -194,17 +194,24 @@ class EmbedController extends Controller
 
     /**
      * Resolve the partner from the X-CarePath-Embed-Key header.
-     * Cached per-key for 60s so we don't hit the DB on every search.
+     *
+     * The plaintext key is NEVER cached or logged — we cache only the
+     * resulting partner_id under the sha256 hash so a Redis snapshot
+     * or a slow-query log capture leaks nothing usable. The ?embed_key
+     * query fallback was removed because URL params end up in
+     * Referer headers, browser history, and any intermediary access
+     * log — the widget should only ever pass the key via header.
      */
     private function partnerOrFail(Request $request): HospitalPartner
     {
-        $key = $request->header('X-CarePath-Embed-Key') ?? $request->query('embed_key');
+        $key = $request->header('X-CarePath-Embed-Key');
         if (! $key) abort(401, 'Missing embed key.');
 
+        $hash = HospitalPartner::hashKey($key);
         $partnerId = Cache::remember(
-            "embed-key:{$key}",
+            "embed-key-h:{$hash}",
             60,
-            fn () => HospitalPartner::where('api_key', $key)->value('id'),
+            fn () => HospitalPartner::where('api_key_hash', $hash)->value('id'),
         );
         if (! $partnerId) abort(401, 'Invalid embed key.');
 

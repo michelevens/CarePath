@@ -10,7 +10,9 @@ use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Stripe\Webhook;
 
 /**
@@ -38,14 +40,20 @@ class StripeWebhookController extends Controller
         $secret = config('services.stripe.webhook_secret');
         $signature = $request->header('Stripe-Signature');
 
-        // In dev / before Stripe is configured, the secret will be null.
-        // We log + 200-OK in that case so manual cURL probes don't 500.
+        // Fail-closed in production. The dev fall-through used to 200-OK any
+        // payload — that meant a leaked endpoint URL on prod (with the secret
+        // momentarily unset) would let anyone forge subscription state. In
+        // non-prod we still 200-OK so local cURL probes don't 500.
         if (! $secret || ! $signature) {
+            $isProd = app()->environment('production');
             Log::warning('Stripe webhook received without verification config', [
                 'has_secret' => (bool) $secret,
                 'has_signature' => (bool) $signature,
+                'env' => app()->environment(),
             ]);
-            return response()->json(['ok' => true, 'verified' => false]);
+            return $isProd
+                ? response()->json(['error' => 'Webhook verification not configured'], 503)
+                : response()->json(['ok' => true, 'verified' => false]);
         }
 
         try {
@@ -61,6 +69,25 @@ class StripeWebhookController extends Controller
             'type' => $event->type,
             'id' => $event->id,
         ]);
+
+        // Idempotency. Stripe retries on any non-2xx for up to 3 days;
+        // a transient DB error after we've already updated a placement
+        // would otherwise double-pay. INSERT-or-ignore on stripe_event_id
+        // (unique) lets us short-circuit retries cleanly.
+        try {
+            DB::table('stripe_webhook_events')->insert([
+                'id' => (string) Str::uuid(),
+                'stripe_event_id' => $event->id,
+                'event_type' => $event->type,
+                'processed_at' => now(),
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // 23505 unique_violation on Postgres / 1062 on MySQL — either
+            // means we've already processed this event. Acknowledge so
+            // Stripe stops retrying.
+            Log::info('Stripe webhook duplicate, skipping', ['id' => $event->id]);
+            return response()->json(['ok' => true, 'duplicate' => true]);
+        }
 
         match ($event->type) {
             'customer.subscription.created',
@@ -93,6 +120,23 @@ class StripeWebhookController extends Controller
             Log::warning('Stripe sub upsert missing metadata', [
                 'stripe_id' => $stripeSub->id,
                 'metadata' => (array) ($metadata ?? []),
+            ]);
+            return;
+        }
+
+        // Subscriber-pinning. Metadata is attacker-controllable if anyone
+        // ever gains the secret key OR if our checkout-creation path is
+        // ever tricked. The real binding is Stripe's customer object,
+        // which we created at checkout-start and stamped onto the local
+        // row. Reject any event whose metadata.subscriber_id doesn't
+        // match the row that owns stripe_customer_id.
+        $customerId = $stripeSub->customer ?? null;
+        if (! $this->subscriberMatchesCustomer($subscriberType, $subscriberId, $customerId)) {
+            Log::error('Stripe sub metadata/customer mismatch — refusing upsert', [
+                'stripe_id' => $stripeSub->id,
+                'metadata_subscriber_type' => $subscriberType,
+                'metadata_subscriber_id' => $subscriberId,
+                'stripe_customer' => $customerId,
             ]);
             return;
         }
@@ -200,6 +244,13 @@ class StripeWebhookController extends Controller
      * A payout was made to an advisor — record the transfer ID on the
      * matching placement (we set metadata.placement_id when creating
      * the transfer).
+     *
+     * The outer stripe_webhook_events guard prevents same-event retries,
+     * but a second TRANSFER.created for the same placement (e.g. retry
+     * of the 30d milestone after a server crash that already issued the
+     * Stripe transfer but didn't commit the local row) would land here
+     * as a *different* event id. So we also check stripe_transfer_id
+     * uniqueness on the placement itself.
      */
     private function handleTransferCreated($transfer): void
     {
@@ -209,11 +260,46 @@ class StripeWebhookController extends Controller
         $placement = Placement::find($placementId);
         if (! $placement) return;
 
+        if ($placement->stripe_transfer_id === $transfer->id) {
+            Log::info('Stripe transfer already recorded on placement, skipping', [
+                'placement_id' => $placement->id,
+                'transfer_id' => $transfer->id,
+            ]);
+            return;
+        }
+
         $placement->update([
             'stripe_transfer_id' => $transfer->id,
             'paid_at' => now(),
             'amount_paid_cents' => $placement->amount_paid_cents + ($transfer->amount ?? 0),
         ]);
+    }
+
+    /**
+     * Confirms the metadata-asserted subscriber actually owns the Stripe
+     * customer carrying the subscription. Without this gate, anyone who
+     * could craft a Stripe checkout (or who acquires the secret key
+     * briefly) could swap metadata.subscriber_id and steal a Pro plan
+     * onto another tenant's facility row.
+     */
+    private function subscriberMatchesCustomer(string $subscriberType, string $subscriberId, ?string $customerId): bool
+    {
+        if (! $customerId) {
+            // No customer object means we can't verify — refuse rather
+            // than trust the metadata.
+            return false;
+        }
+
+        if ($subscriberType === 'facility') {
+            return Facility::where('id', $subscriberId)
+                ->where('stripe_customer_id', $customerId)
+                ->exists();
+        }
+
+        // user-side (advisor or family Pro)
+        return User::where('id', $subscriberId)
+            ->where('stripe_customer_id', $customerId)
+            ->exists();
     }
 
     private static function detectCycle($stripeSub): string

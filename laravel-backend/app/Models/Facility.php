@@ -43,6 +43,8 @@ class Facility extends Model
         'is_active',
         'data_source',
         'cms_synced_at',
+        'stripe_customer_id',
+        'subscription_tier',
     ];
 
     protected $casts = [

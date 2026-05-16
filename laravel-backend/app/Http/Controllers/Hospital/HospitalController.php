@@ -11,6 +11,7 @@ use App\Services\Billing\StripeClientFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -81,41 +82,53 @@ class HospitalController extends Controller
 
     /**
      * POST /api/hospital/regenerate-api-key
-     * Invalidates the current widget key and returns a fresh one
-     * (shown once, in plain text — instruct user to update their embed).
+     * Mints a fresh widget key and returns the plaintext exactly once.
+     * The old key stops working immediately (the previous hash is
+     * overwritten). The plaintext is also cached for 10 minutes so a
+     * page reload during the "copy this key" UX still works.
      */
     public function regenerateApiKey(): JsonResponse
     {
         $user = $this->userOrFail();
         $partner = $this->ensurePartner($user);
 
-        $newKey = HospitalPartner::generateApiKey();
-        $partner->update(['api_key' => $newKey]);
+        $plaintext = $partner->rotateApiKey();
+        Cache::put($this->plaintextCacheKey($partner), $plaintext, now()->addMinutes(10));
 
         return response()->json([
             'data' => [
-                'api_key' => $newKey,
-                'message' => 'New API key generated. Update your widget embed code — the old key stops working immediately.',
+                'api_key' => $plaintext,
+                'api_key_prefix' => $partner->api_key_prefix,
+                'message' => 'New API key generated. Copy it now — it is shown only once. Update your widget embed code; the old key has been revoked.',
             ],
         ]);
     }
 
     /**
      * GET /api/hospital/api-key
-     * Returns the current widget API key in plain text. Separate
-     * endpoint so the embed-code page can fetch it on-demand and we
-     * don't leak it in every profile response.
+     * Returns the public prefix always; returns the plaintext only if
+     * still within the 10-minute "just generated" window. Otherwise
+     * the partner must rotate to view a usable secret.
      */
     public function showApiKey(): JsonResponse
     {
         $user = $this->userOrFail();
         $partner = $this->ensurePartner($user);
 
+        $plaintext = Cache::get($this->plaintextCacheKey($partner));
+
         return response()->json([
             'data' => [
-                'api_key' => $partner->api_key,
+                'api_key' => $plaintext,                  // may be null after the reveal window
+                'api_key_prefix' => $partner->api_key_prefix,
+                'api_key_rotated_at' => $partner->api_key_rotated_at,
             ],
         ]);
+    }
+
+    private function plaintextCacheKey(HospitalPartner $partner): string
+    {
+        return "hospital-partner-fresh-key:{$partner->id}";
     }
 
     /**
@@ -297,17 +310,29 @@ class HospitalController extends Controller
             if ($partner) return $partner;
 
             $slug = 'partner-' . Str::lower(Str::random(8));
-            return HospitalPartner::create([
+            // Mint the plaintext first so the row's api_key_hash /
+            // _prefix are populated on the initial INSERT (the hash
+            // column is NOT NULL). We then cache the plaintext so
+            // showApiKey() can surface it once in the partner's first
+            // session, after which it's gone forever.
+            $plaintext = HospitalPartner::mintPlaintext();
+            $partner = new HospitalPartner([
                 'user_id' => $user->id,
                 'name' => '',
                 'slug' => $slug,
                 'partner_type' => 'hospital',
-                'api_key' => HospitalPartner::generateApiKey(),
                 'is_active' => true,
                 'is_accepting_referrals' => true,
                 'commission_split_partner_pct' => 12,
                 'commission_split_platform_pct' => 88,
             ]);
+            $partner->forceFill([
+                'api_key_hash' => HospitalPartner::hashKey($plaintext),
+                'api_key_prefix' => substr($plaintext, 0, 10),
+                'api_key_rotated_at' => now(),
+            ])->save();
+            Cache::put($this->plaintextCacheKey($partner), $plaintext, now()->addMinutes(10));
+            return $partner;
         });
     }
 

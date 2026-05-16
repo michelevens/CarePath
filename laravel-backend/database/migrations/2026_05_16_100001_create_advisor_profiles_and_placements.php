@@ -20,7 +20,8 @@ return new class extends Migration
     {
         Schema::create('advisor_profiles', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('user_id')->unique()->constrained()->cascadeOnDelete();
+            // users.id is bigint — FKs back into it must be foreignId.
+            $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
             $table->string('agency_name', 191)->nullable();
             $table->string('agency_slug', 191)->nullable()->unique();
             $table->string('agency_website')->nullable();
@@ -57,7 +58,7 @@ return new class extends Migration
             // Advisor is nullable: direct facility placements (no advisor)
             // still get recorded so we can charge the facility a smaller
             // direct-placement fee.
-            $table->foreignUuid('advisor_user_id')->nullable()->constrained('users');
+            $table->foreignId('advisor_user_id')->nullable()->constrained('users');
             $table->foreignUuid('resident_id')->nullable()->constrained();
 
             // Money. All amounts in cents. Gross is what the facility owes;

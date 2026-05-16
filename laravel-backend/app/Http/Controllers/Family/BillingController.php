@@ -49,17 +49,23 @@ class BillingController extends Controller
         $user = $this->userOrFail();
         $sub = $this->subs->activeFor($user);
 
+        // A single User can hold both advisor + family subscriptions
+        // (advisor by virtue of role, family Pro by personal choice).
+        // Only surface the family sub on this endpoint to avoid the
+        // upsell modal mis-rendering an advisor plan as "your Family Pro".
+        $familySub = $sub && $sub->plan?->audience === 'family' ? $sub : null;
+
         return response()->json([
             'data' => [
                 'user' => ['id' => $user->id, 'email' => $user->email],
-                'subscription' => $sub ? [
-                    'id' => $sub->id,
-                    'status' => $sub->status,
-                    'billing_cycle' => $sub->billing_cycle,
-                    'current_period_ends_at' => $sub->current_period_ends_at,
-                    'canceled_at' => $sub->canceled_at,
-                    'trial_ends_at' => $sub->trial_ends_at,
-                    'plan' => $this->serializePlan($sub->plan),
+                'subscription' => $familySub ? [
+                    'id' => $familySub->id,
+                    'status' => $familySub->status,
+                    'billing_cycle' => $familySub->billing_cycle,
+                    'current_period_ends_at' => $familySub->current_period_ends_at,
+                    'canceled_at' => $familySub->canceled_at,
+                    'trial_ends_at' => $familySub->trial_ends_at,
+                    'plan' => $this->serializePlan($familySub->plan),
                 ] : [
                     'status' => 'free',
                     'plan' => $this->serializePlan(
@@ -120,9 +126,9 @@ class BillingController extends Controller
         $user = $this->userOrFail();
         $sub = $this->subs->activeFor($user);
 
-        if (! $sub) {
+        if (! $sub || $sub->plan?->audience !== 'family') {
             throw ValidationException::withMessages([
-                'subscription' => 'No active subscription to cancel.',
+                'subscription' => 'No active family subscription to cancel.',
             ]);
         }
 

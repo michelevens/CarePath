@@ -80,13 +80,46 @@ class SponsoredListingService
             ->take(self::MAX_SLOTS_PER_PAGE);
 
         // Attach campaign ID + price flag so the search payload can
-        // surface `is_sponsored` + `sponsored_campaign_id` per row.
+        // surface `is_sponsored` + `sponsored_campaign_id` per row,
+        // plus a short-lived signed click token so /sponsored/clicks
+        // can prove the campaign actually appeared in a real search
+        // before billing it — a competitor can no longer drain a
+        // budget by replaying a campaign id they scraped once.
         return $matching->map(function ($c) {
             $f = $c->facility;
             $f->is_sponsored = true;
             $f->sponsored_campaign_id = $c->id;
+            $f->click_token = self::signClickToken($c->id, $f->id);
             return $f;
         })->values();
+    }
+
+    /**
+     * HMAC-signed (campaign, facility, expiry) tuple. The recipient
+     * doesn't need to trust the frontend; they can verify with the
+     * same app key. 10-minute expiry is long enough for a real user
+     * to browse + click, short enough that a leaked token can't be
+     * weaponized hours later. session_id is intentionally NOT in the
+     * sig — we couple it via the must-have-impression check instead,
+     * which is more robust against cookie-clearing users.
+     */
+    public static function signClickToken(string $campaignId, string $facilityId): string
+    {
+        $expires = now()->addMinutes(10)->timestamp;
+        $payload = "{$campaignId}|{$facilityId}|{$expires}";
+        $sig = hash_hmac('sha256', $payload, config('app.key'));
+        // Format: expires.sig (caller carries campaign + facility back
+        // in the click body, we re-derive the payload server-side).
+        return "{$expires}.{$sig}";
+    }
+
+    public static function verifyClickToken(string $campaignId, string $facilityId, string $token): bool
+    {
+        if (! str_contains($token, '.')) return false;
+        [$expires, $sig] = explode('.', $token, 2);
+        if ((int) $expires < time()) return false;
+        $expected = hash_hmac('sha256', "{$campaignId}|{$facilityId}|{$expires}", config('app.key'));
+        return hash_equals($expected, $sig);
     }
 
     /**
@@ -109,13 +142,29 @@ class SponsoredListingService
      * Click happened. Increment the campaign's spend counters
      * atomically, mark the most recent impression for this session
      * as clicked (best-effort).
+     *
+     * Returns false (without billing) if no matching impression for
+     * this session exists within the last 30 min — i.e. the campaign
+     * id was never actually shown to this client, so the click can't
+     * be legitimate. Helps shut down off-page click-bot replays.
      */
-    public function recordClick(string $campaignId, ?string $sessionId, Request $request): void
+    public function recordClick(string $campaignId, ?string $sessionId, Request $request): bool
     {
         $campaign = SponsoredCampaign::find($campaignId);
-        if (! $campaign) return;
+        if (! $campaign) return false;
 
-        DB::transaction(function () use ($campaign, $sessionId, $request) {
+        // Must have an impression for this session in the last 30 min.
+        // Without sessionId we can't bind the click to a prior view —
+        // refuse rather than guess.
+        if (! $sessionId) return false;
+        $hasImpression = SponsoredImpression::query()
+            ->where('campaign_id', $campaign->id)
+            ->where('session_id', $sessionId)
+            ->where('shown_at', '>=', now()->subMinutes(30))
+            ->exists();
+        if (! $hasImpression) return false;
+
+        DB::transaction(function () use ($campaign, $sessionId, $request): void {
             // Bill at the CPC bid snapshot — even if the campaign's
             // current bid changes mid-day, the user's click still
             // gets billed at whatever the bid was when we recorded.
@@ -154,6 +203,8 @@ class SponsoredListingService
                     ->update(['was_clicked' => true]);
             }
         });
+
+        return true;
     }
 
     private function facilityMatchesSearch(Facility $f, array $filters): bool

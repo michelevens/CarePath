@@ -52,6 +52,13 @@ class ReferralController extends Controller
         $user = $this->userOrFail();
         $profile = $this->ensureProfile($user);
 
+        // commission_split_advisor_pct is deliberately NOT in this list.
+        // The split is a contract term set per-tier by the platform (Solo
+        // 82 / Team 85 / Agency 88); letting advisors edit it lets them
+        // bump to 95% right before a high-value placement lands and back
+        // down after, inflating their cut on in-flight admissions whose
+        // snapshot hadn't been taken yet. SuperAdmin updates the column
+        // directly when re-negotiating tier contracts.
         $data = $request->validate([
             'agency_name' => ['nullable', 'string', 'max:191'],
             'agency_slug' => ['nullable', 'string', 'max:191', 'regex:/^[a-z0-9-]+$/'],
@@ -60,7 +67,6 @@ class ReferralController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'licensed_states' => ['nullable', 'array'],
             'service_area_zips' => ['nullable', 'array'],
-            'commission_split_advisor_pct' => ['nullable', 'integer', 'min:50', 'max:95'],
             'charges_families' => ['nullable', 'boolean'],
             'family_consultation_fee_cents' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'is_accepting_referrals' => ['nullable', 'boolean'],
@@ -77,11 +83,6 @@ class ReferralController extends Controller
                 $slug = $candidate . '-' . $i;
             }
             $data['agency_slug'] = $slug;
-        }
-
-        // Keep platform_pct in sync with the advisor_pct we accept.
-        if (isset($data['commission_split_advisor_pct'])) {
-            $data['commission_split_platform_pct'] = 100 - $data['commission_split_advisor_pct'];
         }
 
         $profile->update($data);

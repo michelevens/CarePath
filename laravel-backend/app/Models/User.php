@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'active_facility_id'])]
+#[Fillable(['name', 'email', 'password', 'active_facility_id', 'stripe_customer_id', 'stripe_account_id', 'stripe_account_status'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable implements MustVerifyEmail
 {

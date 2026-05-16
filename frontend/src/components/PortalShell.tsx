@@ -92,7 +92,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     items: [
       { to: "/hospital", label: "Overview", icon: Home },
       { to: "/hospital/referrals", label: "Referrals", icon: Users },
-      { to: "/hospital/embed", label: "Widget &amp; embed code", icon: Sparkles },
+      { to: "/hospital/embed", label: "Widget & embed code", icon: Sparkles },
       { to: "/hospital/profile", label: "Profile", icon: Settings },
     ],
   },
