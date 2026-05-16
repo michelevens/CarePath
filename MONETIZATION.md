@@ -45,11 +45,13 @@ admissions.attribution_context   ← UTM / campaign / referrer context
 
 ## Service surface
 
-| Service | Today | When Stripe is configured |
+| Service | Behavior with STRIPE_SECRET set | Behavior without |
 |---|---|---|
-| `SubscriptionService` | local mirror reads/writes, gating via `hasFeature()`, stub checkout URLs | `Stripe\Checkout\Session::create()`, webhook handlers |
-| `StripeConnectService` | stub Express account creation, logs everything | `Stripe\Account::create()`, `Stripe\AccountLink::create()` |
-| `PlacementCommissionService` | computes split, advances retention milestones, schedules payouts | `Stripe\Transfer::create()` with destination + metadata |
+| `SubscriptionService` | Real `Stripe\Checkout\Session::create()` + `Stripe\Subscription::update()` for cancel; auto-creates Stripe customers on first checkout | Logs + returns stub URL `/billing/stub-checkout?plan=...` |
+| `StripeConnectService` | Real `accounts->create()` (Express) + `accountLinks->create()` for onboarding + `accounts->retrieve()` for sync | Returns stub account ID `acct_stub_*` and stub onboarding URL |
+| `PlacementCommissionService` | Real `transfers->create()` with destination + metadata; failure halts the local-ledger bump | Local-ledger bump only; logs the would-be transfer |
+
+All three services delegate to `StripeClientFactory::client()`, which returns `null` when `STRIPE_SECRET` is missing. The mode is decided per-request, not at boot — flipping the env var hot-restarts billing without code changes.
 
 ## The 8 revenue streams (by status)
 
@@ -153,46 +155,49 @@ codebase scattered — define a central enum in
 
 ## To activate (turning the stubs into real billing)
 
-In order:
+The code is already wired — only env config + Stripe-dashboard setup remain.
 
 1. **Stripe dashboard setup**
    - Create Stripe account
-   - Enable Stripe Connect (Express)
+   - Enable Stripe Connect (Express) under Settings → Connect
    - Create Prices for each plan; copy IDs into `subscription_plans`
-     (`stripe_price_id_monthly` / `_annual`)
+     (`stripe_price_id_monthly` / `_annual`). Either edit rows in the
+     SuperAdmin master-data UI or via SQL.
    - Configure Connect platform settings (logo, branding, T&Cs)
+   - Add a webhook endpoint pointing at
+     `https://<api-host>/api/stripe/webhook`, copy its signing secret.
 
 2. **Env vars (Railway + local `.env`)**
    ```
    STRIPE_KEY=pk_live_...                # publishable
    STRIPE_SECRET=sk_live_...             # secret server key
-   STRIPE_WEBHOOK_SECRET=whsec_...       # one per webhook endpoint
+   STRIPE_WEBHOOK_SECRET=whsec_...       # from the webhook endpoint
    STRIPE_CONNECT_CLIENT_ID=ca_...
    ```
+   Once `STRIPE_SECRET` is set, all three billing services switch from
+   stub mode to real Stripe automatically (no deploy needed — next
+   request picks up the new env).
 
-3. **Replace TODO[stripe] blocks** in:
-   - `app/Services/Billing/SubscriptionService.php`
-   - `app/Services/Billing/StripeConnectService.php`
-   - `app/Services/Billing/PlacementCommissionService.php` (`releasePayout()`)
+3. **Worker for scheduled jobs**
+   The two scheduled commands wired in `routes/console.php` (placements
+   milestone-advance hourly, sponsored-spend reset at UTC midnight)
+   require something running `php artisan schedule:run` every minute.
+   Easiest: add a worker line to `Procfile`:
+   ```
+   worker: while true; do php artisan schedule:run --verbose; sleep 60; done
+   ```
+   Railway will provision a separate worker service for it.
 
-4. **Webhook handler**
-   - New `POST /api/stripe/webhook` route (unauthenticated, signature-verified)
-   - Events to handle:
-     - `customer.subscription.created` → create local `Subscription`
-     - `customer.subscription.updated` → mirror status/period
-     - `customer.subscription.deleted` → mark canceled
-     - `invoice.payment_failed` → status → `past_due`
-     - `account.updated` (Connect) → update `advisor_profiles.stripe_account_status`
-     - `transfer.created` → record `placements.stripe_transfer_id`
-
-5. **Scheduled jobs**
-   - `placements:advance-milestones` (nightly) — promote pending → confirmed → retained_30d → retained_90d → paid_in_full
-   - `subscriptions:reconcile` (hourly) — sanity check local mirror vs. Stripe
-
-6. **UI for billing**
-   - Facility admin → `/admin/billing` (plan picker, current plan, change/cancel)
-   - Advisor / referral portal → `/referral/payouts` (Connect onboarding link, payout history, 1099 download)
-   - SuperAdmin → `/superadmin/billing` (cross-tenant subscription view, manual overrides)
+4. **Already shipped — no further work required**
+   - ✅ Webhook handler at `POST /api/stripe/webhook` with 6 event types
+   - ✅ Real Stripe Checkout/Subscription/Connect/Transfer calls
+   - ✅ `placements:advance-milestones` Artisan command
+   - ✅ `sponsored:reset-daily` Artisan command
+   - ✅ Facility billing UI (`/admin/billing`)
+   - ✅ Advisor billing UI (`/referral/billing`) + Connect onboarding
+     (`/referral/profile`)
+   - ✅ Family Pro upsell modal + 3 contextual triggers
+   - ✅ Sponsored-listings admin UI (`/admin/sponsored`)
 
 ## Legal / compliance (named so you don't forget)
 

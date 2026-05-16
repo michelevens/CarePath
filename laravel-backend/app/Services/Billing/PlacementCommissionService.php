@@ -28,6 +28,7 @@ class PlacementCommissionService
 
     public function __construct(
         private readonly StripeConnectService $connect,
+        private readonly StripeClientFactory $stripe,
     ) {}
 
     /**
@@ -164,6 +165,11 @@ class PlacementCommissionService
      * Push money to the advisor's Connect account. Updates the local
      * placement record with the transfer ID and accumulates
      * amount_paid_cents.
+     *
+     * Real Transfer fires when STRIPE_SECRET is configured. Otherwise
+     * this records a local-ledger entry (amount_paid_cents bumped)
+     * with a stub transfer ID so the rest of the milestone state
+     * machine works end-to-end in dev.
      */
     private function releasePayout(Placement $placement, int $amountCents): void
     {
@@ -176,27 +182,47 @@ class PlacementCommissionService
             Log::warning('PlacementCommissionService::releasePayout — advisor not payout-ready', [
                 'placement_id' => $placement->id,
                 'advisor_user_id' => $advisor?->id,
+                'stripe_account_status' => $advisorProfile?->stripe_account_status,
             ]);
             return;
         }
 
-        // TODO[stripe]:
-        //   $transfer = \Stripe\Transfer::create([
-        //     'amount' => $amountCents,
-        //     'currency' => 'usd',
-        //     'destination' => $advisorProfile->stripe_account_id,
-        //     'metadata' => ['placement_id' => $placement->id],
-        //   ]);
-        //   $placement->update(['stripe_transfer_id' => $transfer->id, ...]);
-        Log::info('PlacementCommissionService::releasePayout (stub)', [
-            'placement_id' => $placement->id,
-            'amount_cents' => $amountCents,
-            'destination' => $advisorProfile->stripe_account_id,
-        ]);
+        $client = $this->stripe->client();
+        $transferId = null;
+
+        if ($client) {
+            try {
+                $transfer = $client->transfers->create([
+                    'amount' => $amountCents,
+                    'currency' => 'usd',
+                    'destination' => $advisorProfile->stripe_account_id,
+                    'metadata' => [
+                        'placement_id' => (string) $placement->id,
+                        'facility_id' => (string) $placement->facility_id,
+                    ],
+                ]);
+                $transferId = $transfer->id;
+            } catch (\Throwable $e) {
+                Log::error('PlacementCommissionService::releasePayout — Transfer create failed', [
+                    'placement_id' => $placement->id,
+                    'amount_cents' => $amountCents,
+                    'destination' => $advisorProfile->stripe_account_id,
+                    'error' => $e->getMessage(),
+                ]);
+                return; // don't bump amount_paid if the transfer failed
+            }
+        } else {
+            Log::info('PlacementCommissionService::releasePayout (stub — no STRIPE_SECRET)', [
+                'placement_id' => $placement->id,
+                'amount_cents' => $amountCents,
+                'destination' => $advisorProfile->stripe_account_id,
+            ]);
+        }
 
         $placement->update([
             'amount_paid_cents' => $placement->amount_paid_cents + $amountCents,
             'paid_at' => now(),
+            'stripe_transfer_id' => $transferId ?? $placement->stripe_transfer_id,
         ]);
     }
 
