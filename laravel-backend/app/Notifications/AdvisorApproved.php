@@ -15,7 +15,18 @@ class AdvisorApproved extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'kind' => 'advisor_approved',
+            'agency_name' => $this->profile->agency_name,
+            'title' => "You're verified — ready to take referrals",
+            'message' => 'Complete Stripe Connect onboarding to start earning placements.',
+            'href' => '/referral',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

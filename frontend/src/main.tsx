@@ -15,6 +15,17 @@ const queryClient = new QueryClient({
   },
 })
 
+// Register the service worker (PWA install + offline shell). Only
+// in production builds — Vite's dev server doesn't serve /sw.js
+// and we don't want stale caching getting in the way during dev.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Non-fatal — app still works without it.
+    })
+  })
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -26,7 +26,20 @@ class FacilityClaimApproved extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'kind' => 'facility_claim_approved',
+            'facility_id' => $this->facility->id,
+            'facility_slug' => $this->facility->slug,
+            'facility_name' => $this->facility->name,
+            'title' => "Your claim on {$this->facility->name} was approved",
+            'message' => 'You can now manage this facility from your admin portal.',
+            'href' => '/admin',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

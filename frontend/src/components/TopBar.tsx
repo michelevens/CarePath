@@ -31,10 +31,15 @@ interface TopBarNavItem {
 }
 
 interface NotificationItem {
+  id?: string
   kind: string
-  count: number
-  label: string
+  count?: number
+  label?: string
+  title?: string
+  message?: string
   href: string
+  persisted?: boolean
+  created_at?: string
 }
 
 interface SuggestFacility {
@@ -252,20 +257,46 @@ function NotificationsBell() {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-72 overflow-hidden rounded-md border bg-card shadow-lg">
-          <div className="border-b p-3 text-sm font-semibold">Notifications</div>
+        <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-md border bg-card shadow-lg">
+          <div className="flex items-center justify-between border-b p-3">
+            <span className="text-sm font-semibold">Notifications</span>
+            {items.some((i) => i.persisted) && (
+              <button
+                onClick={async () => {
+                  await api.post("/me/notifications/mark-all-read")
+                  load()
+                }}
+                className="text-[11px] text-violet-700 hover:underline"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
           {items.length === 0 ? (
             <p className="p-3 text-xs text-muted-foreground">Nothing needs your attention.</p>
           ) : (
-            <ul className="max-h-80 overflow-y-auto divide-y">
-              {items.map((n) => (
-                <li key={n.kind}>
+            <ul className="max-h-96 overflow-y-auto divide-y">
+              {items.map((n, idx) => (
+                <li key={n.id ?? `${n.kind}-${idx}`}>
                   <Link
                     to={n.href}
-                    onClick={() => setOpen(false)}
+                    onClick={async () => {
+                      setOpen(false)
+                      if (n.id) {
+                        await api.post(`/me/notifications/${n.id}/mark-read`).catch(() => {})
+                        load()
+                      }
+                    }}
                     className="block px-3 py-2.5 text-xs hover:bg-muted/40"
                   >
-                    {n.label}
+                    {n.title ? (
+                      <>
+                        <div className="font-medium">{n.title}</div>
+                        {n.message && <div className="mt-0.5 text-muted-foreground">{n.message}</div>}
+                      </>
+                    ) : (
+                      <div>{n.label}</div>
+                    )}
                   </Link>
                 </li>
               ))}

@@ -19,7 +19,18 @@ class FacilityClaimRejected extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'kind' => 'facility_claim_rejected',
+            'facility_name' => $this->facility->name,
+            'title' => "Your claim on {$this->facility->name} needs more info",
+            'message' => $this->claim->decision_notes ?: 'Reply to the email we sent for details.',
+            'href' => '/',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

@@ -130,8 +130,27 @@ class AuthController extends Controller
     public function notifications(Request $request): JsonResponse
     {
         $user = $request->user();
-        $items = [];
-        $total = 0;
+
+        // Persisted notifications (Laravel database channel). These
+        // are real-history items — claim approved, advisor verified,
+        // new message — and carry read/unread state.
+        $persisted = $user->unreadNotifications()
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->id,
+                'kind' => $n->data['kind'] ?? 'generic',
+                'title' => $n->data['title'] ?? '',
+                'message' => $n->data['message'] ?? '',
+                'href' => $n->data['href'] ?? '/',
+                'created_at' => $n->created_at,
+                'read' => false,
+                'persisted' => true,
+            ]);
+
+        $items = $persisted->all();
+        $total = count($items);
 
         if ($user->hasRole('super_admin')) {
             $pendingClaims = \App\Models\FacilityClaim::where('status', 'pending')->count();
@@ -191,7 +210,25 @@ class AuthController extends Controller
             }
         }
 
-        return response()->json(['data' => ['total' => $total, 'items' => $items]]);
+        return response()->json(['data' => ['total' => $total, 'items' => array_values($items)]]);
+    }
+
+    /**
+     * POST /api/me/notifications/{id}/mark-read
+     */
+    public function markNotificationRead(Request $request, string $id): JsonResponse
+    {
+        $request->user()->unreadNotifications()->where('id', $id)->update(['read_at' => now()]);
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * POST /api/me/notifications/mark-all-read
+     */
+    public function markAllNotificationsRead(Request $request): JsonResponse
+    {
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+        return response()->json(['ok' => true]);
     }
 
     public function setActiveFacility(Request $request): JsonResponse

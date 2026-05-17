@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 import { LandingPage } from "@/pages/LandingPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
+import { PWAPrompt } from "@/components/PWAPrompt"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 
@@ -208,6 +209,7 @@ function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <PWAPrompt />
     </Suspense>
   )
 }

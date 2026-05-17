@@ -105,6 +105,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/resend-verification', [AuthController::class, 'resendVerification']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/me/notifications', [AuthController::class, 'notifications']);
+    Route::post('/me/notifications/{id}/mark-read', [AuthController::class, 'markNotificationRead']);
+    Route::post('/me/notifications/mark-all-read', [AuthController::class, 'markAllNotificationsRead']);
     Route::post('/me/active-facility', [AuthController::class, 'setActiveFacility']);
     Route::get('/me/profile', [ProfileController::class, 'show']);
     Route::put('/me/profile', [ProfileController::class, 'update']);

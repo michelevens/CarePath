@@ -15,7 +15,18 @@ class HospitalApproved extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'kind' => 'hospital_approved',
+            'org_name' => $this->partner->name,
+            'title' => "{$this->partner->name} is verified",
+            'message' => 'Copy your widget snippet into your EHR to start routing referrals.',
+            'href' => '/hospital/embed',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage
