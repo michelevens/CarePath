@@ -30,15 +30,18 @@ export function AiChatWidget() {
   const [stubbed, setStubbed] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Don't render for logged-out users (saves cost + the assistant
-  // doesn't have useful context for them anyway).
-  if (!user) return null
-
   useEffect(() => {
     if (open) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
     }
   }, [open, history.length])
+
+  // Hide for logged-out users (saves cost + the assistant doesn't
+  // have useful context for them). Must come AFTER all hooks so the
+  // hook count stays stable across auth-state transitions — earlier
+  // versions early-returned above useEffect and crashed React with
+  // "Rendered more hooks than previous render" (#310) on refresh.
+  if (!user) return null
 
   const send = async (e: FormEvent) => {
     e.preventDefault()

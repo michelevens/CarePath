@@ -2,14 +2,14 @@
   "name": "CarePath",
   "short_name": "CarePath",
   "description": "Find the right senior care facility. Compare CMS ratings, pricing, and Medicaid acceptance. Tour requests go straight to the facility — no lead-auction.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/CarePath/",
+  "scope": "/CarePath/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#7c3aed",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/CarePath/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any maskable"
