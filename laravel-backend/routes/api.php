@@ -17,6 +17,7 @@ use App\Http\Controllers\Facility\AdminsController as FacilityAdminsController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
 use App\Http\Controllers\Facility\SponsoredController as FacilitySponsoredController;
+use App\Http\Controllers\Facility\AnalyticsController as FacilityAnalyticsController;
 use App\Http\Controllers\Family\BillingController as FamilyBillingController;
 use App\Http\Controllers\Family\PlacementController as FamilyPlacementController;
 use App\Http\Controllers\Hospital\EmbedController as HospitalEmbedController;
@@ -63,6 +64,11 @@ Route::prefix('marketplace')->group(function () {
     Route::get('/suggest', [MarketplaceController::class, 'suggest']);
     Route::get('/reverse-zip', [MarketplaceController::class, 'reverseZip'])
         ->middleware('throttle:30,1');
+    // Listing-event log — drives the per-facility analytics page.
+    // Lightly throttled so the page-load impression batch doesn't
+    // burn a request budget per visitor.
+    Route::post('/track-events', [MarketplaceController::class, 'trackListingEvents'])
+        ->middleware('throttle:60,1');
     Route::get('/top-cities', [MarketplaceController::class, 'topCities']);
     Route::get('/stats', [MarketplaceController::class, 'stats']);
     Route::get('/states/{state}', [MarketplaceController::class, 'state']);
@@ -247,6 +253,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'update']);
         Route::delete('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'destroy']);
         Route::get('/sponsored/stats', [FacilitySponsoredController::class, 'stats']);
+
+        // Listing analytics — impressions, detail views, tour requests
+        // for the active facility over the last 30 days vs prior 30.
+        Route::get('/listing-analytics', [FacilityAnalyticsController::class, 'listing']);
 
         // Multi-admin / staff management on the active facility.
         // Gate to facility_admin since only admins should manage

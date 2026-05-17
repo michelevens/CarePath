@@ -936,6 +936,43 @@ class MarketplaceController extends Controller
     }
 
     /**
+     * POST /api/marketplace/track-events
+     *
+     * Append-only listing-event log used by the per-facility analytics
+     * page. Public + lightly rate-limited; the analytics endpoint
+     * authorizes reads. Accepts a batch so the frontend can flush a
+     * page-worth of impressions in one round trip.
+     */
+    public function trackListingEvents(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'events' => ['required', 'array', 'max:50'],
+            'events.*.facility_id' => ['required', 'uuid', 'exists:facilities,id'],
+            'events.*.kind' => ['required', 'in:impression,detail_view,phone_click,tour_request'],
+            'events.*.source' => ['nullable', 'string', 'max:60'],
+            'events.*.context' => ['nullable', 'array'],
+        ]);
+
+        $sessionId = $request->header('X-Carepath-Session-Id') ?: $request->query('session_id');
+        $userId = optional($request->user())->id;
+        $now = now();
+
+        $rows = array_map(fn ($e) => [
+            'facility_id' => $e['facility_id'],
+            'kind' => $e['kind'],
+            'session_id' => $sessionId,
+            'user_id' => $userId,
+            'source' => $e['source'] ?? null,
+            'context' => isset($e['context']) ? json_encode($e['context']) : null,
+            'occurred_at' => $now,
+        ], $data['events']);
+
+        DB::table('facility_listing_events')->insert($rows);
+
+        return response()->json(['ok' => true, 'count' => count($rows)]);
+    }
+
+    /**
      * GET /api/marketplace/reverse-zip?lat=&lon=
      *
      * "Use my location" support — converts the browser geolocation

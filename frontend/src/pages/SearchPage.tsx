@@ -260,6 +260,26 @@ export function SearchPage() {
               })
               .catch(() => {})
           }
+
+          // Generic listing-event log — drives the per-facility
+          // analytics page (#11). Batched: one POST per page-load,
+          // up to 50 facility ids. Failures are silent.
+          if (r.data.data.length > 0) {
+            api
+              .post(
+                "/marketplace/track-events",
+                {
+                  events: r.data.data.slice(0, 50).map((f) => ({
+                    facility_id: f.id,
+                    kind: "impression",
+                    source: "search",
+                    context: { sort, has_match: !!matchPrefs },
+                  })),
+                },
+                { headers: { "X-Carepath-Session-Id": getOrCreateSessionId() } },
+              )
+              .catch(() => {})
+          }
         })
         .catch((err) => alive && setError(err.response?.data?.message ?? "Search failed"))
         .finally(() => alive && setLoading(false))

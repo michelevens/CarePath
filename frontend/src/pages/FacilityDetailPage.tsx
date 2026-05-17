@@ -202,7 +202,21 @@ export function FacilityDetailPage() {
     setError(null)
     api
       .get<{ data: Facility }>(`/marketplace/facilities/${slug}`)
-      .then((r) => alive && setFacility(r.data.data))
+      .then((r) => {
+        if (!alive) return
+        setFacility(r.data.data)
+        // Log a detail_view event (fire-and-forget). Drives the
+        // facility-admin analytics page (#11).
+        api
+          .post("/marketplace/track-events", {
+            events: [{
+              facility_id: r.data.data.id,
+              kind: "detail_view",
+              source: document.referrer.includes("/senior-living/") ? "city_page" : "search",
+            }],
+          })
+          .catch(() => {})
+      })
       .catch((err) => {
         if (!alive) return
         if (err.response?.status === 404) setError("Facility not found.")
