@@ -175,6 +175,83 @@ class MessagingController extends Controller
     }
 
     /**
+     * POST /api/messaging/conversations/with-facility
+     *
+     * Find-or-create a conversation between the auth user and the
+     * admins of a given facility. Used by the family placement page
+     * "Message facility" CTA so families don't have to manually pick
+     * participants. Idempotent: returns the existing conversation if
+     * one already exists for this user+facility pair.
+     */
+    public function storeWithFacility(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'facility_id' => ['required', 'uuid', 'exists:facilities,id'],
+            'subject' => ['nullable', 'string', 'max:191'],
+            'body' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $user = Auth::user();
+
+        // Find existing conversation: same user is a participant + same
+        // facility_id + not a broadcast. Prefer the most recent.
+        $existing = Conversation::query()
+            ->where('facility_id', $data['facility_id'])
+            ->where('is_broadcast', false)
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
+            ->orderByDesc('last_message_at')
+            ->first();
+
+        if ($existing) {
+            return response()->json(['data' => ['id' => $existing->id, 'created' => false]]);
+        }
+
+        // Look up facility admins via the facility_user pivot.
+        $adminIds = DB::table('facility_user')
+            ->where('facility_id', $data['facility_id'])
+            ->where('role', 'admin')
+            ->pluck('user_id')
+            ->all();
+
+        if (empty($adminIds)) {
+            abort(422, 'This facility has no admin yet — try the contact form on the facility page.');
+        }
+
+        $facility = \App\Models\Facility::find($data['facility_id']);
+        $subject = $data['subject'] ?? "Inquiry — {$facility->name}";
+
+        $conv = DB::transaction(function () use ($adminIds, $user, $data, $subject) {
+            $conv = Conversation::create([
+                'subject' => $subject,
+                'facility_id' => $data['facility_id'],
+                'started_by_user_id' => $user->id,
+                'last_message_at' => now(),
+            ]);
+            $participants = array_unique(array_merge($adminIds, [$user->id]));
+            foreach ($participants as $pid) {
+                DB::table('conversation_participants')->insert([
+                    'id' => (string) \Illuminate\Support\Str::uuid(),
+                    'conversation_id' => $conv->id,
+                    'user_id' => $pid,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+            if (! empty($data['body'])) {
+                Message::create([
+                    'conversation_id' => $conv->id,
+                    'sender_user_id' => $user->id,
+                    'body' => $data['body'],
+                    'sent_at' => now(),
+                ]);
+            }
+            return $conv;
+        });
+
+        return response()->json(['data' => ['id' => $conv->id, 'created' => true]], 201);
+    }
+
+    /**
      * POST /api/messaging/conversations/{id}/messages
      */
     public function sendMessage(Request $request, string $id): JsonResponse

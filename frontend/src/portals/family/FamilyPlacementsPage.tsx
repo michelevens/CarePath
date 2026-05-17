@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
   Building2,
@@ -11,6 +11,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  MessageSquare,
   Phone,
 } from "lucide-react"
 import { api } from "@/lib/api"
@@ -158,9 +159,31 @@ function PlacementListView() {
 }
 
 function PlacementDetailView({ id }: { id: string }) {
+  const navigate = useNavigate()
   const [data, setData] = useState<PlacementDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [messaging, setMessaging] = useState(false)
+
+  const openOrCreateConversation = async () => {
+    if (!data?.facility?.id || messaging) return
+    setMessaging(true)
+    try {
+      const r = await api.post<{ data: { id: string; created: boolean } }>(
+        "/messaging/conversations/with-facility",
+        {
+          facility_id: data.facility.id,
+          subject: `Placement — ${data.prospect_name}`,
+        },
+      )
+      navigate(`/messages/${r.data.data.id}`)
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message ?? "Couldn't open conversation.")
+    } finally {
+      setMessaging(false)
+    }
+  }
 
   useEffect(() => {
     api
@@ -254,9 +277,24 @@ function PlacementDetailView({ id }: { id: string }) {
       {/* Facility contact */}
       {data.facility && (
         <section className="mt-4 rounded-lg border bg-card p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Facility contact
-          </h2>
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Facility contact
+            </h2>
+            <button
+              type="button"
+              onClick={openOrCreateConversation}
+              disabled={messaging}
+              className="inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-60"
+            >
+              {messaging ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <MessageSquare className="h-3 w-3" />
+              )}
+              Message facility
+            </button>
+          </div>
           <div className="mt-3 space-y-1 text-sm">
             <div className="flex items-center gap-2">
               <Building2 className="h-3.5 w-3.5 text-muted-foreground" />

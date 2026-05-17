@@ -130,6 +130,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // role-gated inside the controller.
     Route::get('/messaging/conversations', [MessagingController::class, 'index']);
     Route::post('/messaging/conversations', [MessagingController::class, 'store']);
+    // Find-or-create conversation with a facility's admins — drives the
+    // "Message facility" CTA on the placement page.
+    Route::post('/messaging/conversations/with-facility', [MessagingController::class, 'storeWithFacility']);
     Route::get('/messaging/conversations/{id}', [MessagingController::class, 'show']);
     Route::post('/messaging/conversations/{id}/messages', [MessagingController::class, 'sendMessage']);
     Route::post('/messaging/broadcast', [MessagingController::class, 'broadcast']);
