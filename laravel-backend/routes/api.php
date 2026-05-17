@@ -16,6 +16,7 @@ use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
 use App\Http\Controllers\Facility\SponsoredController as FacilitySponsoredController;
 use App\Http\Controllers\Family\BillingController as FamilyBillingController;
+use App\Http\Controllers\Family\PlacementController as FamilyPlacementController;
 use App\Http\Controllers\Hospital\EmbedController as HospitalEmbedController;
 use App\Http\Controllers\Hospital\HospitalController;
 use App\Http\Controllers\Referral\BillingController as ReferralBillingController;
@@ -293,6 +294,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/checkout', [FamilyBillingController::class, 'checkout']);
         Route::post('/cancel', [FamilyBillingController::class, 'cancel']);
     });
+
+    // Family-visible placement timeline. The "where is mom's placement"
+    // surface that replaces APFM's advisor-callback-every-3-days flow.
+    Route::get('/family/placements', [FamilyPlacementController::class, 'index']);
+    Route::get('/family/placements/{id}', [FamilyPlacementController::class, 'show']);
 
     // Placement-advisor / referral-partner portal
     Route::prefix('referral')

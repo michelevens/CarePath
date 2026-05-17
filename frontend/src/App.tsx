@@ -41,6 +41,7 @@ const ProfileSettingsPage = lazy(() => import("@/pages/ProfileSettingsPage").the
 const MessagesPage = lazy(() => import("@/pages/MessagesPage").then(m => ({ default: m.MessagesPage })))
 
 const FamilyDashboard = lazy(() => import("@/portals/family/FamilyDashboard").then(m => ({ default: m.FamilyDashboard })))
+const FamilyPlacementsPage = lazy(() => import("@/portals/family/FamilyPlacementsPage").then(m => ({ default: m.FamilyPlacementsPage })))
 const ResidentDashboard = lazy(() => import("@/portals/resident/ResidentDashboard").then(m => ({ default: m.ResidentDashboard })))
 const StaffDashboard = lazy(() => import("@/portals/staff/StaffDashboard").then(m => ({ default: m.StaffDashboard })))
 const AdminDashboard = lazy(() => import("@/portals/admin/AdminDashboard").then(m => ({ default: m.AdminDashboard })))
@@ -223,6 +224,12 @@ function App() {
                 <Route path="profile" element={<HospitalProfilePage />} />
                 <Route path="referrals" element={<HospitalReferralsPage />} />
                 <Route path="embed" element={<HospitalEmbedPage />} />
+              </>
+            )}
+            {path === "family" && (
+              <>
+                <Route path="placements" element={<FamilyPlacementsPage />} />
+                <Route path="placements/:id" element={<FamilyPlacementsPage />} />
               </>
             )}
           </Route>

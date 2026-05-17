@@ -35,6 +35,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     items: [
       { to: "/family", label: "Overview", icon: Home },
       { to: "/family/loved-ones", label: "My loved ones", icon: HeartHandshake },
+      { to: "/family/placements", label: "Placement status", icon: ClipboardList },
       { to: "/family/saved", label: "Saved facilities", icon: Building2 },
       { to: "/family/tours", label: "Tour requests", icon: Calendar },
     ],
