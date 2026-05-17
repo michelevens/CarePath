@@ -61,7 +61,7 @@ export function NearMeButton({
         onClick={onClick}
         disabled={busy}
         className={cn(
-          "inline-flex items-center gap-1 text-[11px] text-violet-700 hover:underline disabled:opacity-50",
+          "inline-flex items-center gap-1 text-xs text-violet-700 hover:underline disabled:opacity-50",
           className,
         )}
         title="Use my browser location"

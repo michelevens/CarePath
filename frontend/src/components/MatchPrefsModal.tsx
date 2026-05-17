@@ -82,7 +82,7 @@ export function MatchPrefsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-xl overflow-hidden rounded-lg border bg-card shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border bg-card shadow-2xl"
       >
         <div className="flex items-start justify-between border-b bg-violet-50 p-4">
           <div>
@@ -106,7 +106,7 @@ export function MatchPrefsModal({
           </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
           <div>
             <label className="text-xs font-medium">Level of care needed</label>
             <div className="mt-1 grid grid-cols-1 gap-1.5 sm:grid-cols-2">

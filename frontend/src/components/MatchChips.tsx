@@ -59,7 +59,7 @@ export function MatchScoreBadge({ match }: { match: MatchScore }) {
             }}
           />
           <div
-            className="absolute right-0 top-7 z-50 w-72 rounded-lg border bg-card p-3 text-left shadow-xl"
+            className="absolute right-0 top-7 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border bg-card p-3 text-left shadow-xl"
             onClick={(e) => e.preventDefault()}
           >
             <div className="mb-2 flex items-center justify-between">

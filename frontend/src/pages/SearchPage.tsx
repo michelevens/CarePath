@@ -602,7 +602,7 @@ export function SearchPage() {
               <button
                 type="button"
                 onClick={() => setActiveBbox(null)}
-                className="absolute right-3 top-3 z-[1000] rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground shadow hover:text-foreground"
+                className="absolute right-3 top-3 z-[1000] rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground shadow hover:text-foreground"
                 title="Clear map-bounds filter"
               >
                 Clear map filter

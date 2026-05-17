@@ -68,7 +68,7 @@ function WizardModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-lg border bg-card shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-lg border bg-card shadow-2xl">
         <div className="flex items-start justify-between border-b bg-violet-50 p-4">
           <div>
             <div className="flex items-center gap-1.5 text-violet-700">

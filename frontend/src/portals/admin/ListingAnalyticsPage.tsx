@@ -69,7 +69,7 @@ export function ListingAnalyticsPage() {
         <p className="mt-1 text-sm text-muted-foreground">{data.period_label} · vs. prior 30 days</p>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard
           label="Impressions"
           value={data.current.impressions}
