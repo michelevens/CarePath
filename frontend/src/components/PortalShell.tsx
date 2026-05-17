@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Outlet, NavLink, Link, useNavigate } from "react-router-dom"
+import { TopBar } from "@/components/TopBar"
 import {
   Home,
   Users,
@@ -123,6 +124,7 @@ export function PortalShell({ portal }: { portal: Portal }) {
   const config = NAV_CONFIG[portal]
 
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle")
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleSignOut = async () => {
     await logout()
@@ -141,7 +143,18 @@ export function PortalShell({ portal }: { portal: Portal }) {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <aside className="flex h-full w-60 flex-col border-r bg-card">
+      {mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+        />
+      )}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex h-full w-60 flex-col border-r bg-card transition-transform md:relative md:translate-x-0",
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
         <div className="flex h-16 items-center border-b px-6">
           <span className="text-lg font-semibold tracking-tight">CarePath</span>
         </div>
@@ -227,27 +240,35 @@ export function PortalShell({ portal }: { portal: Portal }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        {user && !user.email_verified && (
-          <div className="flex items-center gap-3 border-b bg-muted/50 px-6 py-3 text-sm">
-            <MailWarning className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="flex-1 text-muted-foreground">
-              Please verify your email address to unlock all features.
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleResend}
-              disabled={resendState !== "idle"}
-            >
-              {resendState === "idle" && "Resend verification email"}
-              {resendState === "sending" && "Sending…"}
-              {resendState === "sent" && "Sent — check your inbox"}
-            </Button>
-          </div>
-        )}
-        <Outlet />
-      </main>
+      <div className="flex h-full flex-1 flex-col overflow-hidden">
+        <TopBar
+          portal={portal}
+          portalTitle={config.title}
+          navItems={config.items.map((i) => ({ to: i.to, label: i.label }))}
+          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+        />
+        <main className="flex-1 overflow-y-auto">
+          {user && !user.email_verified && (
+            <div className="flex items-center gap-3 border-b bg-muted/50 px-6 py-3 text-sm">
+              <MailWarning className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="flex-1 text-muted-foreground">
+                Please verify your email address to unlock all features.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleResend}
+                disabled={resendState !== "idle"}
+              >
+                {resendState === "idle" && "Resend verification email"}
+                {resendState === "sending" && "Sending…"}
+                {resendState === "sent" && "Sent — check your inbox"}
+              </Button>
+            </div>
+          )}
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

@@ -116,6 +116,84 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/me/notifications
+     *
+     * Lightweight notifications-bell payload for the topbar.
+     * Polled per minute. Counts only — clicking an item navigates
+     * to the relevant detail surface. Per-role:
+     *   super_admin     → pending claims + advisor/hospital
+     *                     verifications + overdue PRRs
+     *   facility_admin  → new inquiries on active facility (last 7d)
+     *   referral_partner→ placements with pending payouts
+     */
+    public function notifications(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $items = [];
+        $total = 0;
+
+        if ($user->hasRole('super_admin')) {
+            $pendingClaims = \App\Models\FacilityClaim::where('status', 'pending')->count();
+            $pendingAdvisors = \App\Models\AdvisorProfile::whereNull('verified_at')->count();
+            $pendingHospitals = \App\Models\HospitalPartner::whereNull('verified_at')->count();
+            $overduePrr = \App\Models\PublicRecordsRequest::whereNull('response_received_at')
+                ->whereDate('follow_up_on', '<', now())
+                ->count();
+
+            if ($pendingClaims > 0) {
+                $items[] = ['kind' => 'pending_claims', 'count' => $pendingClaims,
+                    'label' => "{$pendingClaims} facility claim" . ($pendingClaims !== 1 ? 's' : '') . ' pending',
+                    'href' => '/superadmin/verifications'];
+            }
+            if ($pendingAdvisors > 0) {
+                $items[] = ['kind' => 'pending_advisors', 'count' => $pendingAdvisors,
+                    'label' => "{$pendingAdvisors} advisor verification" . ($pendingAdvisors !== 1 ? 's' : ''),
+                    'href' => '/superadmin/verifications'];
+            }
+            if ($pendingHospitals > 0) {
+                $items[] = ['kind' => 'pending_hospitals', 'count' => $pendingHospitals,
+                    'label' => "{$pendingHospitals} hospital verification" . ($pendingHospitals !== 1 ? 's' : ''),
+                    'href' => '/superadmin/verifications'];
+            }
+            if ($overduePrr > 0) {
+                $items[] = ['kind' => 'overdue_prr', 'count' => $overduePrr,
+                    'label' => "{$overduePrr} public records request" . ($overduePrr !== 1 ? 's' : '') . ' overdue',
+                    'href' => '/superadmin/sources'];
+            }
+            $total += $pendingClaims + $pendingAdvisors + $pendingHospitals + $overduePrr;
+        }
+
+        if ($user->hasRole('facility_admin') && $user->active_facility_id) {
+            $newInquiries = \App\Models\Admission::query()
+                ->where('facility_id', $user->active_facility_id)
+                ->where('stage', 'inquiry')
+                ->where('created_at', '>=', now()->subDays(7))
+                ->count();
+            if ($newInquiries > 0) {
+                $items[] = ['kind' => 'new_inquiries', 'count' => $newInquiries,
+                    'label' => "{$newInquiries} new inquir" . ($newInquiries !== 1 ? 'ies' : 'y') . ' this week',
+                    'href' => '/admin/leads'];
+                $total += $newInquiries;
+            }
+        }
+
+        if ($user->hasRole('referral_partner')) {
+            $unpaidPayouts = \App\Models\Placement::where('advisor_user_id', $user->id)
+                ->whereIn('status', ['confirmed', 'retained_30d'])
+                ->whereRaw('amount_paid_cents < advisor_payout_cents')
+                ->count();
+            if ($unpaidPayouts > 0) {
+                $items[] = ['kind' => 'unpaid_payouts', 'count' => $unpaidPayouts,
+                    'label' => "{$unpaidPayouts} placement" . ($unpaidPayouts !== 1 ? 's' : '') . ' with pending payout',
+                    'href' => '/referral/payouts'];
+                $total += $unpaidPayouts;
+            }
+        }
+
+        return response()->json(['data' => ['total' => $total, 'items' => $items]]);
+    }
+
     public function setActiveFacility(Request $request): JsonResponse
     {
         $data = $request->validate([
