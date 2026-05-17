@@ -172,10 +172,25 @@ export function PortalShell({ portal }: { portal: Portal }) {
         </div>
         <div className="border-t p-3 space-y-1">
           {user && (
-            <div className="px-3 py-2 text-xs">
-              <div className="font-medium text-foreground">{user.name}</div>
-              <div className="truncate text-muted-foreground">{user.email}</div>
-            </div>
+            <Link to="/settings/profile" className="block">
+              <div className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted/40">
+                {user.profile_picture ? (
+                  <img
+                    src={user.profile_picture}
+                    alt=""
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
+                    {(user.first_name?.[0] ?? user.name?.[0] ?? "?").toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 text-xs">
+                  <div className="truncate font-medium text-foreground">{user.name}</div>
+                  <div className="truncate text-muted-foreground">{user.email}</div>
+                </div>
+              </div>
+            </Link>
           )}
           <FacilitySwitcher />
           <Button

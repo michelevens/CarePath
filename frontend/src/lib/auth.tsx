@@ -31,9 +31,15 @@ export interface FacilityMembership {
 export interface AuthUser {
   id: number
   name: string
+  first_name: string | null
+  last_name: string | null
   email: string
+  phone: string | null
+  title: string | null
+  profile_picture: string | null
   email_verified: boolean
   two_factor_enabled: boolean
+  onboarding_completed: boolean
   portal: Portal | null
   roles: Role[]
   permissions: string[]

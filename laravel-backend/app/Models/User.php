@@ -16,7 +16,17 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'active_facility_id', 'stripe_customer_id', 'stripe_account_id', 'stripe_account_status'])]
+#[Fillable([
+    'name', 'first_name', 'last_name',
+    'email', 'password',
+    'phone', 'title', 'profile_picture',
+    'address_line_1', 'address_line_2', 'city', 'state', 'zip',
+    'time_zone',
+    'notification_preferences',
+    'onboarding_completed', 'onboarding_completed_at', 'onboarding_data',
+    'last_login_at',
+    'active_facility_id', 'stripe_customer_id', 'stripe_account_id', 'stripe_account_status',
+])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -31,7 +41,23 @@ class User extends Authenticatable implements MustVerifyEmail
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
+            'notification_preferences' => 'array',
+            'onboarding_data' => 'array',
+            'onboarding_completed' => 'boolean',
+            'onboarding_completed_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * First-name fallback for personalized contexts (email
+     * greetings, "Hi Maria,"). Uses first_name if set, otherwise
+     * parses the first token of `name`.
+     */
+    public function firstNameForGreeting(): string
+    {
+        if ($this->first_name) return $this->first_name;
+        return explode(' ', trim((string) $this->name))[0] ?? '';
     }
 
     public function hasTwoFactorEnabled(): bool
@@ -49,9 +75,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
             'email' => $this->email,
+            'phone' => $this->phone,
+            'title' => $this->title,
+            'profile_picture' => $this->profile_picture,
             'email_verified' => (bool) $this->email_verified_at,
             'two_factor_enabled' => $this->hasTwoFactorEnabled(),
+            'onboarding_completed' => (bool) $this->onboarding_completed,
             'portal' => $this->portalRole(),
             'roles' => $this->roles->pluck('name')->all(),
             'permissions' => $this->getAllPermissions()->pluck('name')->all(),

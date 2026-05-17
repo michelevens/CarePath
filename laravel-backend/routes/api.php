@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FacilityClaimController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicAdvisorController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Facility\AdminsController as FacilityAdminsController;
@@ -104,6 +105,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/resend-verification', [AuthController::class, 'resendVerification']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/me/active-facility', [AuthController::class, 'setActiveFacility']);
+    Route::get('/me/profile', [ProfileController::class, 'show']);
+    Route::put('/me/profile', [ProfileController::class, 'update']);
+    Route::post('/me/complete-onboarding', [ProfileController::class, 'completeOnboarding']);
 
     // Facility claim submission + status. Auth required (we need a
     // user to grant the role to on approval) but no role gate —

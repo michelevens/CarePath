@@ -92,6 +92,10 @@ class AuthController extends Controller
         $deviceName = $credentials['device_name'] ?? ($request->userAgent() ?: 'web');
         $token = $user->createToken($deviceName)->plainTextToken;
 
+        // Stamp last_login_at — surfaces on SuperAdmin user detail
+        // page + powers "inactive account" heuristics.
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
+
         return response()->json([
             'token' => $token,
             'user' => $user->toAuthPayload(),
