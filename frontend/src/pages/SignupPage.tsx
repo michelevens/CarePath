@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,7 +9,14 @@ type FieldErrors = Partial<Record<"name" | "email" | "password", string>>
 
 export function SignupPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { register } = useAuth()
+
+  // Deep-link signals from the facility detail page Claim CTA.
+  // After successful signup, redirect to the facility with ?claim=1
+  // so the claim modal auto-opens.
+  const intent = searchParams.get("intent")
+  const facilitySlug = searchParams.get("facility_slug")
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -29,7 +36,11 @@ export function SignupPage() {
         password,
         password_confirmation: confirm,
       })
-      navigate(`/${user.portal ?? ""}`, { replace: true })
+      if (intent === "claim_facility" && facilitySlug) {
+        navigate(`/facility/${facilitySlug}?claim=1`, { replace: true })
+      } else {
+        navigate(`/${user.portal ?? ""}`, { replace: true })
+      }
     } catch (err) {
       const apiErrs = (err as { response?: { data?: { errors?: Record<string, string[]> } } })
         .response?.data?.errors

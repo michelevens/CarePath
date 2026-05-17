@@ -50,8 +50,13 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [ui, setUi] = useState<LoginUiState>({ phase: "credentials" })
 
+  // Accept `from` from either router state (ProtectedRoute redirect)
+  // OR a `?next=` query param (used by facility claim CTA when the
+  // user is logged-out and needs to round-trip through login).
+  const queryNext = new URLSearchParams(location.search).get("next")
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+    ?? queryNext
 
   const apiErrorMessage = (err: unknown, fallback: string) => {
     const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }

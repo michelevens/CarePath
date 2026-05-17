@@ -213,6 +213,7 @@ class SuperAdminController extends Controller
         $profile->update(['verified_at' => now()]);
         if ($profile->user) {
             $profile->user->assignRole('referral_partner');
+            $profile->user->notify(new \App\Notifications\AdvisorApproved($profile));
         }
         return response()->json([
             'ok' => true,
@@ -230,6 +231,7 @@ class SuperAdminController extends Controller
         $partner->update(['verified_at' => now()]);
         if ($partner->user) {
             $partner->user->assignRole('hospital_partner');
+            $partner->user->notify(new \App\Notifications\HospitalApproved($partner));
         }
         return response()->json([
             'ok' => true,
@@ -344,6 +346,13 @@ class SuperAdminController extends Controller
             ]);
         });
 
+        // Notify the claimant outside the transaction so an SMTP
+        // failure doesn't roll back the role grant.
+        $claim->refresh()->load('facility', 'user');
+        if ($claim->user && $claim->facility) {
+            $claim->user->notify(new \App\Notifications\FacilityClaimApproved($claim, $claim->facility));
+        }
+
         return response()->json([
             'ok' => true,
             'message' => 'Claim approved. The user is now a facility admin on this site.',
@@ -370,6 +379,11 @@ class SuperAdminController extends Controller
             'reviewed_at' => now(),
             'decision_notes' => $data['notes'],
         ]);
+
+        $claim->load('facility', 'user');
+        if ($claim->user && $claim->facility) {
+            $claim->user->notify(new \App\Notifications\FacilityClaimRejected($claim, $claim->facility));
+        }
 
         return response()->json(['ok' => true]);
     }

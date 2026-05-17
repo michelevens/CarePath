@@ -2581,7 +2581,13 @@ function ClaimFacilitySection({
 }) {
   const { user } = useAuth()
   const [status, setStatus] = useState<ClaimStatus | null>(null)
-  const [open, setOpen] = useState(false)
+  // Auto-open the modal when the URL carries ?claim=1 — used by
+  // the signup deep-link to drop the user straight into the form
+  // after creating their account.
+  const initialOpen =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("claim") === "1"
+  const [open, setOpen] = useState(initialOpen)
 
   useEffect(() => {
     let alive = true

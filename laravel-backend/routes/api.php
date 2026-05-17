@@ -5,7 +5,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FacilityClaimController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\PublicAdvisorController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\Facility\AdminsController as FacilityAdminsController;
 use App\Http\Controllers\Facility\AdmissionController;
 use App\Http\Controllers\Facility\BillingController as FacilityBillingController;
 use App\Http\Controllers\Facility\SponsoredController as FacilitySponsoredController;
@@ -58,6 +60,10 @@ Route::prefix('marketplace')->group(function () {
     Route::get('/cities/{state}/{city}', [MarketplaceController::class, 'city']);
     Route::get('/compare', [MarketplaceController::class, 'compare']);
     Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
+
+    // Public advisor profile — the page families land on to vet a
+    // placement advisor. No auth required.
+    Route::get('/advisors/{slug}', [PublicAdvisorController::class, 'show']);
     Route::get('/facilities/{slug}/tour-slots', [MarketplaceController::class, 'tourSlots']);
     Route::get('/facilities/{slug}/brochure', [MarketplaceController::class, 'brochure']);
     Route::post('/inquiries', [MarketplaceController::class, 'storeInquiry']);
@@ -196,6 +202,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'update']);
         Route::delete('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'destroy']);
         Route::get('/sponsored/stats', [FacilitySponsoredController::class, 'stats']);
+
+        // Multi-admin / staff management on the active facility.
+        // Gate to facility_admin since only admins should manage
+        // other admins/staff (staff can't promote themselves).
+        Route::middleware('role:facility_admin')->group(function () {
+            Route::get('/admins', [FacilityAdminsController::class, 'index']);
+            Route::post('/admins/invite', [FacilityAdminsController::class, 'invite']);
+            Route::put('/admins/{userId}/role', [FacilityAdminsController::class, 'updateRole']);
+            Route::delete('/admins/{userId}', [FacilityAdminsController::class, 'remove']);
+        });
 
         Route::get('/data/{type}', [FacilityDataController::class, 'index']);
         Route::post('/data/{type}', [FacilityDataController::class, 'store']);

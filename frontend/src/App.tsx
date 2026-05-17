@@ -15,6 +15,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
  */
 const SearchPage = lazy(() => import("@/pages/SearchPage").then(m => ({ default: m.SearchPage })))
 const FacilityDetailPage = lazy(() => import("@/pages/FacilityDetailPage").then(m => ({ default: m.FacilityDetailPage })))
+const PublicAdvisorPage = lazy(() => import("@/pages/PublicAdvisorPage").then(m => ({ default: m.PublicAdvisorPage })))
 const ComparePage = lazy(() => import("@/pages/ComparePage").then(m => ({ default: m.ComparePage })))
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })))
 const SignupPage = lazy(() => import("@/pages/SignupPage").then(m => ({ default: m.SignupPage })))
@@ -99,6 +100,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/facility/:slug" element={<FacilityDetailPage />} />
+        <Route path="/advisor/:slug" element={<PublicAdvisorPage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/articles" element={<ArticlesIndexPage />} />
         <Route path="/articles/:slug" element={<ArticleDetailPage />} />
