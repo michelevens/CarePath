@@ -30,6 +30,7 @@ const ArticlesIndexPage = lazy(() => import("@/pages/ArticlesIndexPage").then(m 
 const ArticleDetailPage = lazy(() => import("@/pages/ArticleDetailPage").then(m => ({ default: m.ArticleDetailPage })))
 const ToolsPage = lazy(() => import("@/pages/ToolsPage").then(m => ({ default: m.ToolsPage })))
 const GuidesPage = lazy(() => import("@/pages/GuidesPage").then(m => ({ default: m.GuidesPage })))
+const GuideShowcasePage = lazy(() => import("@/pages/GuideShowcasePage").then(m => ({ default: m.GuideShowcasePage })))
 const WhyCarePathPage = lazy(() => import("@/pages/WhyCarePathPage").then(m => ({ default: m.WhyCarePathPage })))
 const StateLandingPage = lazy(() => import("@/pages/StateLandingPage").then(m => ({ default: m.StateLandingPage })))
 const CityLandingPage = lazy(() => import("@/pages/CityLandingPage").then(m => ({ default: m.CityLandingPage })))
@@ -114,6 +115,7 @@ function App() {
         <Route path="/articles/:slug" element={<ArticleDetailPage />} />
         <Route path="/tools" element={<ToolsPage />} />
         <Route path="/guides" element={<GuidesPage />} />
+        <Route path="/guides/:slug" element={<GuideShowcasePage />} />
         <Route path="/why-carepath" element={<WhyCarePathPage />} />
         <Route path="/senior-living/:state" element={<StateLandingPage />} />
         <Route path="/senior-living/:state/:city" element={<CityLandingPage />} />

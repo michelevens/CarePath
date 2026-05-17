@@ -202,14 +202,19 @@ function GuideCard({ guide, onDownload }: { guide: Guide; onDownload: () => void
               )}
             </div>
           )}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">
               For: <span className="font-medium text-foreground">{guide.audience}</span>
             </span>
-            <Button size="sm" onClick={onDownload}>
-              <Download className="h-3.5 w-3.5" />
-              Download
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button asChild size="sm" variant="ghost">
+                <Link to={`/guides/${guide.slug}`}>Preview</Link>
+              </Button>
+              <Button size="sm" onClick={onDownload}>
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
