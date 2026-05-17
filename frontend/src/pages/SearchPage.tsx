@@ -34,6 +34,8 @@ import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreB
 import { FamilyProModal } from "@/components/FamilyProModal"
 import { MatchScoreBadge, TrustChip } from "@/components/MatchChips"
 import { MatchPrefsModal } from "@/components/MatchPrefsModal"
+import { ServiceTypeHelper } from "@/components/ServiceTypeHelper"
+import { SERVICE_TYPE_LABEL, metaFor } from "@/lib/serviceTypes"
 import { Flag, Info, Sparkles, Users } from "lucide-react"
 
 interface MatchReason {
@@ -117,16 +119,10 @@ interface MatchPrefs {
   special_needs?: string[]
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  snf: "Skilled Nursing",
-  assisted_living: "Assisted Living",
-  memory_care: "Memory Care",
-  ccrc: "Continuing Care",
-  independent_living: "Independent Living",
-  group_home: "Group Home",
-  adult_family_home: "Adult Family Home",
-  icf_iid: "ICF/IID",
-}
+// Care-type labels are now sourced from the canonical taxonomy so the
+// labels here, the wizard, the match scoring, and the backend enum all
+// agree. Local re-alias keeps existing call sites working.
+const TYPE_LABEL: Record<string, string> = SERVICE_TYPE_LABEL
 
 export function SearchPage() {
   const [urlParams, setUrlParams] = useSearchParams()
@@ -342,15 +338,27 @@ export function SearchPage() {
                     { value: "100", label: "100 mi" },
                   ]}
                 />
-                <FilterSelect
-                  label="Care type"
-                  value={type}
-                  onChange={setType}
-                  options={[
-                    { value: "", label: "All types" },
-                    ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })),
-                  ]}
-                />
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <label className="text-xs font-medium text-muted-foreground">Care type</label>
+                    <ServiceTypeHelper onPick={(t) => setType(t)} />
+                  </div>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="mt-1 block rounded-md border bg-background px-3 py-1.5 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">All types</option>
+                    {Object.entries(TYPE_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  {type && metaFor(type) && (
+                    <p className="mt-1 max-w-xs text-[10px] text-muted-foreground">
+                      {metaFor(type)!.short_description}
+                    </p>
+                  )}
+                </div>
                 <FilterInput
                   label="State"
                   value={state}
