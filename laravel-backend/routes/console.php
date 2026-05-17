@@ -35,3 +35,13 @@ Schedule::command('sponsored:reset-daily')
     ->timezone('UTC')
     ->withoutOverlapping(60)
     ->runInBackground();
+
+// Saved-search alerts — daily sweep that diffs each search's current
+// matches against the last-seen snapshot and notifies the user about
+// new facilities. Runs once a day at a quiet hour to avoid bursting
+// the notifications bell during peak.
+Schedule::command('carepath:run-saved-search-alerts')
+    ->dailyAt('13:00')   // 9am ET
+    ->timezone('UTC')
+    ->withoutOverlapping(60)
+    ->runInBackground();

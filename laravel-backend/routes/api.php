@@ -5,6 +5,7 @@ use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FacilityClaimController;
 use App\Http\Controllers\FacilityReviewController;
+use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
@@ -309,6 +310,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // surface that replaces APFM's advisor-callback-every-3-days flow.
     Route::get('/family/placements', [FamilyPlacementController::class, 'index']);
     Route::get('/family/placements/{id}', [FamilyPlacementController::class, 'show']);
+
+    // Persisted saved searches + alert toggles. Daily sweep lives in
+    // SavedSearchAlertsCommand.
+    Route::get('/me/saved-searches', [SavedSearchController::class, 'index']);
+    Route::post('/me/saved-searches', [SavedSearchController::class, 'store']);
+    Route::put('/me/saved-searches/{id}', [SavedSearchController::class, 'update']);
+    Route::delete('/me/saved-searches/{id}', [SavedSearchController::class, 'destroy']);
 
     // Verified facility reviews — submit, helpful-vote, facility
     // response. Verification is auto-detected when an admission record
