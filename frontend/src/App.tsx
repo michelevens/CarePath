@@ -35,6 +35,7 @@ const MedicaidEligibilityPage = lazy(() => import("@/pages/MedicaidEligibilityPa
 const VaEligibilityPage = lazy(() => import("@/pages/VaEligibilityPage").then(m => ({ default: m.VaEligibilityPage })))
 const SecuritySettingsPage = lazy(() => import("@/pages/SecuritySettingsPage").then(m => ({ default: m.SecuritySettingsPage })))
 const ProfileSettingsPage = lazy(() => import("@/pages/ProfileSettingsPage").then(m => ({ default: m.ProfileSettingsPage })))
+const MessagesPage = lazy(() => import("@/pages/MessagesPage").then(m => ({ default: m.MessagesPage })))
 
 const FamilyDashboard = lazy(() => import("@/portals/family/FamilyDashboard").then(m => ({ default: m.FamilyDashboard })))
 const ResidentDashboard = lazy(() => import("@/portals/resident/ResidentDashboard").then(m => ({ default: m.ResidentDashboard })))
@@ -138,6 +139,22 @@ function App() {
           element={
             <ProtectedRoute>
               <ProfileSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages/:id"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
             </ProtectedRoute>
           }
         />

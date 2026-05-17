@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FacilityClaimController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicAdvisorController;
 use App\Http\Controllers\StripeWebhookController;
@@ -108,6 +109,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/notifications/{id}/mark-read', [AuthController::class, 'markNotificationRead']);
     Route::post('/me/notifications/mark-all-read', [AuthController::class, 'markAllNotificationsRead']);
     Route::post('/me/active-facility', [AuthController::class, 'setActiveFacility']);
+
+    // In-app messaging — inbox, thread, send. Broadcasts are
+    // role-gated inside the controller.
+    Route::get('/messaging/conversations', [MessagingController::class, 'index']);
+    Route::post('/messaging/conversations', [MessagingController::class, 'store']);
+    Route::get('/messaging/conversations/{id}', [MessagingController::class, 'show']);
+    Route::post('/messaging/conversations/{id}/messages', [MessagingController::class, 'sendMessage']);
+    Route::post('/messaging/broadcast', [MessagingController::class, 'broadcast']);
     Route::get('/me/profile', [ProfileController::class, 'show']);
     Route::put('/me/profile', [ProfileController::class, 'update']);
     Route::post('/me/complete-onboarding', [ProfileController::class, 'completeOnboarding']);

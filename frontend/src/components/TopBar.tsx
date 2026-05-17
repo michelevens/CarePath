@@ -7,6 +7,7 @@ import {
   HelpCircle,
   LogOut,
   Menu,
+  MessageSquare,
   Search,
   Settings,
   ShieldCheck,
@@ -89,6 +90,13 @@ export function TopBar({
 
       <div className="ml-auto flex items-center gap-1.5">
         <FacilitySearch />
+        <Link
+          to="/messages"
+          title="Messages"
+          className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Link>
         <NotificationsBell />
         <Link
           to={`/${portal}/help`}
