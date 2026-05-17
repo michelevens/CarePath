@@ -8,6 +8,7 @@ import { AiChatWidget } from "@/components/AiChatWidget"
 import { OnboardingWizard } from "@/components/OnboardingWizard"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 /**
  * Route-based code splitting. LandingPage and NotFoundPage stay eager
@@ -99,8 +100,9 @@ function RouteFallback() {
 
 function App() {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
+    <ErrorBoundary label="Page failed to load">
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/search" element={<SearchPage />} />
@@ -226,12 +228,18 @@ function App() {
           </Route>
         ))}
 
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-      <PWAPrompt />
-      <AiChatWidget />
-      <OnboardingWizard />
-    </Suspense>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+      {/*
+        Global widgets are wrapped in silent ErrorBoundaries so a bug
+        in any of them can't blank the whole app (a single AiChatWidget
+        hooks-violation took every route to blank screens on 2026-05-17).
+      */}
+      <ErrorBoundary silent><PWAPrompt /></ErrorBoundary>
+      <ErrorBoundary silent><AiChatWidget /></ErrorBoundary>
+      <ErrorBoundary silent><OnboardingWizard /></ErrorBoundary>
+    </ErrorBoundary>
   )
 }
 

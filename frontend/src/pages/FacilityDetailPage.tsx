@@ -670,48 +670,50 @@ function PhotoGallery({ photos, facilityName }: { photos: Photo[]; facilityName:
   )
 }
 
+function fmtMoney(cents: number) {
+  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+}
+
+function cadenceLabel(c: string) {
+  return c === "monthly" ? "/mo" : c === "one_time" ? " one-time" : "/visit"
+}
+
+function PricingSection({ title, items }: { title: string; items: PricingTier[] }) {
+  if (items.length === 0) return null
+  return (
+    <div>
+      <div className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {title}
+      </div>
+      <ul className="mt-1 divide-y rounded-md border bg-card">
+        {items.map((t) => (
+          <li key={t.id} className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+            <div className="min-w-0">
+              <div className="text-sm font-medium">{t.name}</div>
+              {t.notes && <div className="text-xs text-muted-foreground">{t.notes}</div>}
+            </div>
+            <div className="shrink-0 text-sm font-semibold tabular-nums">
+              {fmtMoney(t.amount_cents)}
+              <span className="font-normal text-muted-foreground">
+                {cadenceLabel(t.billing_cadence)}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function PricingBreakdown({ tiers }: { tiers: PricingTier[] }) {
   if (tiers.length === 0) {
     return null
   }
 
-  const fmtMoney = (cents: number) =>
-    `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-
-  const cadenceLabel = (c: string) =>
-    c === "monthly" ? "/mo" : c === "one_time" ? " one-time" : "/visit"
-
   const baseRates = tiers.filter((t) => t.tier_type === "base")
   const adders = tiers.filter((t) => t.tier_type === "level_adder")
   const ancillaries = tiers.filter((t) => t.tier_type === "ancillary")
   const fees = tiers.filter((t) => t.tier_type === "community_fee")
-
-  const Section = ({ title, items }: { title: string; items: PricingTier[] }) => {
-    if (items.length === 0) return null
-    return (
-      <div>
-        <div className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {title}
-        </div>
-        <ul className="mt-1 divide-y rounded-md border bg-card">
-          {items.map((t) => (
-            <li key={t.id} className="flex items-baseline justify-between gap-4 px-3 py-2.5">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">{t.name}</div>
-                {t.notes && <div className="text-xs text-muted-foreground">{t.notes}</div>}
-              </div>
-              <div className="shrink-0 text-sm font-semibold tabular-nums">
-                {fmtMoney(t.amount_cents)}
-                <span className="font-normal text-muted-foreground">
-                  {cadenceLabel(t.billing_cadence)}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
-  }
 
   return (
     <section>
@@ -720,10 +722,10 @@ function PricingBreakdown({ tiers }: { tiers: PricingTier[] }) {
         <span className="text-xs text-muted-foreground">No hidden fees, no surprises.</span>
       </div>
       <div className="mt-3 space-y-4">
-        <Section title="Base rates" items={baseRates} />
-        <Section title="Level-of-care adders" items={adders} />
-        <Section title="Ancillary services" items={ancillaries} />
-        <Section title="Community fees" items={fees} />
+        <PricingSection title="Base rates" items={baseRates} />
+        <PricingSection title="Level-of-care adders" items={adders} />
+        <PricingSection title="Ancillary services" items={ancillaries} />
+        <PricingSection title="Community fees" items={fees} />
       </div>
     </section>
   )
