@@ -35,6 +35,7 @@ import { FamilyProModal } from "@/components/FamilyProModal"
 import { MatchScoreBadge, TrustChip } from "@/components/MatchChips"
 import { MatchPrefsModal } from "@/components/MatchPrefsModal"
 import { ServiceTypeHelper } from "@/components/ServiceTypeHelper"
+import { AiSearchBar } from "@/components/AiSearchBar"
 import { SERVICE_TYPE_LABEL, metaFor } from "@/lib/serviceTypes"
 import { Flag, Info, Sparkles, Users } from "lucide-react"
 
@@ -312,7 +313,10 @@ export function SearchPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1fr_400px]">
+      <div className="mx-auto max-w-7xl px-6 pt-6">
+        <AiSearchBar contextZip={zip || origin?.zip} contextState={state || origin?.state || undefined} />
+      </div>
+      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4">
           <SavedSearchesStrip />
           <SavedFacilitiesStrip />

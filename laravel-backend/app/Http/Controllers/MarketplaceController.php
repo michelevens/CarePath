@@ -7,6 +7,7 @@ use App\Models\Bed;
 use App\Models\Facility;
 use App\Models\Lead;
 use App\Models\Tour;
+use App\Services\AiSearchService;
 use App\Services\CostProjectionService;
 use App\Services\FacilityTrustService;
 use App\Services\FamilyMatchScoreService;
@@ -276,6 +277,36 @@ class MarketplaceController extends Controller
             'data' => $rows,
             'origin' => $origin,
             'radius_miles' => $origin ? $radiusMiles : null,
+        ]);
+    }
+
+    /**
+     * POST /api/marketplace/ai-search
+     *
+     * Translate plain-English ("memory care in west Phoenix under $7k
+     * that takes Medicaid waiver") into the same filter shape the
+     * /facilities endpoint already understands. The frontend then
+     * navigates to /search with those filters set.
+     *
+     * Rate-limited at the route level (10 / minute / IP).
+     */
+    public function aiSearch(Request $request, AiSearchService $ai): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['required', 'string', 'min:3', 'max:1000'],
+            'context' => ['nullable', 'array'],
+            'context.origin_zip' => ['nullable', 'string', 'max:10'],
+            'context.origin_state' => ['nullable', 'string', 'size:2'],
+        ]);
+
+        $result = $ai->parse($data['q'], $data['context'] ?? null);
+
+        return response()->json([
+            'data' => [
+                'filters' => $result['filters'],
+                'explain' => $result['explain'],
+                'stubbed' => $result['stubbed'],
+            ],
         ]);
     }
 

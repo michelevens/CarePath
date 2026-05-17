@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 import { TrustStrip } from "@/components/TrustStrip"
+import { AiSearchBar } from "@/components/AiSearchBar"
 
 const CARE_TYPES = [
   {
@@ -244,6 +245,15 @@ export function LandingPage() {
             Search
           </Button>
         </form>
+
+        <div className="mx-auto mt-5 flex max-w-2xl items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          <span>Or describe what you need</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div className="mx-auto mt-3 max-w-2xl">
+          <AiSearchBar hero />
+        </div>
 
           <TrustStrip className="mt-10" />
         </div>

@@ -75,6 +75,12 @@ Route::prefix('marketplace')->group(function () {
     Route::post('/tours', [MarketplaceController::class, 'bookTour']);
     Route::post('/cost-projection', [MarketplaceController::class, 'costProjection']);
     Route::post('/leads', [MarketplaceController::class, 'captureLead']);
+
+    // Natural-language search — translate "memory care in west Phoenix
+    // under $7k that takes Medicaid" into the structured filters above.
+    // Rate-limited so we don't burn Anthropic credits on abuse.
+    Route::post('/ai-search', [MarketplaceController::class, 'aiSearch'])
+        ->middleware('throttle:10,1');
     Route::get('/guides', [GuideController::class, 'index']);
     Route::post('/guides/{slug}/download', [GuideController::class, 'download']);
 
