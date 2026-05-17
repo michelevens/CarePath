@@ -199,6 +199,30 @@ export function ComparePage() {
         </div>
         <FamilyProModal open={proOpen} onClose={() => setProOpen(false)} trigger="compare" />
 
+        {/* Always-visible explainer for the family-decision PDF —
+            previously hidden until 2+ facilities were added, so users
+            wondering "where is the PDF?" had no way to find it. */}
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-violet-200 bg-violet-50/40 p-4">
+          <div className="flex items-start gap-3">
+            <Download className="mt-0.5 h-5 w-5 shrink-0 text-violet-700" />
+            <div>
+              <div className="text-sm font-semibold text-violet-900">
+                Free family-decision PDF
+              </div>
+              <p className="mt-0.5 text-xs text-violet-900/80">
+                Pick {Math.max(0, 2 - facilities.length)} more facility{facilities.length === 1 ? "" : facilities.length === 0 ? "ies" : "ies"} to
+                download a branded one-page comparison with 5-year cost projections per facility.
+                Share with siblings, take to tours.
+              </p>
+            </div>
+          </div>
+          {facilities.length < 2 && (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/search">Find facilities</Link>
+            </Button>
+          )}
+        </div>
+
         {loading && (
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />

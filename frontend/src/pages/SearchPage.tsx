@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowRight,
+  Bell,
+  BellOff,
   BookmarkPlus,
   Building2,
   Check,
+  Download,
   GitCompareArrows,
   Heart,
   Loader2,
@@ -36,6 +39,7 @@ import { MatchScoreBadge, TrustChip } from "@/components/MatchChips"
 import { MatchPrefsModal } from "@/components/MatchPrefsModal"
 import { ServiceTypeHelper } from "@/components/ServiceTypeHelper"
 import { AiSearchBar } from "@/components/AiSearchBar"
+import { NearMeButton } from "@/components/NearMeButton"
 import { SERVICE_TYPE_LABEL, metaFor } from "@/lib/serviceTypes"
 import { Flag, Info, Sparkles, Users } from "lucide-react"
 
@@ -356,7 +360,7 @@ export function SearchPage() {
                 <div>
                   <div className="flex items-baseline justify-between gap-2">
                     <label className="text-xs font-medium text-muted-foreground">ZIP</label>
-                    <UseMyLocationButton onZip={setZip} />
+                    <NearMeButton variant="compact" onZip={setZip} />
                   </div>
                   <input
                     type="text"
@@ -685,71 +689,10 @@ function ActiveFilterPills(props: {
   )
 }
 
-/**
- * "Use my location" — pulls the browser geolocation, hits the
- * reverse-zip endpoint, and sets the ZIP filter. Fails silent +
- * inline (no annoying alerts) since geolocation can be denied
- * without it being an error.
- */
-function UseMyLocationButton({ onZip }: { onZip: (zip: string) => void }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const onClick = () => {
-    if (busy) return
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setError("Not supported in this browser")
-      return
-    }
-    setBusy(true)
-    setError(null)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const r = await api.get<{ data: { zip: string } | null }>(
-            "/marketplace/reverse-zip",
-            { params: { lat: pos.coords.latitude, lon: pos.coords.longitude } },
-          )
-          if (r.data?.data?.zip) {
-            onZip(r.data.data.zip)
-          } else {
-            setError("Couldn't find ZIP")
-          }
-        } catch {
-          setError("Couldn't find ZIP")
-        } finally {
-          setBusy(false)
-        }
-      },
-      () => {
-        setBusy(false)
-        setError("Location denied")
-      },
-      { timeout: 8000, maximumAge: 60_000 },
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      className="inline-flex items-center gap-1 text-[11px] text-violet-700 hover:underline disabled:opacity-50"
-      title="Use my browser location"
-    >
-      {busy ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <MapPin className="h-3 w-3" />
-      )}
-      {error ?? "Use my location"}
-    </button>
-  )
-}
-
 function CompareBar() {
   const compare = useCompare()
   if (compare.list.length === 0) return null
+  const needsMore = Math.max(0, 2 - compare.list.length)
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
       <div className="pointer-events-auto flex max-w-3xl flex-1 items-center gap-3 rounded-full border bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur">
@@ -757,6 +700,11 @@ function CompareBar() {
           <GitCompareArrows className="h-4 w-4 shrink-0 text-primary" />
           <span className="text-sm font-medium">
             {compare.list.length} of {compare.max} to compare
+            {needsMore > 0 && (
+              <span className="ml-1 text-xs font-normal text-violet-700">
+                · add {needsMore} more for a free PDF
+              </span>
+            )}
           </span>
           <div className="hidden flex-1 items-center gap-1.5 overflow-x-auto text-xs text-muted-foreground sm:flex">
             {compare.list.map((e) => (
@@ -779,6 +727,19 @@ function CompareBar() {
         <Button variant="ghost" size="sm" onClick={compare.clear}>
           Clear
         </Button>
+        {compare.list.length >= 2 && (
+          <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex">
+            <a
+              href={`${import.meta.env.VITE_API_URL ?? "/api"}/marketplace/compare/pdf?${compare.list.map((e) => `ids[]=${e.id}`).join("&")}`}
+              target="_blank"
+              rel="noreferrer"
+              title="One-page family-decision PDF with 5-yr cost projection"
+            >
+              <Download className="h-4 w-4" />
+              PDF
+            </a>
+          </Button>
+        )}
         <Button asChild size="sm" disabled={compare.list.length < 2}>
           <Link to={`/compare?ids=${compare.list.map((e) => e.id).join(",")}`}>
             Compare
@@ -1102,6 +1063,26 @@ function SavedSearchesStrip() {
           >
             {s.name}
           </button>
+          {s.persisted && (
+            <button
+              type="button"
+              onClick={() => saved.toggleAlerts(s.id, !s.alerts_push)}
+              aria-label={s.alerts_push ? "Turn off alerts" : "Turn on alerts"}
+              title={
+                s.alerts_push
+                  ? "Daily alert is ON — click to disable"
+                  : "Click to get notified when new facilities match"
+              }
+              className={cn(
+                "rounded-full p-0.5 transition-colors",
+                s.alerts_push
+                  ? "text-violet-700 hover:text-violet-900"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {s.alerts_push ? <Bell className="h-3 w-3 fill-violet-500" /> : <BellOff className="h-3 w-3" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => saved.remove(s.id)}

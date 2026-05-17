@@ -27,6 +27,7 @@ import { Meta } from "@/components/Meta"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 import { TrustStrip } from "@/components/TrustStrip"
 import { AiSearchBar } from "@/components/AiSearchBar"
+import { NearMeButton } from "@/components/NearMeButton"
 
 const CARE_TYPES = [
   {
@@ -245,6 +246,17 @@ export function LandingPage() {
             Search
           </Button>
         </form>
+
+        <div className="mx-auto mt-3 flex max-w-2xl items-center justify-center gap-3">
+          <NearMeButton
+            onZip={(zip) => {
+              const p = new URLSearchParams()
+              p.set("zip", zip)
+              p.set("radius", "25")
+              navigate(`/search?${p.toString()}`)
+            }}
+          />
+        </div>
 
         <div className="mx-auto mt-5 flex max-w-2xl items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
           <div className="h-px flex-1 bg-border" />
