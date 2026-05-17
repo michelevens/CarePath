@@ -74,12 +74,15 @@ class ZipLookupService
 
     /**
      * Find the nearest ZIP centroid to a (lat, lon) point. Used by
-     * the "Use my location" affordance on SearchPage. Reads from
-     * zip_centroids only — no external lookup, since we'd need to
-     * download the full ZIP file to do a real nearest-neighbor.
+     * the "Use my location" affordance on SearchPage.
      *
-     * Uses a coarse degree-bbox prefilter (1° ≈ 69 mi) so we don't
-     * scan all 41k US ZIP centroids per request.
+     * Strategy:
+     *   1. Local zip_centroids table (~35mi half-side bbox prefilter
+     *      + argmin on squared distance) — instant when populated.
+     *   2. Nominatim (OpenStreetMap) reverse geocode fallback — free,
+     *      covers all US points, rate-limited to ~1 req/sec/IP. Cache
+     *      the result back into zip_centroids so we only ask once per
+     *      neighborhood.
      */
     public function nearest(float $lat, float $lon): ?array
     {
@@ -91,29 +94,78 @@ class ZipLookupService
             ->limit(500)
             ->get(['zip', 'city', 'state', 'latitude', 'longitude']);
 
-        if ($candidates->isEmpty()) {
+        if ($candidates->isNotEmpty()) {
+            $best = null;
+            $bestDist = INF;
+            foreach ($candidates as $c) {
+                $dLat = (float) $c->latitude - $lat;
+                $dLon = (float) $c->longitude - $lon;
+                $dist = $dLat * $dLat + $dLon * $dLon;
+                if ($dist < $bestDist) {
+                    $bestDist = $dist;
+                    $best = $c;
+                }
+            }
+            return [
+                'zip' => $best->zip,
+                'city' => $best->city,
+                'state' => $best->state,
+                'lat' => (float) $best->latitude,
+                'lon' => (float) $best->longitude,
+            ];
+        }
+
+        // Fallback: Nominatim reverse geocode. Free, no key needed,
+        // but requires a User-Agent and is rate-limited. We cache hits
+        // back into zip_centroids so the next visitor from the same
+        // neighborhood gets the fast path.
+        try {
+            $resp = Http::timeout(5)
+                ->withHeaders([
+                    'User-Agent' => 'CarePath/1.0 (hello@carepath.io)',
+                    'Accept-Language' => 'en-US,en',
+                ])
+                ->get('https://nominatim.openstreetmap.org/reverse', [
+                    'format' => 'json',
+                    'lat' => $lat,
+                    'lon' => $lon,
+                    'zoom' => 10, // city-level — gets the postal code
+                    'addressdetails' => 1,
+                    'countrycodes' => 'us',
+                ]);
+
+            if (! $resp->successful()) return null;
+            $body = $resp->json();
+            $addr = $body['address'] ?? [];
+            $zip = $addr['postcode'] ?? null;
+            if (! $zip || ! preg_match('/^\d{5}/', $zip, $m)) return null;
+            $zip = $m[0];
+            $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['county'] ?? null;
+            // State comes as full name from Nominatim — convert to 2-letter.
+            $state = isset($addr['ISO3166-2-lvl4']) ? substr($addr['ISO3166-2-lvl4'], -2) : null;
+
+            // Cache back so subsequent calls are instant.
+            DB::table('zip_centroids')->updateOrInsert(
+                ['zip' => $zip],
+                [
+                    'city' => $city,
+                    'state' => $state,
+                    'latitude' => (float) ($body['lat'] ?? $lat),
+                    'longitude' => (float) ($body['lon'] ?? $lon),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+
+            return [
+                'zip' => $zip,
+                'city' => $city,
+                'state' => $state,
+                'lat' => (float) ($body['lat'] ?? $lat),
+                'lon' => (float) ($body['lon'] ?? $lon),
+            ];
+        } catch (\Throwable) {
             return null;
         }
-
-        $best = null;
-        $bestDist = INF;
-        foreach ($candidates as $c) {
-            $dLat = (float) $c->latitude - $lat;
-            $dLon = (float) $c->longitude - $lon;
-            // Squared distance is sufficient for argmin — skip sqrt.
-            $dist = $dLat * $dLat + $dLon * $dLon;
-            if ($dist < $bestDist) {
-                $bestDist = $dist;
-                $best = $c;
-            }
-        }
-
-        return $best ? [
-            'zip' => $best->zip,
-            'city' => $best->city,
-            'state' => $best->state,
-            'lat' => (float) $best->latitude,
-            'lon' => (float) $best->longitude,
-        ] : null;
     }
 }

@@ -163,6 +163,11 @@ export function SearchPage() {
   const [activeBbox, setActiveBbox] = useState<string | null>(
     () => urlParams.get("bbox")
   )
+  // Fullscreen map overlay for mobile — desktop has the sticky map in
+  // the right rail, but on phones the map was hidden entirely. This
+  // is the "View on map" affordance that unlocks drag-to-refine on
+  // mobile too.
+  const [mobileMapOpen, setMobileMapOpen] = useState(false)
 
   // Match preferences live in localStorage so they survive navigation
   // and don't bloat the URL. When set, every facility gets a 0-100
@@ -508,7 +513,18 @@ export function SearchPage() {
                 </span>
               ) : null}
             </h1>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Mobile-only "View on map" — desktop has the map in
+                  the right rail, so this button hides at lg+. */}
+              <button
+                type="button"
+                onClick={() => setMobileMapOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-muted/40 lg:hidden"
+                title="Open the map view"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                Map
+              </button>
               <button
                 type="button"
                 onClick={() => setMatchOpen(true)}
@@ -521,7 +537,7 @@ export function SearchPage() {
                 title="Set what matters so we can show a match score"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                {matchPrefs ? "Match preferences ✓" : "Match preferences"}
+                {matchPrefs ? "Match prefs ✓" : "Match prefs"}
               </button>
               {hasAnyFilter && (
                 <SaveSearchButton
@@ -618,6 +634,51 @@ export function SearchPage() {
         onClose={() => setMatchOpen(false)}
         onSave={saveMatchPrefs}
       />
+
+      {/* Mobile fullscreen map overlay — unlocks drag-to-refine on
+          phones since the sticky desktop map is lg-only. */}
+      {mobileMapOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden">
+          <div className="flex items-center justify-between border-b bg-card px-4 py-3">
+            <div className="text-sm font-semibold">
+              {results.length} {results.length === 1 ? "facility" : "facilities"} on map
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileMapOpen(false)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close map"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="relative flex-1">
+            <FacilityMap
+              facilities={results}
+              origin={origin}
+              radiusMiles={origin ? Number(radiusMiles) : null}
+              onBoundsChange={(b) => {
+                const bbox = `${b.minLat.toFixed(4)},${b.minLon.toFixed(4)},${b.maxLat.toFixed(4)},${b.maxLon.toFixed(4)}`
+                setPendingBbox(bbox === activeBbox ? null : bbox)
+              }}
+            />
+            {pendingBbox && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveBbox(pendingBbox)
+                  setZip("")
+                  setPendingBbox(null)
+                }}
+                className="absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold shadow-lg ring-1 ring-violet-200"
+              >
+                <Sparkles className="mr-1 inline h-3 w-3 text-violet-600" />
+                Search this area
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -694,7 +755,7 @@ function CompareBar() {
   if (compare.list.length === 0) return null
   const needsMore = Math.max(0, 2 - compare.list.length)
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
       <div className="pointer-events-auto flex max-w-3xl flex-1 items-center gap-3 rounded-full border bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur">
         <div className="flex flex-1 items-center gap-2 overflow-hidden">
           <GitCompareArrows className="h-4 w-4 shrink-0 text-primary" />

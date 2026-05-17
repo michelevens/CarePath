@@ -198,15 +198,15 @@ export function LandingPage() {
               "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 18%, transparent), transparent)",
           }}
         />
-        <div className="mx-auto max-w-7xl px-6 py-20 text-center md:py-28">
+        <div className="mx-auto max-w-7xl px-4 py-14 text-center sm:px-6 sm:py-20 md:py-28">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border bg-accent/60 px-3 py-1 text-xs font-medium text-accent-foreground">
             <Sparkles className="h-3.5 w-3.5" />
             Live CMS data · No lead-selling
           </div>
-          <h1 className="mt-6 text-balance text-5xl font-semibold tracking-tight md:text-6xl">
+          <h1 className="mt-5 text-balance text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
             Find the right long-term care.
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground">
+          <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-muted-foreground sm:mt-6 sm:text-lg">
             8,400+ real facilities. Live availability. CMS Five-Star ratings.
             Transparent pricing.{" "}
             <span className="font-medium text-foreground">No lead-selling, ever.</span>
@@ -214,7 +214,7 @@ export function LandingPage() {
 
         <form
           onSubmit={onSubmit}
-          className="mx-auto mt-10 flex max-w-2xl flex-col gap-2 rounded-2xl border bg-card p-2 shadow-sm sm:flex-row sm:rounded-full"
+          className="mx-auto mt-8 flex max-w-2xl flex-col gap-2 rounded-2xl border bg-card p-2 shadow-sm md:flex-row md:rounded-full"
         >
           <FacilitySuggest
             value={query}
@@ -224,10 +224,10 @@ export function LandingPage() {
             placeholder="City, ZIP, or facility name"
             size="lg"
             leadingIcon="map"
-            className="rounded-lg sm:rounded-full"
+            className="rounded-lg md:rounded-full"
           />
-          <div className="hidden h-8 w-px bg-border sm:block self-center" />
-          <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 sm:rounded-full">
+          <div className="hidden h-8 w-px bg-border self-center md:block" />
+          <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 md:rounded-full">
             <Building className="h-5 w-5 shrink-0 text-muted-foreground" />
             <select
               value={careType}
@@ -241,7 +241,7 @@ export function LandingPage() {
               <option value="ccrc">Continuing Care</option>
             </select>
           </div>
-          <Button type="submit" size="lg" className="rounded-lg sm:rounded-full">
+          <Button type="submit" size="lg" className="rounded-lg md:rounded-full">
             <Search className="h-4 w-4" />
             Search
           </Button>
@@ -276,16 +276,16 @@ export function LandingPage() {
         <h2 className="text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
           Browse by care type
         </h2>
-        <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {CARE_TYPES.map((c) => (
             <Link
               key={c.type}
               to={`/search?type=${c.type}`}
-              className="hover-lift group block rounded-xl border bg-card p-5"
+              className="hover-lift group block rounded-xl border bg-card p-4 sm:p-5"
             >
-              <c.icon className="h-7 w-7 text-primary" />
-              <div className="mt-3 font-semibold">{c.label}</div>
-              <div className="mt-1 text-sm text-muted-foreground">{c.description}</div>
+              <c.icon className="h-6 w-6 text-primary sm:h-7 sm:w-7" />
+              <div className="mt-2 text-sm font-semibold sm:mt-3 sm:text-base">{c.label}</div>
+              <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{c.description}</div>
             </Link>
           ))}
         </div>
