@@ -4,6 +4,7 @@ use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FacilityClaimController;
+use App\Http\Controllers\FacilityReviewController;
 use App\Http\Controllers\GuideController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
@@ -305,6 +306,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // surface that replaces APFM's advisor-callback-every-3-days flow.
     Route::get('/family/placements', [FamilyPlacementController::class, 'index']);
     Route::get('/family/placements/{id}', [FamilyPlacementController::class, 'show']);
+
+    // Verified facility reviews — submit, helpful-vote, facility
+    // response. Verification is auto-detected when an admission record
+    // links the auth user's email to the facility.
+    Route::post('/facilities/{slug}/reviews', [FacilityReviewController::class, 'store'])
+        ->middleware('throttle:5,60'); // 5 reviews/hr/user — abuse cap
+    Route::post('/reviews/{id}/helpful', [FacilityReviewController::class, 'toggleHelpful'])
+        ->middleware('throttle:30,60');
+    Route::post('/facility/reviews/{id}/respond', [FacilityReviewController::class, 'respond']);
 
     // Placement-advisor / referral-partner portal
     Route::prefix('referral')

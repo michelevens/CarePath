@@ -12,11 +12,15 @@ class FacilityReview extends Model
     use Auditable, HasUuids;
 
     protected $fillable = [
-        'facility_id', 'resident_id', 'author_name', 'author_relationship',
+        'facility_id', 'resident_id', 'user_id', 'verified_via_admission_id',
+        'author_name', 'author_relationship',
         'rating',
         'rating_cleanliness', 'rating_friendliness', 'rating_care',
         'rating_staff', 'rating_meals', 'rating_activities', 'rating_value',
-        'title', 'body', 'is_verified', 'stay_started_at', 'is_published',
+        'title', 'body', 'photos',
+        'is_verified', 'stay_started_at', 'is_published',
+        'facility_response', 'facility_response_by_user_id', 'facility_responded_at',
+        'helpful_count', 'moderation_status', 'moderation_notes',
     ];
 
     protected $casts = [
@@ -31,6 +35,9 @@ class FacilityReview extends Model
         'is_verified' => 'boolean',
         'is_published' => 'boolean',
         'stay_started_at' => 'date',
+        'photos' => 'array',
+        'facility_responded_at' => 'datetime',
+        'helpful_count' => 'integer',
     ];
 
     public function facility(): BelongsTo
@@ -41,5 +48,20 @@ class FacilityReview extends Model
     public function resident(): BelongsTo
     {
         return $this->belongsTo(Resident::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function admission(): BelongsTo
+    {
+        return $this->belongsTo(Admission::class, 'verified_via_admission_id');
+    }
+
+    public function facilityResponder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'facility_response_by_user_id');
     }
 }

@@ -26,6 +26,7 @@ import {
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth"
+import { WriteReviewModal } from "@/components/WriteReviewModal"
 import { useCompare } from "@/lib/useCompare"
 import { useSaved } from "@/lib/useSaved"
 import { Button } from "@/components/ui/button"
@@ -59,9 +60,13 @@ interface Review {
   rating: number
   title: string | null
   body: string
+  photos: Array<{ url: string; caption?: string }> | null
   is_verified: boolean
   stay_started_at: string | null
   created_at: string
+  helpful_count: number
+  facility_response: string | null
+  facility_responded_at: string | null
 }
 
 interface ReviewStats {
@@ -181,6 +186,14 @@ export function FacilityDetailPage() {
     observer.observe(sidebarCardRef.current)
     return () => observer.disconnect()
   }, [facility])
+
+  const loadFacility = () => {
+    if (!slug) return
+    api
+      .get<{ data: Facility }>(`/marketplace/facilities/${slug}`)
+      .then((r) => setFacility(r.data.data))
+      .catch(() => {})
+  }
 
   useEffect(() => {
     if (!slug) return
@@ -421,7 +434,13 @@ export function FacilityDetailPage() {
               defaultLevel={facility.pricing_tiers[0]?.level_of_care ?? "assisted"}
             />
 
-            <ReviewsSection reviews={facility.reviews} stats={facility.review_stats} />
+            <ReviewsSection
+              reviews={facility.reviews}
+              stats={facility.review_stats}
+              facilitySlug={facility.slug}
+              facilityName={facility.name}
+              onReviewSubmitted={() => loadFacility()}
+            />
 
             <LocationSection facility={facility} />
 
@@ -731,14 +750,49 @@ function PricingBreakdown({ tiers }: { tiers: PricingTier[] }) {
   )
 }
 
-function ReviewsSection({ reviews, stats }: { reviews: Review[]; stats: ReviewStats }) {
+function ReviewsSection({
+  reviews,
+  stats,
+  facilitySlug,
+  facilityName,
+  onReviewSubmitted,
+}: {
+  reviews: Review[]
+  stats: ReviewStats
+  facilitySlug: string
+  facilityName: string
+  onReviewSubmitted: () => void
+}) {
+  const { user } = useAuth()
+  const [writeOpen, setWriteOpen] = useState(false)
+
+  const writeCta = user ? (
+    <Button size="sm" variant="outline" onClick={() => setWriteOpen(true)}>
+      Write a review
+    </Button>
+  ) : (
+    <Button size="sm" variant="outline" asChild>
+      <Link to={`/login?next=/facility/${facilitySlug}`}>Sign in to review</Link>
+    </Button>
+  )
+
   if (reviews.length === 0) {
     return (
       <section>
-        <h2 className="text-lg font-semibold">Reviews</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">Reviews</h2>
+          {writeCta}
+        </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          No reviews yet for this facility.
+          No reviews yet for this facility. Be the first.
         </p>
+        <WriteReviewModal
+          open={writeOpen}
+          onClose={() => setWriteOpen(false)}
+          facilitySlug={facilitySlug}
+          facilityName={facilityName}
+          onSubmitted={onReviewSubmitted}
+        />
       </section>
     )
   }
@@ -747,11 +801,21 @@ function ReviewsSection({ reviews, stats }: { reviews: Review[]; stats: ReviewSt
     <section>
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-semibold">Reviews</h2>
-        <span className="text-xs text-muted-foreground">
-          {stats.verified_count} of {stats.count} verified ·{" "}
-          <Shield className="inline h-3 w-3" /> tied to confirmed stays
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {stats.verified_count} of {stats.count} verified ·{" "}
+            <Shield className="inline h-3 w-3" /> tied to confirmed stays
+          </span>
+          {writeCta}
+        </div>
       </div>
+      <WriteReviewModal
+        open={writeOpen}
+        onClose={() => setWriteOpen(false)}
+        facilitySlug={facilitySlug}
+        facilityName={facilityName}
+        onSubmitted={onReviewSubmitted}
+      />
 
       <div className="mt-3 grid gap-3 md:grid-cols-[200px_1fr]">
         <div className="flex flex-col items-center justify-center rounded-md border bg-accent/40 px-4 py-5 text-center">
@@ -790,45 +854,123 @@ function ReviewsSection({ reviews, stats }: { reviews: Review[]; stats: ReviewSt
 
       <div className="mt-4 space-y-3">
         {reviews.map((r) => (
-          <Card key={r.id}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{r.author_name}</span>
-                    {r.is_verified && (
-                      <span className="inline-flex items-center gap-1 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
-                        <ShieldCheck className="h-3 w-3" />
-                        Verified stay
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 text-xs text-muted-foreground capitalize">
-                    {r.author_relationship}
-                    {r.stay_started_at && (
-                      <> · stayed since {new Date(r.stay_started_at).toLocaleDateString()}</>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <Star
-                      key={n}
-                      className={cn(
-                        "h-3.5 w-3.5",
-                        n <= r.rating ? "fill-current" : "text-muted-foreground/30"
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-              {r.title && <h3 className="mt-2 font-medium">{r.title}</h3>}
-              <p className="mt-1 text-sm text-muted-foreground">{r.body}</p>
-            </CardContent>
-          </Card>
+          <ReviewCard key={r.id} review={r} />
         ))}
       </div>
     </section>
+  )
+}
+
+function ReviewCard({ review: r }: { review: Review }) {
+  const [helpfulCount, setHelpfulCount] = useState(r.helpful_count ?? 0)
+  const [voted, setVoted] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const toggleHelpful = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const res = await api.post<{ data: { helpful_count: number; voted: boolean } }>(
+        `/reviews/${r.id}/helpful`
+      )
+      setHelpfulCount(res.data.data.helpful_count)
+      setVoted(res.data.data.voted)
+    } catch {
+      // Silent — non-critical; commonly 401 for logged-out users.
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{r.author_name}</span>
+              {r.is_verified && (
+                <span className="inline-flex items-center gap-1 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
+                  <ShieldCheck className="h-3 w-3" />
+                  Verified stay
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground capitalize">
+              {r.author_relationship}
+              {r.stay_started_at && (
+                <> · stayed since {new Date(r.stay_started_at).toLocaleDateString()}</>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star
+                key={n}
+                className={cn(
+                  "h-3.5 w-3.5",
+                  n <= r.rating ? "fill-current" : "text-muted-foreground/30"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+        {r.title && <h3 className="mt-2 font-medium">{r.title}</h3>}
+        <p className="mt-1 text-sm text-muted-foreground">{r.body}</p>
+
+        {r.photos && r.photos.length > 0 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto">
+            {r.photos.map((p, i) => (
+              <a
+                key={i}
+                href={p.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block shrink-0"
+                title={p.caption ?? ""}
+              >
+                <img
+                  src={p.url}
+                  alt={p.caption ?? "Review photo"}
+                  className="h-24 w-24 rounded-md object-cover ring-1 ring-border hover:opacity-90"
+                  loading="lazy"
+                />
+              </a>
+            ))}
+          </div>
+        )}
+
+        {r.facility_response && (
+          <div className="mt-3 rounded-md border-l-4 border-violet-500 bg-violet-50/40 p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-violet-700">
+              Response from the facility
+              {r.facility_responded_at && (
+                <span className="ml-1 font-normal text-muted-foreground">
+                  · {new Date(r.facility_responded_at).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-foreground">{r.facility_response}</p>
+          </div>
+        )}
+
+        <div className="mt-3 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={toggleHelpful}
+            disabled={busy}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+              voted
+                ? "border-violet-500 bg-violet-50 text-violet-800"
+                : "border-border text-muted-foreground hover:text-foreground"
+            )}
+          >
+            👍 Helpful{helpfulCount > 0 && <span className="ml-1 tabular-nums">({helpfulCount})</span>}
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -997,7 +997,12 @@ class MarketplaceController extends Controller
             ->with([
                 'photos' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
                 'pricingTiers' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
-                'reviews' => fn ($q) => $q->where('is_published', true)->latest()->take(20),
+                'reviews' => fn ($q) => $q
+                    ->where('is_published', true)
+                    ->where('moderation_status', 'approved')
+                    ->orderByDesc('helpful_count')
+                    ->latest()
+                    ->take(30),
                 'amenities' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
             ])
             ->firstOrFail();
