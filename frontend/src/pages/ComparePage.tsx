@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
 import { FamilyProModal } from "@/components/FamilyProModal"
-import { Download, Sparkles } from "lucide-react"
+import { Download } from "lucide-react"
 
 interface CompareFacility {
   id: string
@@ -178,13 +178,16 @@ export function ComparePage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {facilities.length >= 2 && (
-              <Button onClick={() => setProOpen(true)}>
-                <Download className="h-4 w-4" />
-                Export as PDF
-                <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs">
-                  <Sparkles className="h-3 w-3" />
-                  Pro
-                </span>
+              <Button asChild>
+                <a
+                  href={`${import.meta.env.VITE_API_URL ?? "/api"}/marketplace/compare/pdf?${facilities.map((f) => `ids[]=${f.id}`).join("&")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="One-page side-by-side report with 5-year cost projection"
+                >
+                  <Download className="h-4 w-4" />
+                  Download family-decision PDF
+                </a>
               </Button>
             )}
             {facilities.length > 0 && (

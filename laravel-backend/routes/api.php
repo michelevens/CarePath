@@ -65,6 +65,9 @@ Route::prefix('marketplace')->group(function () {
     Route::get('/states/{state}', [MarketplaceController::class, 'state']);
     Route::get('/cities/{state}/{city}', [MarketplaceController::class, 'city']);
     Route::get('/compare', [MarketplaceController::class, 'compare']);
+    // One-click family-decision PDF for 2-4 facilities. Public + ungated
+    // so it can be linked from email signatures, articles, etc.
+    Route::get('/compare/pdf', [MarketplaceController::class, 'comparePdf']);
     Route::get('/facilities/{slug}', [MarketplaceController::class, 'show']);
 
     // Public advisor profile — the page families land on to vet a

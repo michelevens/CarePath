@@ -920,6 +920,112 @@ class MarketplaceController extends Controller
     }
 
     /**
+     * GET /api/marketplace/compare/pdf?ids[]=uuid&ids[]=uuid
+     *
+     * Generates a one-page family-decision PDF comparing 2-4 facilities
+     * side-by-side. Each facility gets a card with name, location,
+     * trust signals, CMS rating, base pricing, and a 5-year blended
+     * cost projection (assisted-living level, modest income, no LTC,
+     * no VA — default scenario so a single click produces a useful
+     * artifact). Families share these with siblings in email; it's a
+     * branded passive distribution channel.
+     */
+    public function comparePdf(Request $request, CostProjectionService $costService): Response
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:2', 'max:4'],
+            'ids.*' => ['string'],
+            // Optional projection overrides — most callers will use defaults.
+            'level_of_care' => ['nullable', 'in:independent,assisted,memory,skilled,hospice'],
+            'months' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'starting_assets_cents' => ['nullable', 'integer', 'min:0'],
+            'monthly_income_cents' => ['nullable', 'integer', 'min:0'],
+            'va_aa_status' => ['nullable', 'in:none,single_veteran,veteran_and_spouse,surviving_spouse'],
+        ]);
+
+        $facilities = Facility::query()
+            ->where('is_active', true)
+            ->whereIn('id', $data['ids'])
+            ->with([
+                'pricingTiers' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                'amenities' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->limit(8),
+            ])
+            ->get();
+
+        if ($facilities->count() < 2) {
+            throw ValidationException::withMessages([
+                'ids' => ['Need at least 2 valid, active facilities to compare.'],
+            ]);
+        }
+
+        $projectionInputs = [
+            'level_of_care' => $data['level_of_care'] ?? 'assisted',
+            'months' => $data['months'] ?? 60,
+            'starting_assets_cents' => $data['starting_assets_cents'] ?? 5_000_000, // $50k default
+            'monthly_income_cents' => $data['monthly_income_cents'] ?? 250_000,     // $2,500 default
+            'medicare_part_a_eligible' => true,
+            'va_aa_status' => $data['va_aa_status'] ?? 'none',
+            'medicaid_eligible_state' => true,
+        ];
+
+        // Compute projection + trust badges per facility once so the
+        // blade template stays presentational.
+        $facilityIds = $facilities->pluck('id');
+        $availability = Bed::query()
+            ->whereIn('facility_id', $facilityIds)
+            ->where('status', 'available')
+            ->selectRaw('facility_id, count(*) as count')
+            ->groupBy('facility_id')
+            ->pluck('count', 'facility_id');
+        $bedUpdated = Bed::query()
+            ->whereIn('facility_id', $facilityIds)
+            ->selectRaw('facility_id, max(updated_at) as last_updated')
+            ->groupBy('facility_id')
+            ->pluck('last_updated', 'facility_id');
+        $photoCounts = DB::table('facility_photos')
+            ->whereIn('facility_id', $facilityIds)
+            ->selectRaw('facility_id, count(*) as photo_count')
+            ->groupBy('facility_id')
+            ->pluck('photo_count', 'facility_id');
+        $claimed = DB::table('facility_claims')
+            ->whereIn('facility_id', $facilityIds)
+            ->where('status', 'approved')
+            ->pluck('facility_id')
+            ->flip();
+
+        $cards = $facilities->map(function ($f) use ($projectionInputs, $costService, $availability, $bedUpdated, $photoCounts, $claimed) {
+            $arr = $f->toArray();
+            $arr['available_beds'] = (int) ($availability[$f->id] ?? 0);
+            try {
+                $projection = $costService->project(array_merge($projectionInputs, [
+                    'facility_slug' => $f->slug,
+                ]));
+            } catch (\Throwable $e) {
+                $projection = null;
+            }
+            return [
+                'facility' => $f,
+                'arr' => $arr,
+                'quality_score' => QualityScoreService::score($arr),
+                'trust_badges' => FacilityTrustService::badges($f, [
+                    'photo_count' => (int) ($photoCounts[$f->id] ?? 0),
+                    'is_claimed' => isset($claimed[$f->id]),
+                    'bed_updated_at' => $bedUpdated[$f->id] ?? null,
+                ]),
+                'projection' => $projection,
+            ];
+        });
+
+        $pdf = Pdf::loadView('brochures.comparison', [
+            'cards' => $cards,
+            'projection_inputs' => $projectionInputs,
+            'today' => now()->format('F j, Y'),
+        ])->setPaper('letter', 'landscape');
+
+        return $pdf->download('carepath-comparison-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
      * GET /api/marketplace/facilities/{slug}/brochure
      *
      * One-page branded PDF summarizing the facility — for printing,
