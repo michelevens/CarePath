@@ -8,6 +8,8 @@ use App\Models\Facility;
 use App\Models\Lead;
 use App\Models\Tour;
 use App\Services\CostProjectionService;
+use App\Services\FacilityTrustService;
+use App\Services\FamilyMatchScoreService;
 use App\Services\QualityScoreService;
 use App\Services\SponsoredListingService;
 use App\Services\ZipLookupService;
@@ -47,8 +49,20 @@ class MarketplaceController extends Controller
             'medicaid_only' => ['nullable', 'boolean'],
             'min_five_star' => ['nullable', 'integer', 'min:1', 'max:5'],
             'q' => ['nullable', 'string', 'max:120'],
-            'sort' => ['nullable', 'in:recommended,rating,price_asc,price_desc,distance'],
+            'sort' => ['nullable', 'in:recommended,rating,price_asc,price_desc,distance,match'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
+
+            // Match preferences — when present, each facility gets a
+            // family-specific score + reason list. `sort=match` then
+            // re-ranks by that score. Any null/missing preference is
+            // simply excluded from scoring (weights redistribute).
+            'match' => ['nullable', 'array'],
+            'match.care_type' => ['nullable', 'string'],
+            'match.payer_required' => ['nullable', 'in:medicaid,medicare,va'],
+            'match.max_budget_cents' => ['nullable', 'integer', 'min:0'],
+            'match.distance_target_miles' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'match.special_needs' => ['nullable', 'array'],
+            'match.special_needs.*' => ['string', 'max:50'],
         ]);
 
         // ZIP → centroid lookup
@@ -61,11 +75,14 @@ class MarketplaceController extends Controller
             ->where('is_active', true)
             ->select([
                 'id', 'name', 'slug', 'type', 'city', 'state', 'zip',
+                'address_line_1', 'phone', 'email', 'website',
                 'latitude', 'longitude',
                 'medicaid_certified', 'medicare_certified',
                 'cms_five_star_overall', 'cms_five_star_health_inspection',
                 'cms_five_star_staffing', 'cms_five_star_quality',
+                'cms_certification_number', 'subscription_tier',
                 'total_beds', 'price_from_cents',
+                'updated_at',
             ]);
 
         if (! empty($data['state'])) {
@@ -171,14 +188,43 @@ class MarketplaceController extends Controller
         }
 
         // Attach live bed availability.
+        $facilityIds = $facilities->pluck('id');
         $availability = Bed::query()
-            ->whereIn('facility_id', $facilities->pluck('id'))
+            ->whereIn('facility_id', $facilityIds)
             ->where('status', 'available')
             ->selectRaw('facility_id, count(*) as available_count')
             ->groupBy('facility_id')
             ->pluck('available_count', 'facility_id');
 
-        $rows = $facilities->map(function ($f) use ($availability) {
+        // Last-updated timestamp per facility on the beds table — used
+        // by FacilityTrustService to emit the "Live availability" badge
+        // only when the bed feed is actually fresh (≤ 14 days).
+        $bedUpdated = Bed::query()
+            ->whereIn('facility_id', $facilityIds)
+            ->selectRaw('facility_id, max(updated_at) as last_updated')
+            ->groupBy('facility_id')
+            ->pluck('last_updated', 'facility_id');
+
+        // Photo counts in one batched query (avoids N+1 on cards).
+        $photoCounts = DB::table('facility_photos')
+            ->whereIn('facility_id', $facilityIds)
+            ->selectRaw('facility_id, count(*) as photo_count')
+            ->groupBy('facility_id')
+            ->pluck('photo_count', 'facility_id');
+
+        // Claimed-status lookup (any approved claim per facility).
+        $claimed = DB::table('facility_claims')
+            ->whereIn('facility_id', $facilityIds)
+            ->where('status', 'approved')
+            ->pluck('facility_id')
+            ->flip(); // O(1) lookup as array<id, position>
+
+        // Optional: family match preferences. Compute once per row and
+        // surface both score + reasons so the UI can render an
+        // explainable badge instead of an opaque number.
+        $matchPrefs = $data['match'] ?? null;
+
+        $rows = $facilities->map(function ($f) use ($availability, $bedUpdated, $photoCounts, $claimed, $matchPrefs) {
             $arr = $f->toArray();
             $arr['available_beds'] = (int) ($availability[$f->id] ?? 0);
             if (isset($f->distance_miles)) {
@@ -188,6 +234,22 @@ class MarketplaceController extends Controller
             // Defensive against partial data; service returns null when
             // nothing is computable.
             $arr['quality_score'] = QualityScoreService::score($arr);
+
+            // Family-specific match score (0-100 + explained reasons).
+            // Only present when caller passed `match[...]` preferences.
+            if ($matchPrefs) {
+                $arr['match'] = FamilyMatchScoreService::score($arr, $matchPrefs);
+            }
+
+            // Trust badges — completeness / freshness / verified.
+            // Counts are pre-aggregated above so this stays O(1) per row.
+            $arr['trust_badges'] = FacilityTrustService::badges($f, [
+                'photo_count' => (int) ($photoCounts[$f->id] ?? 0),
+                'is_claimed' => isset($claimed[$f->id]),
+                'bed_updated_at' => $bedUpdated[$f->id] ?? null,
+            ]);
+            $arr['completeness_pct'] = FacilityTrustService::completenessPct($f);
+
             // Surface sponsored status to the frontend so it can render
             // the FTC-required "Sponsored" badge. click_token is the
             // HMAC the frontend must pass back on /sponsored/clicks for
@@ -198,6 +260,17 @@ class MarketplaceController extends Controller
             $arr['sponsored_reason'] = $f->sponsored_reason ?? null;
             return $arr;
         });
+
+        // `sort=match` re-ranks after the row map (we need the computed
+        // score). Sponsored stays pinned on top regardless.
+        if (($data['sort'] ?? null) === 'match' && $matchPrefs) {
+            $rows = $rows
+                ->sortBy(function ($r) {
+                    // Sponsored first, then by descending match score.
+                    return [$r['is_sponsored'] ? 0 : 1, -($r['match']['score'] ?? 0)];
+                })
+                ->values();
+        }
 
         return response()->json([
             'data' => $rows,

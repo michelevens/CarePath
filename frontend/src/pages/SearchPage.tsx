@@ -32,7 +32,27 @@ import { FacilityMap } from "@/components/FacilityMap"
 import { FacilitySuggest, type Suggestion } from "@/components/FacilitySuggest"
 import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
 import { FamilyProModal } from "@/components/FamilyProModal"
+import { MatchScoreBadge, TrustChip } from "@/components/MatchChips"
+import { MatchPrefsModal } from "@/components/MatchPrefsModal"
 import { Flag, Info, Sparkles, Users } from "lucide-react"
+
+interface MatchReason {
+  key: string
+  label: string
+  status: "pass" | "partial" | "fail" | "unknown"
+  weight: number
+}
+
+interface MatchScore {
+  score: number
+  reasons: MatchReason[]
+}
+
+interface TrustBadge {
+  key: string
+  label: string
+  tone: "verified" | "fresh" | "data" | "cms" | "warning"
+}
 
 interface FacilityResult {
   id: string
@@ -52,6 +72,9 @@ interface FacilityResult {
   available_beds: number
   distance_miles?: number
   quality_score: QualityScore | null
+  match?: MatchScore
+  trust_badges?: TrustBadge[]
+  completeness_pct?: number
   is_sponsored: boolean
   sponsored_campaign_id: string | null
   click_token: string | null
@@ -84,7 +107,15 @@ interface SearchResponse {
   radius_miles: number | null
 }
 
-type Sort = "recommended" | "rating" | "price_asc" | "price_desc" | "distance"
+type Sort = "recommended" | "match" | "rating" | "price_asc" | "price_desc" | "distance"
+
+interface MatchPrefs {
+  care_type?: string
+  payer_required?: "medicaid" | "medicare" | "va"
+  max_budget_cents?: number
+  distance_target_miles?: number
+  special_needs?: string[]
+}
 
 const TYPE_LABEL: Record<string, string> = {
   snf: "Skilled Nursing",
@@ -124,8 +155,35 @@ export function SearchPage() {
     () => (urlParams.get("sort") as Sort | null) ?? "recommended"
   )
 
+  // Match preferences live in localStorage so they survive navigation
+  // and don't bloat the URL. When set, every facility gets a 0-100
+  // score + explained reasons surfaced on the card.
+  const [matchPrefs, setMatchPrefs] = useState<MatchPrefs | null>(() => {
+    if (typeof window === "undefined") return null
+    try {
+      const raw = window.localStorage.getItem("carepath:match-prefs")
+      return raw ? (JSON.parse(raw) as MatchPrefs) : null
+    } catch {
+      return null
+    }
+  })
+  const [matchOpen, setMatchOpen] = useState(false)
+
+  const saveMatchPrefs = (next: MatchPrefs | null) => {
+    setMatchPrefs(next)
+    if (typeof window !== "undefined") {
+      if (next) {
+        window.localStorage.setItem("carepath:match-prefs", JSON.stringify(next))
+      } else {
+        window.localStorage.removeItem("carepath:match-prefs")
+      }
+    }
+    // Auto-switch to match sort when prefs first set
+    if (next && sort !== "match") setSort("match")
+  }
+
   const queryParams = useMemo(() => {
-    const p: Record<string, string | number | boolean> = { sort }
+    const p: Record<string, string | number | boolean | string[]> = { sort }
     if (q) p.q = q
     if (state) p.state = state
     if (city) p.city = city
@@ -137,8 +195,18 @@ export function SearchPage() {
     if (medicaidOnly) p.medicaid_only = true
     if (minFiveStar) p.min_five_star = Number(minFiveStar)
     if (maxPriceMonthly) p.max_price_cents = Number(maxPriceMonthly) * 100
+    if (matchPrefs) {
+      // Axios serializes nested objects into match[key]=value query
+      // strings, which is exactly what Laravel's `match.*` validation
+      // rules expect.
+      if (matchPrefs.care_type) p["match[care_type]"] = matchPrefs.care_type
+      if (matchPrefs.payer_required) p["match[payer_required]"] = matchPrefs.payer_required
+      if (matchPrefs.max_budget_cents) p["match[max_budget_cents]"] = matchPrefs.max_budget_cents
+      if (matchPrefs.distance_target_miles) p["match[distance_target_miles]"] = matchPrefs.distance_target_miles
+      if (matchPrefs.special_needs?.length) p["match[special_needs][]"] = matchPrefs.special_needs
+    }
     return p
-  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
+  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort, matchPrefs])
 
   // Sync state → URL (replace, not push, so back button doesn't trap)
   useEffect(() => {
@@ -371,6 +439,20 @@ export function SearchPage() {
               ) : null}
             </h1>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMatchOpen(true)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors",
+                  matchPrefs
+                    ? "border-violet-500 bg-violet-50 text-violet-800"
+                    : "border-border bg-card text-foreground hover:bg-muted/40"
+                )}
+                title="Set what matters so we can show a match score"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {matchPrefs ? "Match preferences ✓" : "Match preferences"}
+              </button>
               {hasAnyFilter && (
                 <SaveSearchButton
                   query={urlParams.toString()}
@@ -386,6 +468,7 @@ export function SearchPage() {
                 onChange={(e) => setSort(e.target.value as Sort)}
                 className="rounded-md border bg-card px-3 py-1.5 text-sm"
               >
+                {matchPrefs && <option value="match">Best match</option>}
                 {origin && <option value="distance">Distance: nearest</option>}
                 <option value="recommended">Recommended</option>
                 <option value="rating">Rating: high to low</option>
@@ -426,6 +509,12 @@ export function SearchPage() {
         </div>
       </div>
       <CompareBar />
+      <MatchPrefsModal
+        open={matchOpen}
+        initial={matchPrefs}
+        onClose={() => setMatchOpen(false)}
+        onSave={saveMatchPrefs}
+      />
     </div>
   )
 }
@@ -592,6 +681,7 @@ function ResultCard({ r }: { r: FacilityResult }) {
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
+                {r.match && <MatchScoreBadge match={r.match} />}
                 <QualityScoreBadge data={r.quality_score} variant="compact" />
                 {r.cms_five_star_overall && (
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -601,6 +691,13 @@ function ResultCard({ r }: { r: FacilityResult }) {
                 )}
               </div>
             </div>
+            {r.trust_badges && r.trust_badges.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                {r.trust_badges.map((b) => (
+                  <TrustChip key={b.key} badge={b} />
+                ))}
+              </div>
+            )}
             <div className="mt-4 flex items-end justify-between">
               <div>
                 {monthly ? (
