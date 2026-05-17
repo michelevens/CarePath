@@ -4,6 +4,8 @@ import { Loader2 } from "lucide-react"
 import { LandingPage } from "@/pages/LandingPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { PWAPrompt } from "@/components/PWAPrompt"
+import { AiChatWidget } from "@/components/AiChatWidget"
+import { OnboardingWizard } from "@/components/OnboardingWizard"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 
@@ -227,6 +229,8 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <PWAPrompt />
+      <AiChatWidget />
+      <OnboardingWizard />
     </Suspense>
   )
 }

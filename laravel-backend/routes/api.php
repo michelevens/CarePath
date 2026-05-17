@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FacilityClaimController;
@@ -117,6 +118,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messaging/conversations/{id}', [MessagingController::class, 'show']);
     Route::post('/messaging/conversations/{id}/messages', [MessagingController::class, 'sendMessage']);
     Route::post('/messaging/broadcast', [MessagingController::class, 'broadcast']);
+
+    // AI assistant — per-user rate-limited inside the controller.
+    Route::post('/ai/chat', [AiChatController::class, 'send']);
     Route::get('/me/profile', [ProfileController::class, 'show']);
     Route::put('/me/profile', [ProfileController::class, 'update']);
     Route::post('/me/complete-onboarding', [ProfileController::class, 'completeOnboarding']);
