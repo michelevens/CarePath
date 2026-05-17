@@ -257,6 +257,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Listing analytics — impressions, detail views, tour requests
         // for the active facility over the last 30 days vs prior 30.
         Route::get('/listing-analytics', [FacilityAnalyticsController::class, 'listing']);
+        // Per-criterion completeness checklist — drives the admin
+        // "Listing completeness coach" widget.
+        Route::get('/listing-completeness', [FacilityAnalyticsController::class, 'completeness']);
 
         // Multi-admin / staff management on the active facility.
         // Gate to facility_admin since only admins should manage

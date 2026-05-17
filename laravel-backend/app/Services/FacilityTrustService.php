@@ -132,18 +132,119 @@ class FacilityTrustService
      */
     public static function completenessPct(Facility|array $facility): int
     {
+        return self::completeness($facility)['percent'];
+    }
+
+    /**
+     * Full completeness breakdown with per-criterion status + per-item
+     * action hint. Drives the admin "Listing completeness coach"
+     * surface — each missing item becomes an actionable next step.
+     *
+     * `photo_count` is an optional explicit override (avoids N+1 when
+     * the caller has the count pre-aggregated).
+     *
+     * @return array{
+     *   percent:int,
+     *   met_count:int,
+     *   total:int,
+     *   items: array<int, array{
+     *     key:string, label:string, status:'met'|'missing', impact:'high'|'medium'|'low',
+     *     hint:string, action_href:string
+     *   }>
+     * }
+     */
+    public static function completeness(Facility|array $facility, ?int $photoCountOverride = null): array
+    {
         $f = is_array($facility) ? $facility : $facility->toArray();
-        $criteria = [
-            'has_phone' => ! empty($f['phone']),
-            'has_email' => ! empty($f['email']),
-            'has_website' => ! empty($f['website']),
-            'has_price' => ! empty($f['price_from_cents']),
-            'has_beds' => ! empty($f['total_beds']),
-            'has_address' => ! empty($f['address_line_1']),
-            'has_coords' => ! empty($f['latitude']) && ! empty($f['longitude']),
-            'has_payer_data' => isset($f['medicaid_certified']) || isset($f['medicare_certified']),
+        $photoCount = $photoCountOverride
+            ?? (! is_array($facility) ? $facility->photos()->where('is_active', true)->count() : 0);
+
+        $items = [
+            [
+                'key' => 'phone', 'label' => 'Phone number',
+                'met' => ! empty($f['phone']),
+                'impact' => 'high',
+                'hint' => 'Families call before they tour. No phone = no inbound calls.',
+                'action_href' => '/admin/data?focus=phone',
+            ],
+            [
+                'key' => 'email', 'label' => 'Public email',
+                'met' => ! empty($f['email']),
+                'impact' => 'medium',
+                'hint' => 'For families who prefer email and for tour-request fallback.',
+                'action_href' => '/admin/data?focus=email',
+            ],
+            [
+                'key' => 'website', 'label' => 'Website URL',
+                'met' => ! empty($f['website']),
+                'impact' => 'medium',
+                'hint' => 'Reinforces credibility; reduces "is this real?" friction.',
+                'action_href' => '/admin/data?focus=website',
+            ],
+            [
+                'key' => 'price', 'label' => 'Published base price',
+                'met' => ! empty($f['price_from_cents']),
+                'impact' => 'high',
+                'hint' => 'Families filter by price. Hidden pricing eliminates you from budget-constrained searches.',
+                'action_href' => '/admin/data?focus=pricing',
+            ],
+            [
+                'key' => 'beds', 'label' => 'Total beds + availability',
+                'met' => ! empty($f['total_beds']),
+                'impact' => 'high',
+                'hint' => 'Drives the "Live availability" badge — strongest trust signal on a card.',
+                'action_href' => '/admin/beds',
+            ],
+            [
+                'key' => 'address', 'label' => 'Street address',
+                'met' => ! empty($f['address_line_1']),
+                'impact' => 'high',
+                'hint' => 'Required for map placement.',
+                'action_href' => '/admin/data?focus=address',
+            ],
+            [
+                'key' => 'coords', 'label' => 'Map coordinates',
+                'met' => ! empty($f['latitude']) && ! empty($f['longitude']),
+                'impact' => 'high',
+                'hint' => 'Auto-geocoded from address — re-verify if blank.',
+                'action_href' => '/admin/data?focus=geocode',
+            ],
+            [
+                'key' => 'payer_data', 'label' => 'Payer acceptance flags',
+                'met' => isset($f['medicaid_certified']) || isset($f['medicare_certified']),
+                'impact' => 'medium',
+                'hint' => 'Drives the Medicaid filter — a top family priority.',
+                'action_href' => '/admin/data?focus=payers',
+            ],
+            [
+                'key' => 'photos', 'label' => '5+ photos',
+                'met' => $photoCount >= 5,
+                'impact' => 'high',
+                'hint' => 'Photo coverage is the #1 conversion lever on a card. Aim for 8+.',
+                'action_href' => '/admin/data?focus=photos',
+            ],
         ];
-        $hit = count(array_filter($criteria));
-        return (int) round(($hit / count($criteria)) * 100);
+
+        $met = 0;
+        $out = [];
+        foreach ($items as $it) {
+            if ($it['met']) $met++;
+            $out[] = [
+                'key' => $it['key'],
+                'label' => $it['label'],
+                'status' => $it['met'] ? 'met' : 'missing',
+                'impact' => $it['impact'],
+                'hint' => $it['hint'],
+                'action_href' => $it['action_href'],
+            ];
+        }
+        $total = count($items);
+
+        return [
+            'percent' => (int) round(($met / $total) * 100),
+            'met_count' => $met,
+            'total' => $total,
+            'items' => $out,
+        ];
     }
 }

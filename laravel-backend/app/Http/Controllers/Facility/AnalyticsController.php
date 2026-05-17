@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Facility;
 
 use App\Http\Controllers\Controller;
+use App\Models\Facility;
 use App\Models\Lead;
+use App\Services\FacilityTrustService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -136,5 +138,36 @@ class AnalyticsController extends Controller
     {
         if ($prior === 0) return $current > 0 ? null : 0.0;
         return round((($current - $prior) / $prior) * 100, 1);
+    }
+
+    /**
+     * GET /api/facility/listing-completeness
+     *
+     * Per-criterion breakdown driving the "completeness coach"
+     * widget. Each missing item has an action_href so the UI can
+     * deep-link to the right edit surface.
+     */
+    public function completeness(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $facilityId = $request->header('X-Facility-Id') ?: $user?->active_facility_id;
+        if (! $facilityId) abort(422, 'No active facility');
+
+        $isAdmin = DB::table('facility_user')
+            ->where('user_id', $user->id)
+            ->where('facility_id', $facilityId)
+            ->where('role', 'admin')
+            ->exists();
+        if (! $isAdmin && ! $user->hasRole('super_admin')) abort(403);
+
+        $facility = Facility::findOrFail($facilityId);
+        $photoCount = DB::table('facility_photos')
+            ->where('facility_id', $facilityId)
+            ->where('is_active', true)
+            ->count();
+
+        return response()->json([
+            'data' => FacilityTrustService::completeness($facility, $photoCount),
+        ]);
     }
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { ArrowDown, ArrowUp, Eye, Loader2, MousePointerClick, Send, TrendingUp } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { CompletenessCoach } from "@/components/CompletenessCoach"
 
 interface Period {
   impressions: number
@@ -136,6 +137,8 @@ export function ListingAnalyticsPage() {
           <strong>{data.current.conversion_pct}%</strong> of those request a tour.
         </p>
       </section>
+
+      <CompletenessCoach variant="full" />
     </div>
   )
 }
