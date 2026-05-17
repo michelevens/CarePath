@@ -333,14 +333,20 @@ export function SearchPage() {
           {(() => {
             const filterFields = (
               <>
-                <FilterInput
-                  label="ZIP"
-                  value={zip}
-                  onChange={(v) => setZip(v.replace(/\D/g, "").slice(0, 5))}
-                  placeholder="85016"
-                  maxLength={5}
-                  className="w-24"
-                />
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <label className="text-xs font-medium text-muted-foreground">ZIP</label>
+                    <UseMyLocationButton onZip={setZip} />
+                  </div>
+                  <input
+                    type="text"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                    placeholder="85016"
+                    maxLength={5}
+                    className="mt-1 w-24 rounded-md border bg-background px-3 py-1.5 text-sm outline-hidden focus:ring-2 focus:ring-ring"
+                  />
+                </div>
                 <FilterSelect
                   label="Radius"
                   value={radiusMiles}
@@ -571,6 +577,68 @@ export function SearchPage() {
         onSave={saveMatchPrefs}
       />
     </div>
+  )
+}
+
+/**
+ * "Use my location" — pulls the browser geolocation, hits the
+ * reverse-zip endpoint, and sets the ZIP filter. Fails silent +
+ * inline (no annoying alerts) since geolocation can be denied
+ * without it being an error.
+ */
+function UseMyLocationButton({ onZip }: { onZip: (zip: string) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const onClick = () => {
+    if (busy) return
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setError("Not supported in this browser")
+      return
+    }
+    setBusy(true)
+    setError(null)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const r = await api.get<{ data: { zip: string } | null }>(
+            "/marketplace/reverse-zip",
+            { params: { lat: pos.coords.latitude, lon: pos.coords.longitude } },
+          )
+          if (r.data?.data?.zip) {
+            onZip(r.data.data.zip)
+          } else {
+            setError("Couldn't find ZIP")
+          }
+        } catch {
+          setError("Couldn't find ZIP")
+        } finally {
+          setBusy(false)
+        }
+      },
+      () => {
+        setBusy(false)
+        setError("Location denied")
+      },
+      { timeout: 8000, maximumAge: 60_000 },
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="inline-flex items-center gap-1 text-[11px] text-violet-700 hover:underline disabled:opacity-50"
+      title="Use my browser location"
+    >
+      {busy ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <MapPin className="h-3 w-3" />
+      )}
+      {error ?? "Use my location"}
+    </button>
   )
 }
 

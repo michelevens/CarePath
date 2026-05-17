@@ -936,6 +936,31 @@ class MarketplaceController extends Controller
     }
 
     /**
+     * GET /api/marketplace/reverse-zip?lat=&lon=
+     *
+     * "Use my location" support — converts the browser geolocation
+     * coords to the nearest ZIP centroid in our local table. Public,
+     * lightly rate-limited at the route layer.
+     */
+    public function reverseZip(Request $request, ZipLookupService $svc): JsonResponse
+    {
+        $data = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lon' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $hit = $svc->nearest((float) $data['lat'], (float) $data['lon']);
+        if (! $hit) {
+            return response()->json([
+                'data' => null,
+                'message' => 'No ZIP centroid found within the search radius.',
+            ], 404);
+        }
+
+        return response()->json(['data' => $hit]);
+    }
+
+    /**
      * GET /api/marketplace/compare/pdf?ids[]=uuid&ids[]=uuid
      *
      * Generates a one-page family-decision PDF comparing 2-4 facilities

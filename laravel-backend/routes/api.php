@@ -61,6 +61,8 @@ Route::prefix('embed')->group(function () {
 Route::prefix('marketplace')->group(function () {
     Route::get('/facilities', [MarketplaceController::class, 'index']);
     Route::get('/suggest', [MarketplaceController::class, 'suggest']);
+    Route::get('/reverse-zip', [MarketplaceController::class, 'reverseZip'])
+        ->middleware('throttle:30,1');
     Route::get('/top-cities', [MarketplaceController::class, 'topCities']);
     Route::get('/stats', [MarketplaceController::class, 'stats']);
     Route::get('/states/{state}', [MarketplaceController::class, 'state']);
