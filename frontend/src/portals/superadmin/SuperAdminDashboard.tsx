@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
+import { ScheduledJobsWidget } from "@/portals/superadmin/ScheduledJobsWidget"
 
 interface PlatformStats {
   total_facilities: number
@@ -349,6 +350,11 @@ export function SuperAdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Scheduled-job health — verifies the Railway worker process is
+          firing schedule:run. Shows a warning + manual trigger when
+          the last run is > 48h ago. */}
+      <ScheduledJobsWidget />
     </div>
   )
 }

@@ -37,6 +37,7 @@ use App\Http\Controllers\SuperAdmin\LicensingController as SuperAdminLicensingCo
 use App\Http\Controllers\SuperAdmin\MasterDataController;
 use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
 use App\Http\Controllers\SuperAdmin\PrrController;
+use App\Http\Controllers\SuperAdmin\ScheduledJobsController;
 use App\Http\Controllers\SuperAdmin\SourcesController as SuperAdminSourcesController;
 use App\Http\Controllers\SuperAdmin\SuperAdminController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
@@ -182,6 +183,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/claims', [SuperAdminController::class, 'claims']);
             Route::post('/claims/{id}/approve', [SuperAdminController::class, 'approveClaim']);
             Route::post('/claims/{id}/reject', [SuperAdminController::class, 'rejectClaim']);
+
+            // Scheduled-job health + manual triggers — proves the
+            // Railway worker process is actually firing schedule:run.
+            Route::get('/scheduled-jobs/health', [ScheduledJobsController::class, 'health']);
+            Route::post('/scheduled-jobs/run/{command}', [ScheduledJobsController::class, 'runNow']);
 
             // Federal exclusion screening (OIG LEIE + SAM.gov SDN).
             Route::post('/screen', [SuperAdminController::class, 'screen']);
