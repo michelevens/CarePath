@@ -199,13 +199,41 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * POST /api/superadmin/verifications/advisors/{id}/approve
+     * POST /api/superadmin/screen
      *
-     * Stamps verified_at AND grants the referral_partner role on the
-     * owning user (idempotent). Without the role grant, an advisor
-     * whose profile was created out-of-band (or before the role
-     * existed) would stay locked out of the portal even after we'd
-     * "approved" them in the queue.
+     * Run an OIG LEIE + SAM.gov SDN screening on a subject by name.
+     * Used by the verification queue before approving an advisor
+     * or facility owner. Returns cached results when available.
+     */
+    public function screen(Request $request, \App\Services\FederalExclusionService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'subject_type' => ['required', 'in:advisor_user,facility_owner,hospital_user'],
+            'subject_id' => ['nullable', 'integer'],
+            'name' => ['required', 'string', 'max:191'],
+            'dob' => ['nullable', 'date'],
+        ]);
+
+        $result = $service->screen(
+            $data['subject_type'],
+            $data['subject_id'] ?? null,
+            $data['name'],
+            $data['dob'] ?? null,
+        );
+
+        $anyMatch = ($result['oig']['match'] ?? false) || ($result['sam']['match'] ?? false);
+
+        return response()->json([
+            'data' => [
+                'any_match' => $anyMatch,
+                'oig' => $result['oig'],
+                'sam' => $result['sam'],
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/superadmin/verifications/advisors/{id}/approve
      */
     public function approveAdvisor(string $id): JsonResponse
     {

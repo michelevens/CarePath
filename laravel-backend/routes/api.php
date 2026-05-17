@@ -9,6 +9,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicAdvisorController;
+use App\Http\Controllers\PushTokenController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Facility\AdminsController as FacilityAdminsController;
 use App\Http\Controllers\Facility\AdmissionController;
@@ -121,6 +122,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // AI assistant — per-user rate-limited inside the controller.
     Route::post('/ai/chat', [AiChatController::class, 'send']);
+
+    // Web Push subscription persistence (PWA push notifications).
+    Route::post('/me/push-tokens', [PushTokenController::class, 'register']);
+    Route::delete('/me/push-tokens', [PushTokenController::class, 'unregister']);
     Route::get('/me/profile', [ProfileController::class, 'show']);
     Route::put('/me/profile', [ProfileController::class, 'update']);
     Route::post('/me/complete-onboarding', [ProfileController::class, 'completeOnboarding']);
@@ -154,6 +159,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/claims', [SuperAdminController::class, 'claims']);
             Route::post('/claims/{id}/approve', [SuperAdminController::class, 'approveClaim']);
             Route::post('/claims/{id}/reject', [SuperAdminController::class, 'rejectClaim']);
+
+            // Federal exclusion screening (OIG LEIE + SAM.gov SDN).
+            Route::post('/screen', [SuperAdminController::class, 'screen']);
             Route::get('/subscriptions', [SuperAdminController::class, 'subscriptions']);
             Route::get('/placements', [SuperAdminController::class, 'placements']);
             Route::get('/sponsored', [SuperAdminController::class, 'sponsored']);

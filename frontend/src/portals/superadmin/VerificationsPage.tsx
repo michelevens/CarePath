@@ -184,19 +184,26 @@ export function VerificationsPage() {
                         {wait}d
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => approveAdvisor(a.id)}
-                          disabled={busyId === a.id}
-                          className="gap-1"
-                        >
-                          {busyId === a.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Check className="h-3 w-3" />
-                          )}
-                          Approve
-                        </Button>
+                        <div className="flex flex-col items-stretch gap-1">
+                          <ScreenButton
+                            subjectType="advisor_user"
+                            subjectId={a.user?.id}
+                            name={a.user?.name ?? a.agency_name ?? ""}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => approveAdvisor(a.id)}
+                            disabled={busyId === a.id}
+                            className="gap-1"
+                          >
+                            {busyId === a.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Check className="h-3 w-3" />
+                            )}
+                            Approve
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -259,19 +266,26 @@ export function VerificationsPage() {
                         {wait}d
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => approveHospital(h.id)}
-                          disabled={busyId === h.id}
-                          className="gap-1"
-                        >
-                          {busyId === h.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Check className="h-3 w-3" />
-                          )}
-                          Approve
-                        </Button>
+                        <div className="flex flex-col items-stretch gap-1">
+                          <ScreenButton
+                            subjectType="hospital_user"
+                            subjectId={h.user?.id}
+                            name={h.user?.name ?? h.name ?? ""}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => approveHospital(h.id)}
+                            disabled={busyId === h.id}
+                            className="gap-1"
+                          >
+                            {busyId === h.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Check className="h-3 w-3" />
+                            )}
+                            Approve
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -608,5 +622,79 @@ function ClaimsSection() {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+// ─── ScreenButton — OIG LEIE + SAM.gov SDN screen ─────────────────────────────
+
+function ScreenButton({
+  subjectType,
+  subjectId,
+  name,
+}: {
+  subjectType: "advisor_user" | "facility_owner" | "hospital_user"
+  subjectId?: number | null
+  name: string
+}) {
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<
+    | null
+    | {
+        any_match: boolean
+        oig: { checked: boolean; match: boolean }
+        sam: { checked: boolean; match: boolean }
+      }
+  >(null)
+
+  if (!name) return null
+
+  const run = async () => {
+    setBusy(true)
+    setResult(null)
+    try {
+      const r = await api.post<{ data: typeof result }>("/superadmin/screen", {
+        subject_type: subjectType,
+        subject_id: subjectId,
+        name,
+      })
+      setResult(r.data?.data ?? null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (result) {
+    const label = result.any_match
+      ? "⚠ Match found"
+      : !result.oig.checked && !result.sam.checked
+        ? "Not checked (no API keys)"
+        : "✓ No match"
+    const tone = result.any_match
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : result.oig.checked || result.sam.checked
+        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+        : "border-stone-300 bg-stone-50 text-stone-700"
+    return (
+      <span
+        title={`OIG LEIE: ${result.oig.checked ? (result.oig.match ? "MATCH" : "clean") : "skipped"} · SAM.gov: ${result.sam.checked ? (result.sam.match ? "MATCH" : "clean") : "skipped"}`}
+        className={`rounded-md border px-2 py-1 text-[10px] font-medium ${tone}`}
+      >
+        {label}
+      </span>
+    )
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={run}
+      disabled={busy}
+      className="gap-1 text-[11px]"
+      title="Run OIG LEIE + SAM.gov screening"
+    >
+      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+      Screen
+    </Button>
   )
 }
