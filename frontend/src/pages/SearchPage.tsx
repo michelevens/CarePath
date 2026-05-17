@@ -453,6 +453,24 @@ export function SearchPage() {
             )
           })()}
 
+          <ActiveFilterPills
+            q={q} setQ={setQ}
+            state={state} setState={setState}
+            city={city} setCity={setCity}
+            zip={zip} setZip={setZip}
+            type={type} setType={setType}
+            medicaidOnly={medicaidOnly} setMedicaidOnly={setMedicaidOnly}
+            minFiveStar={minFiveStar} setMinFiveStar={setMinFiveStar}
+            maxPriceMonthly={maxPriceMonthly} setMaxPriceMonthly={setMaxPriceMonthly}
+            activeBbox={activeBbox} clearBbox={() => setActiveBbox(null)}
+            matchPrefs={matchPrefs} clearMatchPrefs={() => saveMatchPrefs(null)}
+            onClearAll={() => {
+              setQ(""); setState(""); setCity(""); setZip("")
+              setType(""); setMedicaidOnly(false); setMinFiveStar("")
+              setMaxPriceMonthly(""); setActiveBbox(null); saveMatchPrefs(null)
+            }}
+          />
+
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold">
               {loading ? "Searching…" : `${results.length} facilities`}
@@ -576,6 +594,73 @@ export function SearchPage() {
         onClose={() => setMatchOpen(false)}
         onSave={saveMatchPrefs}
       />
+    </div>
+  )
+}
+
+/**
+ * Active-filter pills. Each pill is a removable chip showing what's
+ * currently constraining the search. Hidden when no filter is set.
+ * Companion to the sidebar filter controls — same state, but visible
+ * at-a-glance.
+ */
+function ActiveFilterPills(props: {
+  q: string; setQ: (v: string) => void
+  state: string; setState: (v: string) => void
+  city: string; setCity: (v: string) => void
+  zip: string; setZip: (v: string) => void
+  type: string; setType: (v: string) => void
+  medicaidOnly: boolean; setMedicaidOnly: (v: boolean) => void
+  minFiveStar: string; setMinFiveStar: (v: string) => void
+  maxPriceMonthly: string; setMaxPriceMonthly: (v: string) => void
+  activeBbox: string | null; clearBbox: () => void
+  matchPrefs: MatchPrefs | null; clearMatchPrefs: () => void
+  onClearAll: () => void
+}) {
+  const pills: Array<{ label: string; onClear: () => void }> = []
+  if (props.q) pills.push({ label: `"${props.q}"`, onClear: () => props.setQ("") })
+  if (props.type) pills.push({ label: TYPE_LABEL[props.type] ?? props.type, onClear: () => props.setType("") })
+  if (props.zip) pills.push({ label: `ZIP ${props.zip}`, onClear: () => props.setZip("") })
+  if (props.city) pills.push({ label: props.city, onClear: () => props.setCity("") })
+  if (props.state) pills.push({ label: props.state, onClear: () => props.setState("") })
+  if (props.medicaidOnly) pills.push({ label: "Medicaid", onClear: () => props.setMedicaidOnly(false) })
+  if (props.minFiveStar) pills.push({ label: `${props.minFiveStar}★+`, onClear: () => props.setMinFiveStar("") })
+  if (props.maxPriceMonthly) pills.push({
+    label: `≤$${Number(props.maxPriceMonthly).toLocaleString()}/mo`,
+    onClear: () => props.setMaxPriceMonthly(""),
+  })
+  if (props.activeBbox) pills.push({ label: "Map area", onClear: props.clearBbox })
+  if (props.matchPrefs) pills.push({ label: "Match preferences", onClear: props.clearMatchPrefs })
+
+  if (pills.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {pills.map((p, i) => (
+        <span
+          key={`${p.label}-${i}`}
+          className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-0.5 text-xs"
+        >
+          {p.label}
+          <button
+            type="button"
+            onClick={p.onClear}
+            aria-label={`Remove ${p.label} filter`}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      {pills.length > 1 && (
+        <button
+          type="button"
+          onClick={props.onClearAll}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Clear all
+        </button>
+      )}
     </div>
   )
 }
