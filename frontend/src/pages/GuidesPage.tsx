@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Meta } from "@/components/Meta"
 import { TrustStrip } from "@/components/TrustStrip"
+import { CarePathGuideTemplate } from "@/components/CarePathGuideTemplate"
 import {
   Dialog,
   DialogContent,
@@ -105,6 +106,10 @@ export function GuidesPage() {
           </Button>
         </div>
       </header>
+
+      {/* Canonical guide showcase — the same template renders every
+          downloadable guide (see [[carepath-guide-template]] memory). */}
+      <CarePathGuideTemplate />
 
       <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="max-w-3xl">
