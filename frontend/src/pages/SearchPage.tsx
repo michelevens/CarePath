@@ -152,6 +152,14 @@ export function SearchPage() {
     () => (urlParams.get("sort") as Sort | null) ?? "recommended"
   )
 
+  // Map-bounds search: when the user pans the map, we hold the
+  // proposed bbox in `pendingBbox` and surface a "Search this area"
+  // button. Clicking commits to `activeBbox` which feeds the query.
+  const [pendingBbox, setPendingBbox] = useState<string | null>(null)
+  const [activeBbox, setActiveBbox] = useState<string | null>(
+    () => urlParams.get("bbox")
+  )
+
   // Match preferences live in localStorage so they survive navigation
   // and don't bloat the URL. When set, every facility gets a 0-100
   // score + explained reasons surfaced on the card.
@@ -192,6 +200,7 @@ export function SearchPage() {
     if (medicaidOnly) p.medicaid_only = true
     if (minFiveStar) p.min_five_star = Number(minFiveStar)
     if (maxPriceMonthly) p.max_price_cents = Number(maxPriceMonthly) * 100
+    if (activeBbox) p.bbox = activeBbox
     if (matchPrefs) {
       // Axios serializes nested objects into match[key]=value query
       // strings, which is exactly what Laravel's `match.*` validation
@@ -203,7 +212,7 @@ export function SearchPage() {
       if (matchPrefs.special_needs?.length) p["match[special_needs][]"] = matchPrefs.special_needs
     }
     return p
-  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort, matchPrefs])
+  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort, matchPrefs, activeBbox])
 
   // Sync state → URL (replace, not push, so back button doesn't trap)
   useEffect(() => {
@@ -220,6 +229,7 @@ export function SearchPage() {
     if (minFiveStar) next.set("min_star", minFiveStar)
     if (maxPriceMonthly) next.set("max_price", maxPriceMonthly)
     if (sort !== "recommended") next.set("sort", sort)
+    if (activeBbox) next.set("bbox", activeBbox)
     setUrlParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
@@ -513,11 +523,44 @@ export function SearchPage() {
         </div>
 
         <div className="sticky top-24 hidden h-[calc(100vh-8rem)] lg:block">
-          <FacilityMap
-            facilities={results}
-            origin={origin}
-            radiusMiles={origin ? Number(radiusMiles) : null}
-          />
+          <div className="relative h-full">
+            <FacilityMap
+              facilities={results}
+              origin={origin}
+              radiusMiles={origin ? Number(radiusMiles) : null}
+              onBoundsChange={(b) => {
+                const bbox = `${b.minLat.toFixed(4)},${b.minLon.toFixed(4)},${b.maxLat.toFixed(4)},${b.maxLon.toFixed(4)}`
+                // Don't surface the button until the user has moved
+                // away from the current active bbox.
+                setPendingBbox(bbox === activeBbox ? null : bbox)
+              }}
+            />
+            {pendingBbox && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveBbox(pendingBbox)
+                  // Clear ZIP-based filters since bbox now drives geo.
+                  setZip("")
+                  setPendingBbox(null)
+                }}
+                className="absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold shadow-lg ring-1 ring-violet-200 hover:bg-violet-50"
+              >
+                <Sparkles className="mr-1 inline h-3 w-3 text-violet-600" />
+                Search this area
+              </button>
+            )}
+            {activeBbox && (
+              <button
+                type="button"
+                onClick={() => setActiveBbox(null)}
+                className="absolute right-3 top-3 z-[1000] rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground shadow hover:text-foreground"
+                title="Clear map-bounds filter"
+              >
+                Clear map filter
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <CompareBar />

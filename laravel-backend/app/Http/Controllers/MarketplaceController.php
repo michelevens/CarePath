@@ -53,6 +53,12 @@ class MarketplaceController extends Controller
             'sort' => ['nullable', 'in:recommended,rating,price_asc,price_desc,distance,match'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
 
+            // Map-bounds filter: when the user drags the map, the
+            // frontend can re-query with the visible viewport as the
+            // geo filter. Format: "minLat,minLon,maxLat,maxLon".
+            // Overrides zip/radius when present.
+            'bbox' => ['nullable', 'string', 'regex:/^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/'],
+
             // Match preferences — when present, each facility gets a
             // family-specific score + reason list. `sort=match` then
             // re-ranks by that score. Any null/missing preference is
@@ -108,11 +114,21 @@ class MarketplaceController extends Controller
             $query->where('name', 'ILIKE', '%' . $data['q'] . '%');
         }
 
+        // Explicit map-bounds filter — the drag-to-refine path. When
+        // present, overrides the ZIP-radius pre-filter entirely so
+        // panning the map is the search.
+        if (! empty($data['bbox'])) {
+            [$minLat, $minLon, $maxLat, $maxLon] = array_map('floatval', explode(',', $data['bbox']));
+            $query->whereNotNull('latitude')->whereNotNull('longitude')
+                ->whereBetween('latitude', [$minLat, $maxLat])
+                ->whereBetween('longitude', [$minLon, $maxLon]);
+        }
+
         // When we have a ZIP origin, pre-filter on lat/lon bounding box
         // (cheap), then refine with exact haversine later. Default to the
         // origin's state to keep the bounding box tight.
         $radiusMiles = $data['radius_miles'] ?? 25;
-        if ($origin) {
+        if ($origin && empty($data['bbox'])) {
             $latDelta = $radiusMiles / 69.0; // 1° lat ≈ 69 mi
             $lonDelta = $radiusMiles / (69.0 * max(0.01, cos(deg2rad($origin['lat']))));
 

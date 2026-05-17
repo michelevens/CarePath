@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react"
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet"
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet"
 import L, { type LatLngBoundsExpression, type LatLngTuple } from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { Link } from "react-router-dom"
@@ -30,6 +30,9 @@ interface Props {
   facilities: MapFacility[]
   origin: Origin | null
   radiusMiles: number | null
+  /** Fires whenever the user finishes panning or zooming. SearchPage
+   * uses this to surface a "Search this area" button. */
+  onBoundsChange?: (bbox: { minLat: number; minLon: number; maxLat: number; maxLon: number }) => void
 }
 
 const PRIMARY = "oklch(0.555 0.245 295)"
@@ -88,7 +91,32 @@ function FitBounds({ points }: { points: LatLngTuple[] }) {
   return null
 }
 
-export function FacilityMap({ facilities, origin, radiusMiles }: Props) {
+/**
+ * Reports the visible map bounds upward after every pan/zoom so the
+ * page can offer a "Search this area" affordance (Seniorly-style).
+ * Debounced inside the parent rather than here — Leaflet's moveend
+ * already fires once per gesture.
+ */
+function BoundsReporter({
+  onChange,
+}: {
+  onChange: NonNullable<Props["onBoundsChange"]>
+}) {
+  useMapEvents({
+    moveend(e) {
+      const b = e.target.getBounds()
+      onChange({
+        minLat: b.getSouth(),
+        minLon: b.getWest(),
+        maxLat: b.getNorth(),
+        maxLon: b.getEast(),
+      })
+    },
+  })
+  return null
+}
+
+export function FacilityMap({ facilities, origin, radiusMiles, onBoundsChange }: Props) {
   const markers = useMemo(
     () =>
       facilities.filter(
@@ -131,6 +159,7 @@ export function FacilityMap({ facilities, origin, radiusMiles }: Props) {
         />
 
         <FitBounds points={fitPoints} />
+        {onBoundsChange && <BoundsReporter onChange={onBoundsChange} />}
 
         {origin && (
           <Marker position={[origin.lat, origin.lon]} icon={originIcon()} zIndexOffset={1000}>
