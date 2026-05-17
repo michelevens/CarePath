@@ -182,9 +182,33 @@ export function CityLandingPage() {
     ...(typeLabel ? [{ label: typeLabel, to: null }] : []),
   ]
 
+  // Build the schema.org JSON-LD blob that gives this page real SEO
+  // weight — BreadcrumbList + ItemList of facilities + FAQPage. Each
+  // facility carries AggregateRating when CMS data is present.
+  const faqs = buildFaqs(data, headlineType, stateName, typeFilter)
+  const jsonLd = buildJsonLd({
+    city: data.city,
+    state: data.state,
+    stateName,
+    typeLabel,
+    cityUrl: typeFilter ? `${cityUrl}/${params.type}` : cityUrl,
+    breadcrumbs: breadcrumbItems,
+    facilities: (typeFilter
+      ? data.top_facilities.filter((f) => f.type === typeFilter)
+      : data.top_facilities
+    ).slice(0, 10),
+    facilityCount,
+    faqs,
+  })
+
   return (
     <div className="min-h-screen bg-background">
-      <Meta title={metaTitle} description={metaDescription} canonical={typeFilter ? `${cityUrl}/${params.type}` : cityUrl} />
+      <Meta
+        title={metaTitle}
+        description={metaDescription}
+        canonical={typeFilter ? `${cityUrl}/${params.type}` : cityUrl}
+        jsonLd={jsonLd}
+      />
 
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -302,6 +326,25 @@ export function CityLandingPage() {
                 </Link>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* FAQ — matches the FAQPage schema in the JSON-LD blob.
+            Google penalizes invisible FAQ structured data, so the
+            answers must render here too. */}
+        {faqs.length > 0 && (
+          <section className="mt-14">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Frequently asked about {headlineType.toLowerCase()} in {data.city}
+            </h2>
+            <dl className="mt-4 divide-y rounded-lg border bg-card">
+              {faqs.map((qa, i) => (
+                <div key={i} className="p-4">
+                  <dt className="text-sm font-semibold">{qa.q}</dt>
+                  <dd className="mt-1 text-sm text-muted-foreground">{qa.a}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
         )}
 
@@ -556,4 +599,156 @@ function buildCityContext(
   )
 
   return { lead, paragraphs }
+}
+
+/**
+ * Generates the schema.org JSON-LD blob for a city landing page —
+ * BreadcrumbList + ItemList (top facilities, each a LocalBusiness with
+ * AggregateRating where CMS data exists) + FAQPage matching the
+ * visible FAQ section. Returned as a single `@graph` so search engines
+ * treat the entities as related.
+ */
+function buildJsonLd(args: {
+  city: string
+  state: string
+  stateName: string
+  typeLabel: string | null
+  cityUrl: string
+  breadcrumbs: Array<{ label: string; to: string | null }>
+  facilities: TopFacility[]
+  facilityCount: number
+  faqs: Array<{ q: string; a: string }>
+}): object {
+  const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://carepath.io"
+  const fullUrl = (path: string) => `${siteUrl}${path}`
+
+  const breadcrumb = {
+    "@type": "BreadcrumbList",
+    itemListElement: args.breadcrumbs.map((b, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: b.label,
+      ...(b.to ? { item: fullUrl(b.to) } : {}),
+    })),
+  }
+
+  const itemList = {
+    "@type": "ItemList",
+    name: args.typeLabel
+      ? `${args.typeLabel} in ${args.city}, ${args.state}`
+      : `Long-term care in ${args.city}, ${args.state}`,
+    numberOfItems: args.facilities.length,
+    itemListElement: args.facilities.map((f, i) => {
+      const fac: Record<string, unknown> = {
+        "@type": "ListItem",
+        position: i + 1,
+        item: {
+          "@type": "LocalBusiness",
+          "@id": fullUrl(`/facility/${f.slug}`),
+          name: f.name,
+          url: fullUrl(`/facility/${f.slug}`),
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: f.city,
+            addressRegion: f.state,
+            addressCountry: "US",
+          },
+        },
+      }
+      const item = fac.item as Record<string, unknown>
+      if (f.cms_five_star_overall) {
+        item.aggregateRating = {
+          "@type": "AggregateRating",
+          ratingValue: f.cms_five_star_overall,
+          bestRating: 5,
+          worstRating: 1,
+          ratingCount: 1, // CMS rating is a single composite — 1 source
+        }
+      }
+      if (f.price_from_cents) {
+        item.priceRange = `$${Math.round(f.price_from_cents / 100).toLocaleString()}+/mo`
+      }
+      return fac
+    }),
+  }
+
+  const faqPage = args.faqs.length > 0
+    ? {
+        "@type": "FAQPage",
+        mainEntity: args.faqs.map((qa) => ({
+          "@type": "Question",
+          name: qa.q,
+          acceptedAnswer: { "@type": "Answer", text: qa.a },
+        })),
+      }
+    : null
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [breadcrumb, itemList, ...(faqPage ? [faqPage] : [])],
+  }
+}
+
+/**
+ * Build city-and-type-aware FAQ entries. Answers compose from the
+ * facility data so they're substantive (Google penalizes thin FAQ
+ * markup), not generic boilerplate.
+ */
+function buildFaqs(
+  data: CityData,
+  headlineType: string,
+  stateName: string,
+  typeFilter: string | null,
+): Array<{ q: string; a: string }> {
+  const facCount = typeFilter ? data.by_type[typeFilter] ?? 0 : data.total_facilities
+  const noun = headlineType.toLowerCase()
+  const faqs: Array<{ q: string; a: string }> = []
+
+  // Cost FAQ when pricing data is available
+  if (data.pricing.median_price_cents) {
+    const median = `$${Math.round(data.pricing.median_price_cents / 100).toLocaleString()}`
+    const range =
+      data.pricing.min_price_cents && data.pricing.max_price_cents
+        ? `, with rates ranging from $${Math.round(data.pricing.min_price_cents / 100).toLocaleString()} to $${Math.round(data.pricing.max_price_cents / 100).toLocaleString()}`
+        : ""
+    faqs.push({
+      q: `How much does ${noun} cost in ${data.city}, ${data.state}?`,
+      a: `The median published rate for ${noun} in ${data.city} is ${median}/mo${range}. These are base rates — level-of-care adders, community fees, and ancillary services (medications, salon, transportation) are typically billed separately. CarePath shows the full pricing breakdown on each facility's detail page.`,
+    })
+  }
+
+  // Medicaid FAQ
+  if (data.payers.medicaid_count > 0) {
+    faqs.push({
+      q: `Which facilities in ${data.city} accept Medicaid?`,
+      a: `${data.payers.medicaid_count} of ${data.total_facilities} facilities in ${data.city} are Medicaid-certified. Filter by "Medicaid accepted" on the search page or set Medicaid as your required payer in match preferences. Medicaid coverage matters most for long-term custodial care after private funds are spent down, and for skilled nursing stays beyond Medicare's 100-day cap.`,
+    })
+  } else {
+    faqs.push({
+      q: `Does Medicaid pay for ${noun} in ${stateName}?`,
+      a: `Medicaid covers long-term care in every state, but rules vary. ${stateName} families typically apply through the state Medicaid agency and may use a Home and Community-Based Services (HCBS) waiver for assisted living. Use the Medicaid eligibility tool to estimate qualification before paying out-of-pocket.`,
+    })
+  }
+
+  // Quality FAQ
+  if (data.avg_cms.overall !== null) {
+    faqs.push({
+      q: `How are ${data.city} facilities rated?`,
+      a: `The average CMS Five-Star Overall rating in ${data.city} is ${data.avg_cms.overall.toFixed(1)} of 5. CMS ratings combine health inspections, staffing, and quality measures — and are reset every state inspection cycle. CarePath also computes a 0–10 Quality Score that blends CMS data with pricing transparency and live availability signals.`,
+    })
+  }
+
+  // How-many / inventory FAQ
+  faqs.push({
+    q: `How many ${noun} facilities are in ${data.city}, ${data.state}?`,
+    a: `CarePath lists ${facCount} ${noun} ${facCount === 1 ? "facility" : "facilities"} in ${data.city}. Inventory is sourced from federal CMS data plus state licensure files (re-synced daily) — not a paid directory. If a facility opened recently and isn't here yet, it usually appears within 30 days of its first state inspection.`,
+  })
+
+  // How to choose FAQ
+  faqs.push({
+    q: `How do I choose the right ${noun} for my parent in ${data.city}?`,
+    a: `Start by setting match preferences (level of care, payer, budget, distance) so each facility shows a 0–100 match score with explained reasons. Shortlist 3–5 facilities, tour them in person, and verify Medicaid acceptance and current bed availability directly. CarePath never sells your contact info — tour requests go to one facility only.`,
+  })
+
+  return faqs
 }
