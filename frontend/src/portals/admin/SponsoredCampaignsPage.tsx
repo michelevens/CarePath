@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import React, { useEffect, useMemo, useState, type FormEvent } from "react"
 import {
   BarChart3,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Eye,
+  Lightbulb,
   Loader2,
   MousePointerClick,
   Pause,
@@ -43,6 +46,25 @@ interface Campaign {
   created_at: string
 }
 
+interface InsightHint {
+  key: string
+  severity: "high" | "medium" | "low"
+  label: string
+  detail: string
+  suggested_action: {
+    type: "raise_bid" | "raise_budget" | "lower_bid" | "pause"
+    to_cents?: number
+    predicted_lift?: string
+  } | null
+}
+
+interface InsightsPayload {
+  campaign_id: string
+  cpc_bid_cents: number
+  daily_budget_cents: number
+  hints: InsightHint[]
+}
+
 interface PeriodStats {
   impressions: number
   clicks: number
@@ -73,6 +95,59 @@ export function SponsoredCampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [insightsOpen, setInsightsOpen] = useState<string | null>(null)
+  const [insightsCache, setInsightsCache] = useState<Record<string, InsightsPayload>>({})
+  const [insightsLoading, setInsightsLoading] = useState(false)
+
+  const toggleInsights = async (campaignId: string) => {
+    if (insightsOpen === campaignId) {
+      setInsightsOpen(null)
+      return
+    }
+    setInsightsOpen(campaignId)
+    if (insightsCache[campaignId]) return
+    setInsightsLoading(true)
+    try {
+      const r = await api.get<{ data: InsightsPayload }>(`/facility/sponsored/campaigns/${campaignId}/insights`)
+      setInsightsCache((prev) => ({ ...prev, [campaignId]: r.data.data }))
+    } catch {
+      // Silent — the panel will show no hints.
+    } finally {
+      setInsightsLoading(false)
+    }
+  }
+
+  /**
+   * Apply a suggested action from the insights panel. Only handles
+   * the in-place updates (bid + budget); pause routes through the
+   * existing toggleStatus flow.
+   */
+  const applySuggestion = async (campaignId: string, hint: InsightHint) => {
+    const a = hint.suggested_action
+    if (!a || a.to_cents == null) return
+    const toCents: number = a.to_cents
+    const patch: Record<string, number> = {}
+    if (a.type === "raise_bid" || a.type === "lower_bid") patch.cpc_bid_cents = toCents
+    if (a.type === "raise_budget") patch.daily_budget_cents = toCents
+    try {
+      await api.put(`/facility/sponsored/campaigns/${campaignId}`, patch)
+      // Refresh both the campaign list + the insights for this row.
+      await load()
+      setInsightsCache((prev) => {
+        const next = { ...prev }
+        delete next[campaignId]
+        return next
+      })
+      // Re-fetch with fresh data
+      try {
+        const r = await api.get<{ data: InsightsPayload }>(`/facility/sponsored/campaigns/${campaignId}/insights`)
+        setInsightsCache((prev) => ({ ...prev, [campaignId]: r.data.data }))
+      } catch { /* silent */ }
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message ?? "Couldn't apply change.")
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -230,7 +305,8 @@ export function SponsoredCampaignsPage() {
                   ? Math.min(100, Math.round((c.spent_today_cents / c.daily_budget_cents) * 100))
                   : 0
                 return (
-                  <tr key={c.id} className="border-t hover:bg-muted/20">
+                  <React.Fragment key={c.id}>
+                  <tr className="border-t hover:bg-muted/20">
                     <td className="px-3 py-3 align-top">
                       <div className="font-semibold">{c.name ?? "Untitled campaign"}</div>
                       {(c.target_states.length > 0 || c.target_cities.length > 0) && (
@@ -274,7 +350,16 @@ export function SponsoredCampaignsPage() {
                       {c.ends_on && <> → {new Date(c.ends_on).toLocaleDateString()}</>}
                     </td>
                     <td className="px-3 py-3 align-top text-right">
-                      <div className="inline-flex gap-1">
+                      <div className="inline-flex flex-wrap gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleInsights(c.id)}
+                          title="Bid recommendations + auction insights"
+                        >
+                          <Lightbulb className="h-3.5 w-3.5" />
+                          {insightsOpen === c.id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </Button>
                         {(c.status === "active" || c.status === "paused") && (
                           <Button size="sm" variant="outline" onClick={() => toggleStatus(c)}>
                             {c.status === "active" ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
@@ -286,6 +371,34 @@ export function SponsoredCampaignsPage() {
                       </div>
                     </td>
                   </tr>
+                  {insightsOpen === c.id && (
+                    <tr className="border-t border-violet-200 bg-violet-50/30">
+                      <td colSpan={7} className="p-4">
+                        {insightsLoading && !insightsCache[c.id] ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Analyzing campaign…
+                          </div>
+                        ) : insightsCache[c.id]?.hints.length ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-900">
+                              <Lightbulb className="h-3.5 w-3.5" />
+                              Bid recommendations
+                            </div>
+                            {insightsCache[c.id].hints.map((h) => (
+                              <InsightRow
+                                key={h.key}
+                                hint={h}
+                                onApply={() => applySuggestion(c.id, h)}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No recommendations yet — need more data.</div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
                 )
               })}
             </tbody>
@@ -311,6 +424,48 @@ export function SponsoredCampaignsPage() {
           await load()
         }}
       />
+    </div>
+  )
+}
+
+function InsightRow({
+  hint,
+  onApply,
+}: {
+  hint: InsightHint
+  onApply: () => void
+}) {
+  const tone =
+    hint.severity === "high"
+      ? "border-amber-300 bg-amber-50/60"
+      : hint.severity === "medium"
+      ? "border-violet-200 bg-white"
+      : "border-emerald-200 bg-emerald-50/40"
+  const a = hint.suggested_action
+  const ctaLabel =
+    a?.type === "raise_bid"
+      ? `Raise bid to $${((a.to_cents ?? 0) / 100).toFixed(2)}`
+      : a?.type === "lower_bid"
+      ? `Lower bid to $${((a.to_cents ?? 0) / 100).toFixed(2)}`
+      : a?.type === "raise_budget"
+      ? `Raise budget to $${((a.to_cents ?? 0) / 100).toFixed(2)}`
+      : null
+  return (
+    <div className={cn("rounded-md border p-3", tone)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">{hint.label}</div>
+          <p className="mt-1 text-xs text-muted-foreground">{hint.detail}</p>
+        </div>
+        {ctaLabel && (
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <Button size="sm" onClick={onApply}>{ctaLabel}</Button>
+            {a?.predicted_lift && (
+              <span className="text-[10px] text-muted-foreground">{a.predicted_lift}</span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

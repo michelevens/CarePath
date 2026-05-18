@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\SponsoredCampaign;
 use App\Models\SponsoredClick;
 use App\Models\SponsoredImpression;
+use App\Services\BidRecommendationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -214,6 +215,31 @@ class SponsoredController extends Controller
             'attributed_value_cents' => 0, 'roas' => null,
         ];
         return ['today' => $z, 'this_month' => $z];
+    }
+
+    /**
+     * GET /api/facility/sponsored/campaigns/{id}/insights
+     *
+     * Heuristic "why didn't I win?" surface. Returns 1-4 actionable
+     * hints per campaign, each with a suggested action the UI can
+     * one-click apply.
+     */
+    public function insights(string $id, BidRecommendationService $svc): JsonResponse
+    {
+        $facility = $this->facilityOrFail();
+        $campaign = SponsoredCampaign::query()
+            ->where('id', $id)
+            ->where('facility_id', $facility->id)
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => [
+                'campaign_id' => $campaign->id,
+                'cpc_bid_cents' => $campaign->cpc_bid_cents,
+                'daily_budget_cents' => $campaign->daily_budget_cents,
+                'hints' => $svc->insights($campaign),
+            ],
+        ]);
     }
 
     private function validateCampaign(Request $request, bool $partial = false): array

@@ -259,6 +259,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'update']);
         Route::delete('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'destroy']);
         Route::get('/sponsored/stats', [FacilitySponsoredController::class, 'stats']);
+        // Bid recommendations / auction insights per campaign — drives
+        // the "Why didn't I win more?" panel on the campaign card.
+        Route::get('/sponsored/campaigns/{id}/insights', [FacilitySponsoredController::class, 'insights']);
 
         // Listing analytics — impressions, detail views, tour requests
         // for the active facility over the last 30 days vs prior 30.
