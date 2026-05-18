@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState, type FormEvent } from "react"
+import { Link } from "react-router-dom"
 import {
   BarChart3,
   Calendar,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Eye,
-  Lightbulb,
   Loader2,
   MousePointerClick,
   Pause,
@@ -47,36 +45,6 @@ interface Campaign {
   spent_today_cents: number
   spent_total_cents: number
   created_at: string
-}
-
-interface InsightHint {
-  key: string
-  severity: "high" | "medium" | "low"
-  label: string
-  detail: string
-  suggested_action: {
-    type: "raise_bid" | "raise_budget" | "lower_bid" | "pause"
-    to_cents?: number
-    predicted_lift?: string
-  } | null
-}
-
-interface InsightsPayload {
-  campaign_id: string
-  cpc_bid_cents: number
-  daily_budget_cents: number
-  hints: InsightHint[]
-}
-
-interface CreativeVariant {
-  id: string
-  label: string | null
-  headline: string
-  body: string | null
-  is_active: boolean
-  impressions: number
-  clicks: number
-  ctr_pct: number
 }
 
 interface InvoiceRow {
@@ -122,59 +90,6 @@ export function SponsoredCampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [insightsOpen, setInsightsOpen] = useState<string | null>(null)
-  const [insightsCache, setInsightsCache] = useState<Record<string, InsightsPayload>>({})
-  const [insightsLoading, setInsightsLoading] = useState(false)
-
-  const toggleInsights = async (campaignId: string) => {
-    if (insightsOpen === campaignId) {
-      setInsightsOpen(null)
-      return
-    }
-    setInsightsOpen(campaignId)
-    if (insightsCache[campaignId]) return
-    setInsightsLoading(true)
-    try {
-      const r = await api.get<{ data: InsightsPayload }>(`/facility/sponsored/campaigns/${campaignId}/insights`)
-      setInsightsCache((prev) => ({ ...prev, [campaignId]: r.data.data }))
-    } catch {
-      // Silent — the panel will show no hints.
-    } finally {
-      setInsightsLoading(false)
-    }
-  }
-
-  /**
-   * Apply a suggested action from the insights panel. Only handles
-   * the in-place updates (bid + budget); pause routes through the
-   * existing toggleStatus flow.
-   */
-  const applySuggestion = async (campaignId: string, hint: InsightHint) => {
-    const a = hint.suggested_action
-    if (!a || a.to_cents == null) return
-    const toCents: number = a.to_cents
-    const patch: Record<string, number> = {}
-    if (a.type === "raise_bid" || a.type === "lower_bid") patch.cpc_bid_cents = toCents
-    if (a.type === "raise_budget") patch.daily_budget_cents = toCents
-    try {
-      await api.put(`/facility/sponsored/campaigns/${campaignId}`, patch)
-      // Refresh both the campaign list + the insights for this row.
-      await load()
-      setInsightsCache((prev) => {
-        const next = { ...prev }
-        delete next[campaignId]
-        return next
-      })
-      // Re-fetch with fresh data
-      try {
-        const r = await api.get<{ data: InsightsPayload }>(`/facility/sponsored/campaigns/${campaignId}/insights`)
-        setInsightsCache((prev) => ({ ...prev, [campaignId]: r.data.data }))
-      } catch { /* silent */ }
-    } catch (e) {
-      const err = e as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message ?? "Couldn't apply change.")
-    }
-  }
 
   const load = async () => {
     setLoading(true)
@@ -378,14 +293,10 @@ export function SponsoredCampaignsPage() {
                     </td>
                     <td className="px-3 py-3 align-top text-right">
                       <div className="inline-flex flex-wrap gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleInsights(c.id)}
-                          title="Bid recommendations + auction insights"
-                        >
-                          <Lightbulb className="h-3.5 w-3.5" />
-                          {insightsOpen === c.id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        <Button asChild size="sm" variant="outline" title="Open campaign detail">
+                          <Link to={`/admin/sponsored/${c.id}`}>
+                            Manage
+                          </Link>
                         </Button>
                         {(c.status === "active" || c.status === "paused") && (
                           <Button size="sm" variant="outline" onClick={() => toggleStatus(c)}>
@@ -398,39 +309,6 @@ export function SponsoredCampaignsPage() {
                       </div>
                     </td>
                   </tr>
-                  {insightsOpen === c.id && (
-                    <tr className="border-t border-violet-200 bg-violet-50/30">
-                      <td colSpan={7} className="p-4">
-                        {insightsLoading && !insightsCache[c.id] ? (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" /> Analyzing campaign…
-                          </div>
-                        ) : insightsCache[c.id]?.hints.length ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-900">
-                              <Lightbulb className="h-3.5 w-3.5" />
-                              Bid recommendations
-                            </div>
-                            {insightsCache[c.id].hints.map((h) => (
-                              <InsightRow
-                                key={h.key}
-                                hint={h}
-                                onApply={() => applySuggestion(c.id, h)}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-muted-foreground">No recommendations yet — need more data.</div>
-                        )}
-
-                        {/* Advanced targeting: negative lists + per-surface bids */}
-                        <AdvancedTargeting campaign={c} onSaved={load} />
-
-                        {/* A/B creative variants editor */}
-                        <CreativeVariants campaignId={c.id} />
-                      </td>
-                    </tr>
-                  )}
                 </React.Fragment>
                 )
               })}
@@ -463,179 +341,6 @@ export function SponsoredCampaignsPage() {
   )
 }
 
-/**
- * Negative targeting + per-surface bid multipliers. Stops the "we paid
- * to show on irrelevant searches" leak and gives facilities a knob to
- * bid higher on high-intent surfaces (e.g. hospital discharge embed)
- * vs lower on browsing surfaces.
- */
-function AdvancedTargeting({
-  campaign,
-  onSaved,
-}: {
-  campaign: Campaign
-  onSaved: () => Promise<void>
-}) {
-  const [excludeStates, setExcludeStates] = useState(campaign.exclude_states.join(", "))
-  const [excludeTypes, setExcludeTypes] = useState<string[]>(campaign.exclude_types)
-  const [searchMult, setSearchMult] = useState(
-    campaign.surface_bid_multipliers?.search ?? 1,
-  )
-  const [embedMult, setEmbedMult] = useState(
-    campaign.surface_bid_multipliers?.embed ?? 1,
-  )
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  const toggleType = (t: string) =>
-    setExcludeTypes((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
-    )
-
-  const save = async () => {
-    setSaving(true)
-    setSaved(false)
-    try {
-      const states = excludeStates
-        .split(",")
-        .map((s) => s.trim().toUpperCase())
-        .filter((s) => /^[A-Z]{2}$/.test(s))
-      await api.put(`/facility/sponsored/campaigns/${campaign.id}`, {
-        exclude_states: states,
-        exclude_types: excludeTypes,
-        surface_bid_multipliers: {
-          search: searchMult,
-          embed: embedMult,
-        },
-      })
-      setSaved(true)
-      await onSaved()
-      setTimeout(() => setSaved(false), 2000)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const careTypes: Array<{ value: string; label: string }> = [
-    { value: "assisted_living", label: "Assisted Living" },
-    { value: "memory_care", label: "Memory Care" },
-    { value: "snf", label: "Skilled Nursing" },
-    { value: "ccrc", label: "Continuing Care" },
-    { value: "independent_living", label: "Independent Living" },
-    { value: "group_home", label: "Group Home" },
-  ]
-
-  const effSearch = Math.round(campaign.cpc_bid_cents * searchMult)
-  const effEmbed = Math.round(campaign.cpc_bid_cents * embedMult)
-
-  return (
-    <div className="mt-4 border-t border-violet-200 pt-4">
-      <div className="text-xs font-semibold uppercase tracking-wider text-violet-900">
-        Advanced targeting
-      </div>
-
-      <div className="mt-3 grid gap-4 md:grid-cols-2">
-        {/* Negative targeting */}
-        <div>
-          <label className="text-xs font-medium">Exclude states (2-letter, comma-separated)</label>
-          <input
-            type="text"
-            value={excludeStates}
-            onChange={(e) => setExcludeStates(e.target.value)}
-            placeholder="e.g. TX, NY"
-            className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm uppercase"
-          />
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            Don't show this ad when family searches in these states.
-          </p>
-        </div>
-        <div>
-          <label className="text-xs font-medium">Exclude care types</label>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {careTypes.map((t) => (
-              <button
-                type="button"
-                key={t.value}
-                onClick={() => toggleType(t.value)}
-                className={cn(
-                  "rounded-full border px-2.5 py-0.5 text-xs",
-                  excludeTypes.includes(t.value)
-                    ? "border-red-500 bg-red-50 text-red-800"
-                    : "border-border text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            Don't show on searches filtered to these care types.
-          </p>
-        </div>
-      </div>
-
-      {/* Per-surface bid multipliers */}
-      <div className="mt-5">
-        <div className="text-xs font-medium">Per-surface bid multipliers</div>
-        <div className="mt-2 grid gap-3 md:grid-cols-2">
-          <div className="rounded-md border bg-white p-3">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-semibold">Search results</span>
-              <span className="text-xs text-muted-foreground">
-                effective: ${(effSearch / 100).toFixed(2)}
-              </span>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="range"
-                min={0.1}
-                max={3}
-                step={0.1}
-                value={searchMult}
-                onChange={(e) => setSearchMult(Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="w-12 text-right text-sm tabular-nums">{searchMult.toFixed(1)}×</span>
-            </div>
-          </div>
-          <div className="rounded-md border bg-white p-3">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-semibold">Hospital embed</span>
-              <span className="text-xs text-muted-foreground">
-                effective: ${(effEmbed / 100).toFixed(2)}
-              </span>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="range"
-                min={0.1}
-                max={3}
-                step={0.1}
-                value={embedMult}
-                onChange={(e) => setEmbedMult(Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="w-12 text-right text-sm tabular-nums">{embedMult.toFixed(1)}×</span>
-            </div>
-          </div>
-        </div>
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          Multiplier of your base CPC bid (${(campaign.cpc_bid_cents / 100).toFixed(2)}). Discharge-
-          planner traffic from the hospital embed is highest-intent — most facilities bid 1.2-1.5× there.
-        </p>
-      </div>
-
-      <div className="mt-4 flex justify-end gap-2">
-        {saved && (
-          <span className="self-center text-xs text-emerald-700">✓ Saved</span>
-        )}
-        <Button size="sm" onClick={save} disabled={saving}>
-          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-        </Button>
-      </div>
-    </div>
-  )
-}
 
 /**
  * Monthly invoice history for sponsored-ad spend. Replaces the
@@ -726,208 +431,7 @@ function SponsoredInvoicesPanel() {
   )
 }
 
-/**
- * A/B creative variants editor — inline inside the campaign insights
- * panel. Each variant has its own headline + body + per-variant
- * CTR rollup. Selection logic in SponsoredListingService picks a
- * variant per session by hashing the session id, so families see
- * a consistent variant across page loads.
- */
-function CreativeVariants({ campaignId }: { campaignId: string }) {
-  const [variants, setVariants] = useState<CreativeVariant[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [adding, setAdding] = useState(false)
-  const [headline, setHeadline] = useState("")
-  const [body, setBody] = useState("")
-  const [label, setLabel] = useState("")
-  const [busy, setBusy] = useState(false)
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      const r = await api.get<{ data: CreativeVariant[] }>(
-        `/facility/sponsored/campaigns/${campaignId}/creatives`,
-      )
-      setVariants(r.data.data)
-    } catch {
-      setVariants([])
-    } finally {
-      setLoading(false)
-    }
-  }
-  useEffect(() => { load() }, [campaignId])
-
-  const add = async () => {
-    if (busy || headline.trim().length < 5) return
-    setBusy(true)
-    try {
-      await api.post(`/facility/sponsored/campaigns/${campaignId}/creatives`, {
-        label: label || null,
-        headline,
-        body: body || null,
-        is_active: true,
-      })
-      setHeadline(""); setBody(""); setLabel(""); setAdding(false)
-      load()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const toggleActive = async (v: CreativeVariant) => {
-    await api.put(`/facility/sponsored/creatives/${v.id}`, { is_active: !v.is_active })
-    load()
-  }
-
-  const remove = async (v: CreativeVariant) => {
-    if (!confirm(`Delete variant "${v.label ?? v.headline}"?`)) return
-    await api.delete(`/facility/sponsored/creatives/${v.id}`)
-    load()
-  }
-
-  return (
-    <div className="mt-4 border-t border-violet-200 pt-4">
-      <div className="flex items-baseline justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-900">
-          <Sparkles className="h-3.5 w-3.5" />
-          A/B creative variants
-        </div>
-        {!adding && (
-          <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-            <Plus className="h-3 w-3" /> Add variant
-          </Button>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="mt-2 text-xs text-muted-foreground">Loading variants…</div>
-      ) : variants && variants.length > 0 ? (
-        <ul className="mt-2 space-y-2">
-          {variants.map((v) => (
-            <li key={v.id} className="rounded-md border bg-white p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    {v.label && (
-                      <span className="inline-flex items-center rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-800">
-                        {v.label}
-                      </span>
-                    )}
-                    {!v.is_active && (
-                      <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        Paused
-                      </span>
-                    )}
-                    <span className="text-sm font-semibold">{v.headline}</span>
-                  </div>
-                  {v.body && (
-                    <p className="mt-1 text-xs text-muted-foreground">{v.body}</p>
-                  )}
-                </div>
-                <div className="shrink-0 text-right text-xs">
-                  <div className="font-semibold tabular-nums">{v.ctr_pct}% CTR</div>
-                  <div className="text-muted-foreground">
-                    {v.clicks} / {v.impressions.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 flex justify-end gap-1.5">
-                <Button size="sm" variant="ghost" onClick={() => toggleActive(v)}>
-                  {v.is_active ? "Pause" : "Activate"}
-                </Button>
-                <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => remove(v)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-muted-foreground">
-          No variants yet — ads use the default facility name. Add 2+ variants to A/B test wording.
-        </p>
-      )}
-
-      {adding && (
-        <div className="mt-3 rounded-md border bg-white p-3">
-          <div className="grid gap-2">
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Label (e.g. A or 'Pricing-led')"
-              maxLength={60}
-              className="rounded-md border bg-background px-2 py-1.5 text-sm"
-            />
-            <input
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              placeholder="Headline (e.g. 'Memory Care, Tour This Week')"
-              maxLength={160}
-              className="rounded-md border bg-background px-2 py-1.5 text-sm"
-            />
-            <input
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Optional supporting line"
-              maxLength={400}
-              className="rounded-md border bg-background px-2 py-1.5 text-sm"
-            />
-            <div className="flex justify-end gap-1.5">
-              <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={add} disabled={busy || headline.trim().length < 5}>
-                Save variant
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function InsightRow({
-  hint,
-  onApply,
-}: {
-  hint: InsightHint
-  onApply: () => void
-}) {
-  const tone =
-    hint.severity === "high"
-      ? "border-amber-300 bg-amber-50/60"
-      : hint.severity === "medium"
-      ? "border-violet-200 bg-white"
-      : "border-emerald-200 bg-emerald-50/40"
-  const a = hint.suggested_action
-  const ctaLabel =
-    a?.type === "raise_bid"
-      ? `Raise bid to $${((a.to_cents ?? 0) / 100).toFixed(2)}`
-      : a?.type === "lower_bid"
-      ? `Lower bid to $${((a.to_cents ?? 0) / 100).toFixed(2)}`
-      : a?.type === "raise_budget"
-      ? `Raise budget to $${((a.to_cents ?? 0) / 100).toFixed(2)}`
-      : null
-  return (
-    <div className={cn("rounded-md border p-3", tone)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold">{hint.label}</div>
-          <p className="mt-1 text-xs text-muted-foreground">{hint.detail}</p>
-        </div>
-        {ctaLabel && (
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <Button size="sm" onClick={onApply}>{ctaLabel}</Button>
-            {a?.predicted_lift && (
-              <span className="text-[10px] text-muted-foreground">{a.predicted_lift}</span>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function StatTile({
   icon: Icon,

@@ -256,6 +256,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Sponsored-listings self-serve campaign management.
         Route::get('/sponsored/campaigns', [FacilitySponsoredController::class, 'index']);
         Route::post('/sponsored/campaigns', [FacilitySponsoredController::class, 'store']);
+        // Full per-campaign detail payload — drives the dedicated
+        // /admin/sponsored/{id} detail page (totals, daily time-series,
+        // per-variant CTR, all in one round trip).
+        Route::get('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'show']);
         Route::put('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'update']);
         Route::delete('/sponsored/campaigns/{id}', [FacilitySponsoredController::class, 'destroy']);
         Route::get('/sponsored/stats', [FacilitySponsoredController::class, 'stats']);

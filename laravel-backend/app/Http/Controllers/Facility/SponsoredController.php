@@ -222,6 +222,135 @@ class SponsoredController extends Controller
     }
 
     /**
+     * GET /api/facility/sponsored/campaigns/{id}
+     *
+     * Full per-campaign payload for the dedicated detail page: the
+     * campaign itself, headline stats, 30-day daily time-series for
+     * impressions/clicks/spend/conversions, top variants by CTR, and
+     * the top traffic-origin breakdown. Heavier than the list endpoint
+     * but loads in one round trip.
+     */
+    public function show(string $id): JsonResponse
+    {
+        $facility = $this->facilityOrFail();
+        $campaign = SponsoredCampaign::query()
+            ->where('id', $id)
+            ->where('facility_id', $facility->id)
+            ->firstOrFail();
+
+        $since30 = now()->subDays(30)->startOfDay();
+
+        $totalsRow = SponsoredClick::query()
+            ->where('campaign_id', $campaign->id)
+            ->where('clicked_at', '>=', $since30)
+            ->selectRaw('
+                count(*) as clicks,
+                sum(billed_cents) as spend_cents,
+                sum(case when converted_to is not null then 1 else 0 end) as conversions,
+                sum(case when converted_to = ? then 1 else 0 end) as admissions,
+                sum(case when attributed_value_cents is not null then attributed_value_cents else 0 end) as value_cents
+            ', ['admission'])
+            ->first();
+        $impressions30 = SponsoredImpression::query()
+            ->where('campaign_id', $campaign->id)
+            ->where('shown_at', '>=', $since30)
+            ->count();
+
+        // Build per-day buckets (30 rows) so the front-end can render
+        // a sparkline without filling gaps in JS.
+        $daily = $this->dailyTimeseries($campaign->id, $since30);
+
+        // Per-variant rollup with CTR.
+        $variants = $campaign->creatives()->get()->map(function ($v) use ($since30) {
+            $imp = SponsoredImpression::where('creative_id', $v->id)->where('shown_at', '>=', $since30)->count();
+            $clk = SponsoredClick::where('creative_id', $v->id)->where('clicked_at', '>=', $since30)->count();
+            return [
+                'id' => $v->id,
+                'label' => $v->label,
+                'headline' => $v->headline,
+                'body' => $v->body,
+                'is_active' => $v->is_active,
+                'impressions' => $imp,
+                'clicks' => $clk,
+                'ctr_pct' => $imp > 0 ? round(($clk / $imp) * 100, 2) : 0,
+            ];
+        });
+
+        $spend = (int) ($totalsRow->spend_cents ?? 0);
+        $clicks = (int) ($totalsRow->clicks ?? 0);
+        $conversions = (int) ($totalsRow->conversions ?? 0);
+        $value = (int) ($totalsRow->value_cents ?? 0);
+
+        return response()->json([
+            'data' => [
+                'campaign' => $this->serialize($campaign),
+                'totals_30d' => [
+                    'impressions' => $impressions30,
+                    'clicks' => $clicks,
+                    'spend_cents' => $spend,
+                    'ctr_pct' => $impressions30 > 0 ? round(($clicks / $impressions30) * 100, 2) : 0,
+                    'conversions' => $conversions,
+                    'admissions' => (int) ($totalsRow->admissions ?? 0),
+                    'attributed_value_cents' => $value,
+                    'cost_per_click_cents' => $clicks > 0 ? (int) round($spend / $clicks) : 0,
+                    'cost_per_conversion_cents' => $conversions > 0 ? (int) round($spend / $conversions) : 0,
+                    'roas' => $spend > 0 ? round($value / $spend, 2) : null,
+                ],
+                'daily' => $daily,
+                'variants' => $variants,
+            ],
+        ]);
+    }
+
+    /**
+     * Produces 30 rows of {date, impressions, clicks, spend_cents,
+     * conversions} ordered chronologically. Empty days included so
+     * the frontend can render sparklines without gap-filling.
+     */
+    private function dailyTimeseries(string $campaignId, \Carbon\Carbon $since): array
+    {
+        $byDay = [];
+        $cursor = $since->copy();
+        $today = now()->startOfDay();
+        while ($cursor->lte($today)) {
+            $byDay[$cursor->toDateString()] = [
+                'date' => $cursor->toDateString(),
+                'impressions' => 0,
+                'clicks' => 0,
+                'spend_cents' => 0,
+                'conversions' => 0,
+            ];
+            $cursor->addDay();
+        }
+
+        $imps = SponsoredImpression::query()
+            ->where('campaign_id', $campaignId)
+            ->where('shown_at', '>=', $since)
+            ->selectRaw('date(shown_at) as d, count(*) as n')
+            ->groupBy('d')
+            ->pluck('n', 'd');
+        foreach ($imps as $d => $n) {
+            if (isset($byDay[$d])) $byDay[$d]['impressions'] = (int) $n;
+        }
+
+        $clks = SponsoredClick::query()
+            ->where('campaign_id', $campaignId)
+            ->where('clicked_at', '>=', $since)
+            ->selectRaw('date(clicked_at) as d, count(*) as c, sum(billed_cents) as s,
+                         sum(case when converted_to is not null then 1 else 0 end) as conv')
+            ->groupBy('d')
+            ->get();
+        foreach ($clks as $row) {
+            if (! isset($byDay[$row->d])) continue;
+            $byDay[$row->d]['clicks'] = (int) $row->c;
+            $byDay[$row->d]['spend_cents'] = (int) $row->s;
+            $byDay[$row->d]['conversions'] = (int) $row->conv;
+        }
+
+        return array_values($byDay);
+    }
+
+    /**
      * GET /api/facility/sponsored/campaigns/{id}/insights
      *
      * Heuristic "why didn't I win?" surface. Returns 1-4 actionable
