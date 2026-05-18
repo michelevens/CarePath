@@ -142,20 +142,21 @@ class DataSourceSchemasSeeder extends Seeder
                 'default_canonical_type' => 'group_home',
                 'default_license_subtype' => 'apd_idd',
                 'column_mappings' => [
-                    // APD typically responds to records requests with
-                    // an Excel sheet using these headers (verified Q2 2026).
-                    'Provider Name' => 'name',
-                    'License Number' => 'license_no',
-                    'Address' => 'address_line_1',
+                    // Real APD response format (verified against an actual
+                    // exported directory): 7 columns, no County / Services /
+                    // Geographic Area in the master list. Per-facility detail
+                    // pages on resourcedirectory.apd.myflorida.com have more
+                    // structured fields, but the bulk export is just contact
+                    // + street address.
+                    'File Number' => 'license_no',
+                    'Facility' => 'name',
+                    'Street Address' => 'address_line_1',
                     'City' => 'city',
                     'State' => 'state',
-                    'Zip Code' => 'zip',
-                    'County' => 'county',
-                    'Contact Phone' => 'phone',
-                    'Geographic Area Served' => 'service_area_notes',
-                    'Services' => 'services_offered',
+                    'Zip' => 'zip',
+                    'Phone Number' => 'phone',
                 ],
-                'access_instructions' => "No bulk download is published. File a Florida Public Records Request (Statute 119.07):\n\n1. Email PublicRecords@apdcares.org with subject 'Public Records Request — Licensed Group Home Provider List, statewide'.\n2. Request: 'Current list of all APD-licensed group homes in Florida including provider name, license number, address, city, county, ZIP, contact phone, and services offered.'\n3. APD has 30 days to respond (Florida statute).\n4. Upload the resulting Excel/CSV via SuperAdmin → Data sources → Upload, selecting 'fl_apd' as the source.\n5. Set a calendar reminder to re-file annually.",
+                'access_instructions' => "APD publishes the Licensed Provider directory as an Excel/CSV. Two paths:\n\n• Direct download — APD Resource Directory at https://resourcedirectory.apd.myflorida.com/ (filter by 'Licensed Residential Habilitation Provider' or similar and use the 'Export' link if visible).\n\n• Public records request — email PublicRecords@apdcares.org with subject 'Public Records Request — Licensed Group Home Provider List, statewide'. APD has 30 days to respond (Florida statute).\n\nThe expected columns are: File Number, Facility, Street Address, City, State, Zip, Phone Number. Upload via SuperAdmin → Data sources → Upload, selecting 'fl_apd' as the source.",
                 'contact_email' => 'PublicRecords@apdcares.org',
                 'contact_phone' => '(850) 921-3779',
             ],
