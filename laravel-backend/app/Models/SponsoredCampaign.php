@@ -46,6 +46,11 @@ class SponsoredCampaign extends Model
         return $this->hasMany(SponsoredClick::class, 'campaign_id');
     }
 
+    public function creatives(): HasMany
+    {
+        return $this->hasMany(SponsoredCreative::class, 'campaign_id');
+    }
+
     /**
      * Can this campaign be shown right now? Considers status, date
      * window, and pacing budgets. The matching-against-the-current-

@@ -263,6 +263,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // the "Why didn't I win more?" panel on the campaign card.
         Route::get('/sponsored/campaigns/{id}/insights', [FacilitySponsoredController::class, 'insights']);
 
+        // Creative variants — A/B testable headline + body per campaign.
+        Route::get('/sponsored/campaigns/{id}/creatives', [FacilitySponsoredController::class, 'listCreatives']);
+        Route::post('/sponsored/campaigns/{id}/creatives', [FacilitySponsoredController::class, 'storeCreative']);
+        Route::put('/sponsored/creatives/{id}', [FacilitySponsoredController::class, 'updateCreative']);
+        Route::delete('/sponsored/creatives/{id}', [FacilitySponsoredController::class, 'destroyCreative']);
+
         // Listing analytics — impressions, detail views, tour requests
         // for the active facility over the last 30 days vs prior 30.
         Route::get('/listing-analytics', [FacilityAnalyticsController::class, 'listing']);

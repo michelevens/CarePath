@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Facility;
 use App\Models\SponsoredCampaign;
 use App\Models\SponsoredClick;
+use App\Models\SponsoredCreative;
 use App\Models\SponsoredImpression;
 use App\Services\BidRecommendationService;
 use Illuminate\Http\JsonResponse;
@@ -240,6 +241,102 @@ class SponsoredController extends Controller
                 'hints' => $svc->insights($campaign),
             ],
         ]);
+    }
+
+    /**
+     * GET /api/facility/sponsored/campaigns/{id}/creatives
+     *
+     * List + per-variant CTR rollup. Drives the A/B variants panel
+     * on the campaign card.
+     */
+    public function listCreatives(string $id): JsonResponse
+    {
+        $facility = $this->facilityOrFail();
+        $campaign = SponsoredCampaign::where('id', $id)->where('facility_id', $facility->id)->firstOrFail();
+        $creatives = $campaign->creatives()->orderBy('created_at')->get();
+
+        // Roll up per-variant impressions/clicks for the last 30d.
+        $since = now()->subDays(30);
+        $rows = $creatives->map(function ($v) use ($since) {
+            $impressions = SponsoredImpression::query()
+                ->where('creative_id', $v->id)
+                ->where('shown_at', '>=', $since)
+                ->count();
+            $clicks = SponsoredClick::query()
+                ->where('creative_id', $v->id)
+                ->where('clicked_at', '>=', $since)
+                ->count();
+            return [
+                'id' => $v->id,
+                'label' => $v->label,
+                'headline' => $v->headline,
+                'body' => $v->body,
+                'is_active' => $v->is_active,
+                'impressions' => $impressions,
+                'clicks' => $clicks,
+                'ctr_pct' => $impressions > 0 ? round(($clicks / $impressions) * 100, 2) : 0,
+            ];
+        });
+
+        return response()->json(['data' => $rows]);
+    }
+
+    /**
+     * POST /api/facility/sponsored/campaigns/{id}/creatives
+     */
+    public function storeCreative(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'label' => ['nullable', 'string', 'max:60'],
+            'headline' => ['required', 'string', 'max:160'],
+            'body' => ['nullable', 'string', 'max:400'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $facility = $this->facilityOrFail();
+        $campaign = SponsoredCampaign::where('id', $id)->where('facility_id', $facility->id)->firstOrFail();
+
+        $variant = $campaign->creatives()->create([
+            'label' => $data['label'] ?? null,
+            'headline' => $data['headline'],
+            'body' => $data['body'] ?? null,
+            'is_active' => $data['is_active'] ?? true,
+        ]);
+
+        return response()->json(['data' => $variant], 201);
+    }
+
+    /**
+     * PUT /api/facility/sponsored/creatives/{id}
+     */
+    public function updateCreative(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'label' => ['nullable', 'string', 'max:60'],
+            'headline' => ['nullable', 'string', 'max:160'],
+            'body' => ['nullable', 'string', 'max:400'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+        $facility = $this->facilityOrFail();
+        $variant = SponsoredCreative::query()
+            ->whereHas('campaign', fn ($q) => $q->where('facility_id', $facility->id))
+            ->findOrFail($id);
+        $variant->fill(array_filter($data, fn ($v) => $v !== null));
+        $variant->save();
+        return response()->json(['data' => $variant]);
+    }
+
+    /**
+     * DELETE /api/facility/sponsored/creatives/{id}
+     */
+    public function destroyCreative(string $id): JsonResponse
+    {
+        $facility = $this->facilityOrFail();
+        $variant = SponsoredCreative::query()
+            ->whereHas('campaign', fn ($q) => $q->where('facility_id', $facility->id))
+            ->findOrFail($id);
+        $variant->delete();
+        return response()->json(['ok' => true]);
     }
 
     private function validateCampaign(Request $request, bool $partial = false): array

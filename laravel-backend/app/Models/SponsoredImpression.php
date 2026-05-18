@@ -14,7 +14,7 @@ class SponsoredImpression extends Model
     public $timestamps = false; // we set shown_at via DEFAULT CURRENT_TIMESTAMP
 
     protected $fillable = [
-        'campaign_id', 'facility_id',
+        'campaign_id', 'creative_id', 'facility_id',
         'session_id', 'search_context',
         'was_clicked', 'shown_at',
     ];

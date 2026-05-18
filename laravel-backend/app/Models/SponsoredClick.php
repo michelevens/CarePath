@@ -10,14 +10,16 @@ class SponsoredClick extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'campaign_id', 'facility_id',
+        'campaign_id', 'creative_id', 'facility_id',
         'session_id', 'billed_cents',
         'ip_address', 'user_agent',
         'clicked_at',
+        'converted_at', 'converted_to', 'attributed_value_cents',
     ];
 
     protected $casts = [
         'clicked_at' => 'datetime',
+        'converted_at' => 'datetime',
     ];
 
     public function campaign(): BelongsTo

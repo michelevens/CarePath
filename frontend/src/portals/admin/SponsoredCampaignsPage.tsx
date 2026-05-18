@@ -65,6 +65,17 @@ interface InsightsPayload {
   hints: InsightHint[]
 }
 
+interface CreativeVariant {
+  id: string
+  label: string | null
+  headline: string
+  body: string | null
+  is_active: boolean
+  impressions: number
+  clicks: number
+  ctr_pct: number
+}
+
 interface PeriodStats {
   impressions: number
   clicks: number
@@ -395,6 +406,9 @@ export function SponsoredCampaignsPage() {
                         ) : (
                           <div className="text-sm text-muted-foreground">No recommendations yet — need more data.</div>
                         )}
+
+                        {/* A/B creative variants editor */}
+                        <CreativeVariants campaignId={c.id} />
                       </td>
                     </tr>
                   )}
@@ -424,6 +438,167 @@ export function SponsoredCampaignsPage() {
           await load()
         }}
       />
+    </div>
+  )
+}
+
+/**
+ * A/B creative variants editor — inline inside the campaign insights
+ * panel. Each variant has its own headline + body + per-variant
+ * CTR rollup. Selection logic in SponsoredListingService picks a
+ * variant per session by hashing the session id, so families see
+ * a consistent variant across page loads.
+ */
+function CreativeVariants({ campaignId }: { campaignId: string }) {
+  const [variants, setVariants] = useState<CreativeVariant[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [headline, setHeadline] = useState("")
+  const [body, setBody] = useState("")
+  const [label, setLabel] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const r = await api.get<{ data: CreativeVariant[] }>(
+        `/facility/sponsored/campaigns/${campaignId}/creatives`,
+      )
+      setVariants(r.data.data)
+    } catch {
+      setVariants([])
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => { load() }, [campaignId])
+
+  const add = async () => {
+    if (busy || headline.trim().length < 5) return
+    setBusy(true)
+    try {
+      await api.post(`/facility/sponsored/campaigns/${campaignId}/creatives`, {
+        label: label || null,
+        headline,
+        body: body || null,
+        is_active: true,
+      })
+      setHeadline(""); setBody(""); setLabel(""); setAdding(false)
+      load()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const toggleActive = async (v: CreativeVariant) => {
+    await api.put(`/facility/sponsored/creatives/${v.id}`, { is_active: !v.is_active })
+    load()
+  }
+
+  const remove = async (v: CreativeVariant) => {
+    if (!confirm(`Delete variant "${v.label ?? v.headline}"?`)) return
+    await api.delete(`/facility/sponsored/creatives/${v.id}`)
+    load()
+  }
+
+  return (
+    <div className="mt-4 border-t border-violet-200 pt-4">
+      <div className="flex items-baseline justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-900">
+          <Sparkles className="h-3.5 w-3.5" />
+          A/B creative variants
+        </div>
+        {!adding && (
+          <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+            <Plus className="h-3 w-3" /> Add variant
+          </Button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="mt-2 text-xs text-muted-foreground">Loading variants…</div>
+      ) : variants && variants.length > 0 ? (
+        <ul className="mt-2 space-y-2">
+          {variants.map((v) => (
+            <li key={v.id} className="rounded-md border bg-white p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {v.label && (
+                      <span className="inline-flex items-center rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-800">
+                        {v.label}
+                      </span>
+                    )}
+                    {!v.is_active && (
+                      <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        Paused
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold">{v.headline}</span>
+                  </div>
+                  {v.body && (
+                    <p className="mt-1 text-xs text-muted-foreground">{v.body}</p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right text-xs">
+                  <div className="font-semibold tabular-nums">{v.ctr_pct}% CTR</div>
+                  <div className="text-muted-foreground">
+                    {v.clicks} / {v.impressions.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 flex justify-end gap-1.5">
+                <Button size="sm" variant="ghost" onClick={() => toggleActive(v)}>
+                  {v.is_active ? "Pause" : "Activate"}
+                </Button>
+                <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => remove(v)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          No variants yet — ads use the default facility name. Add 2+ variants to A/B test wording.
+        </p>
+      )}
+
+      {adding && (
+        <div className="mt-3 rounded-md border bg-white p-3">
+          <div className="grid gap-2">
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Label (e.g. A or 'Pricing-led')"
+              maxLength={60}
+              className="rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+            <input
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              placeholder="Headline (e.g. 'Memory Care, Tour This Week')"
+              maxLength={160}
+              className="rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+            <input
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Optional supporting line"
+              maxLength={400}
+              className="rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+            <div className="flex justify-end gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={add} disabled={busy || headline.trim().length < 5}>
+                Save variant
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

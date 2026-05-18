@@ -340,6 +340,7 @@ class MarketplaceController extends Controller
             'impressions' => ['required', 'array', 'max:5'],
             'impressions.*.campaign_id' => ['required', 'string'],
             'impressions.*.facility_id' => ['required', 'string'],
+            'impressions.*.creative_id' => ['nullable', 'string'], // A/B variant id
             'session_id' => ['nullable', 'string', 'max:60'],
             'search_context' => ['nullable', 'array'],
         ]);
@@ -350,6 +351,7 @@ class MarketplaceController extends Controller
                 $imp['facility_id'],
                 $data['session_id'] ?? null,
                 $data['search_context'] ?? [],
+                $imp['creative_id'] ?? null,
             );
         }
 
@@ -376,6 +378,7 @@ class MarketplaceController extends Controller
             'facility_id' => ['required', 'string'],
             'click_token' => ['required', 'string'],
             'session_id'  => ['required', 'string', 'max:60'],
+            'creative_id' => ['nullable', 'string'], // A/B variant id
         ]);
 
         // 1. Signature: prove the (campaign, facility) pair was minted
@@ -393,7 +396,12 @@ class MarketplaceController extends Controller
         //    impression was logged for this session+campaign within 30
         //    minutes. Together with (1) a click must follow a real
         //    search render in the same browser.
-        $billed = $sponsored->recordClick($data['campaign_id'], $data['session_id'], $request);
+        $billed = $sponsored->recordClick(
+            $data['campaign_id'],
+            $data['session_id'],
+            $request,
+            $data['creative_id'] ?? null,
+        );
 
         return response()->json(['ok' => true, 'billed' => $billed]);
     }

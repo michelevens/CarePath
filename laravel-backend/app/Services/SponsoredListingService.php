@@ -105,16 +105,20 @@ class SponsoredListingService
                 $q->whereNull('total_budget_cents')
                   ->orWhereRaw('spent_total_cents + cpc_bid_cents <= total_budget_cents');
             })
-            ->with(['facility' => function ($q) {
-                $q->select([
-                    'id', 'name', 'slug', 'type', 'city', 'state', 'zip',
-                    'latitude', 'longitude',
-                    'medicaid_certified', 'medicare_certified',
-                    'cms_five_star_overall', 'cms_five_star_health_inspection',
-                    'cms_five_star_staffing', 'cms_five_star_quality',
-                    'total_beds', 'price_from_cents', 'is_active',
-                ]);
-            }]);
+            ->with([
+                'facility' => function ($q) {
+                    $q->select([
+                        'id', 'name', 'slug', 'type', 'city', 'state', 'zip',
+                        'latitude', 'longitude',
+                        'medicaid_certified', 'medicare_certified',
+                        'cms_five_star_overall', 'cms_five_star_health_inspection',
+                        'cms_five_star_staffing', 'cms_five_star_quality',
+                        'total_beds', 'price_from_cents', 'is_active',
+                    ]);
+                },
+                // Eager-load active creatives so pickCreative is query-free.
+                'creatives' => fn ($q) => $q->where('is_active', true),
+            ]);
 
         // Pre-load all candidates and post-filter in PHP — candidate set
         // is small (active campaigns total) and the matching logic reads
@@ -148,11 +152,24 @@ class SponsoredListingService
             ->values()
             ->take(self::MAX_SLOTS_PER_PAGE);
 
-        return $ranked->map(function ($c) use ($filters) {
+        return $ranked->map(function ($c) use ($filters, $sessionId) {
             $f = $c->facility;
             $f->is_sponsored = true;
             $f->sponsored_campaign_id = $c->id;
             $f->click_token = self::signClickToken($c->id, $f->id);
+
+            // Pick a creative variant for this impression. Even-split
+            // across active variants by hashing session id so the same
+            // session sees the same variant repeatedly (avoids muddy
+            // A/B numbers from one user counting twice for different
+            // variants).
+            $variant = $this->pickCreative($c, $sessionId);
+            if ($variant) {
+                $f->sponsored_creative_id = $variant->id;
+                $f->sponsored_headline = $variant->headline;
+                $f->sponsored_body = $variant->body;
+            }
+
             // Disclosure payload for "Why am I seeing this?" — no
             // secrets, no PII, just an explanation the user can audit.
             $f->sponsored_reason = [
@@ -166,6 +183,26 @@ class SponsoredListingService
             ];
             return $f;
         })->values();
+    }
+
+    /**
+     * Round-robin variant selection. Eager-loaded `creatives` on the
+     * campaign keeps this query-free. Session hashing ensures the
+     * same session sees the same variant across page loads — clean
+     * A/B numbers.
+     */
+    private function pickCreative($campaign, ?string $sessionId): ?\App\Models\SponsoredCreative
+    {
+        // Eager-load active variants when not already present.
+        $variants = $campaign->relationLoaded('creatives')
+            ? $campaign->creatives->where('is_active', true)
+            : $campaign->creatives()->where('is_active', true)->get();
+
+        if ($variants->isEmpty()) return null;
+
+        $values = $variants->values();
+        $bucket = $sessionId ? abs(crc32($sessionId)) % $values->count() : 0;
+        return $values[$bucket] ?? $values->first();
     }
 
     /**
@@ -258,10 +295,16 @@ class SponsoredListingService
      * by the frontend after render so paced budgets account for
      * actual served slots, not just selected ones.
      */
-    public function recordImpression(string $campaignId, string $facilityId, ?string $sessionId, array $searchContext): void
-    {
+    public function recordImpression(
+        string $campaignId,
+        string $facilityId,
+        ?string $sessionId,
+        array $searchContext,
+        ?string $creativeId = null,
+    ): void {
         SponsoredImpression::create([
             'campaign_id' => $campaignId,
+            'creative_id' => $creativeId,
             'facility_id' => $facilityId,
             'session_id' => $sessionId,
             'search_context' => $searchContext,
@@ -279,8 +322,12 @@ class SponsoredListingService
      * id was never actually shown to this client, so the click can't
      * be legitimate. Helps shut down off-page click-bot replays.
      */
-    public function recordClick(string $campaignId, ?string $sessionId, Request $request): bool
-    {
+    public function recordClick(
+        string $campaignId,
+        ?string $sessionId,
+        Request $request,
+        ?string $creativeId = null,
+    ): bool {
         $campaign = SponsoredCampaign::find($campaignId);
         if (! $campaign) return false;
 
@@ -292,9 +339,10 @@ class SponsoredListingService
             ->exists();
         if (! $hasImpression) return false;
 
-        DB::transaction(function () use ($campaign, $sessionId, $request): void {
+        DB::transaction(function () use ($campaign, $sessionId, $request, $creativeId): void {
             SponsoredClick::create([
                 'campaign_id' => $campaign->id,
+                'creative_id' => $creativeId,
                 'facility_id' => $campaign->facility_id,
                 'session_id' => $sessionId,
                 'billed_cents' => $campaign->cpc_bid_cents,

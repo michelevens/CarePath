@@ -84,6 +84,9 @@ interface FacilityResult {
   completeness_pct?: number
   is_sponsored: boolean
   sponsored_campaign_id: string | null
+  sponsored_creative_id?: string | null
+  sponsored_headline?: string | null
+  sponsored_body?: string | null
   click_token: string | null
   sponsored_reason: {
     facility_name: string
@@ -263,6 +266,7 @@ export function SearchPage() {
                 impressions: sponsored.map((f) => ({
                   campaign_id: f.sponsored_campaign_id,
                   facility_id: f.id,
+                  creative_id: f.sponsored_creative_id ?? undefined,
                 })),
                 session_id: getOrCreateSessionId(),
                 search_context: queryParams,
@@ -844,6 +848,7 @@ function ResultCard({ r }: { r: FacilityResult }) {
           facility_id: r.id,
           click_token: r.click_token,
           session_id: getOrCreateSessionId(),
+          creative_id: r.sponsored_creative_id ?? undefined,
         })
         .catch(() => {})
     }
