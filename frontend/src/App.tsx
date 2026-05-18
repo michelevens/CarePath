@@ -72,6 +72,7 @@ const SuperAdminPlansPage = lazy(() => import("@/portals/superadmin/PlansPage").
 const SuperAdminLicensingPage = lazy(() => import("@/portals/superadmin/LicensingPage").then(m => ({ default: m.LicensingPage })))
 const HelpPage = lazy(() => import("@/portals/help/HelpPage").then(m => ({ default: m.HelpPage })))
 const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
+const ManageListingPage = lazy(() => import("@/portals/admin/ManageListingPage").then(m => ({ default: m.ManageListingPage })))
 const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").then(m => ({ default: m.AdmissionsKanban })))
 const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
 const LeadsPage = lazy(() => import("@/portals/admin/LeadsPage").then(m => ({ default: m.LeadsPage })))
@@ -204,6 +205,7 @@ function App() {
                 <Route path="tours" element={<ToursPage />} />
                 <Route path="leads" element={<LeadsPage />} />
                 <Route path="data" element={<FacilityDataPage />} />
+                <Route path="listing" element={<ManageListingPage />} />
                 <Route path="billing" element={<BillingPage />} />
                 <Route path="sponsored" element={<SponsoredCampaignsPage />} />
                 <Route path="sponsored/:id" element={<SponsoredCampaignDetailPage />} />

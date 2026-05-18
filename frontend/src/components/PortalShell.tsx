@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Building2,
   BarChart3,
+  Pencil,
   Settings,
   HeartHandshake,
   Shield,
@@ -62,6 +63,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     title: "Facility admin",
     items: [
       { to: "/admin", label: "Census", icon: Home },
+      { to: "/admin/listing", label: "Public listing", icon: Pencil },
       { to: "/admin/admissions", label: "Admissions", icon: Users },
       { to: "/admin/beds", label: "Beds & rooms", icon: Building2 },
       { to: "/admin/tours", label: "Tour requests", icon: Calendar },

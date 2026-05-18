@@ -123,6 +123,8 @@ interface Facility {
   phone: string | null
   email: string | null
   website: string | null
+  tagline: string | null
+  description: string | null
   medicaid_certified: boolean
   medicare_certified: boolean
   cms_five_star_overall: number | null
@@ -441,6 +443,20 @@ export function FacilityDetailPage() {
                 )}
               </div>
             </section>
+
+            {(facility.tagline || facility.description) && (
+              <section className="space-y-2">
+                <h2 className="text-xl font-semibold">About this community</h2>
+                {facility.tagline && (
+                  <p className="text-base text-muted-foreground">{facility.tagline}</p>
+                )}
+                {facility.description && (
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                    {facility.description}
+                  </p>
+                )}
+              </section>
+            )}
 
             <AmenitiesSection amenities={facility.amenities} />
 
@@ -2801,7 +2817,7 @@ function ClaimFacilitySection({
             </p>
           </div>
           <Button asChild size="sm" variant="outline">
-            <Link to="/admin/data">
+            <Link to="/admin/listing">
               Manage listing
               <ExternalLink className="ml-1 h-3 w-3" />
             </Link>

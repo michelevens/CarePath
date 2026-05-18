@@ -26,7 +26,9 @@ use App\Http\Controllers\Referral\BillingController as ReferralBillingController
 use App\Http\Controllers\Referral\ReferralController;
 use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
+use App\Http\Controllers\Facility\FacilityAmenityController;
 use App\Http\Controllers\Facility\FacilityDataController;
+use App\Http\Controllers\Facility\FacilityProfileController;
 use App\Http\Controllers\Facility\LeadController;
 use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
@@ -298,6 +300,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/data/{type}', [FacilityDataController::class, 'store']);
         Route::put('/data/{type}/{id}', [FacilityDataController::class, 'update']);
         Route::delete('/data/{type}/{id}', [FacilityDataController::class, 'destroy']);
+
+        // Public listing editor — what families see on /facility/{slug}.
+        // Read-only address (changes need geocoding) + narrow set of
+        // editable marketing/contact fields.
+        Route::get('/profile', [FacilityProfileController::class, 'show']);
+        Route::put('/profile', [FacilityProfileController::class, 'update']);
+
+        // Amenities — full self-serve CRUD. Reorder is a separate
+        // endpoint so the drag-to-reorder UI ships one request per
+        // gesture instead of N writes.
+        Route::get('/amenities', [FacilityAmenityController::class, 'index']);
+        Route::post('/amenities', [FacilityAmenityController::class, 'store']);
+        Route::post('/amenities/reorder', [FacilityAmenityController::class, 'reorder']);
+        Route::put('/amenities/{id}', [FacilityAmenityController::class, 'update']);
+        Route::delete('/amenities/{id}', [FacilityAmenityController::class, 'destroy']);
 
         Route::get('/beds', [BedController::class, 'index']);
         Route::put('/beds/{id}/status', [BedController::class, 'updateStatus']);

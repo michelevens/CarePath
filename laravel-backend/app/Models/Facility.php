@@ -50,6 +50,8 @@ class Facility extends Model
         'phone',
         'email',
         'website',
+        'tagline',
+        'description',
         'medicaid_certified',
         'medicare_certified',
         'cms_five_star_overall',
