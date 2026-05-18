@@ -28,6 +28,7 @@ use App\Http\Controllers\Facility\BedController;
 use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityAmenityController;
 use App\Http\Controllers\Facility\FacilityDataController;
+use App\Http\Controllers\Facility\FacilityPhotoController;
 use App\Http\Controllers\Facility\FacilityProfileController;
 use App\Http\Controllers\Facility\OverviewController as FacilityOverviewController;
 use App\Http\Controllers\Network\FacilityDetailController as NetworkFacilityDetailController;
@@ -337,6 +338,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/amenities/reorder', [FacilityAmenityController::class, 'reorder']);
         Route::put('/amenities/{id}', [FacilityAmenityController::class, 'update']);
         Route::delete('/amenities/{id}', [FacilityAmenityController::class, 'destroy']);
+
+        // Photos — manager-uploaded to Cloudflare R2. Same shape as
+        // amenities (list / create / update caption / reorder /
+        // delete). Hard ceiling enforced server-side at 30 per
+        // facility.
+        Route::get('/photos', [FacilityPhotoController::class, 'index']);
+        Route::post('/photos', [FacilityPhotoController::class, 'store']);
+        Route::post('/photos/reorder', [FacilityPhotoController::class, 'reorder']);
+        Route::put('/photos/{id}', [FacilityPhotoController::class, 'update']);
+        Route::delete('/photos/{id}', [FacilityPhotoController::class, 'destroy']);
 
         Route::get('/beds', [BedController::class, 'index']);
         Route::put('/beds/{id}/status', [BedController::class, 'updateStatus']);

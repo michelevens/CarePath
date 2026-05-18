@@ -60,6 +60,29 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Cloudflare R2 — S3-compatible object storage. Used for
+         * user-uploaded media (facility photos, future: resident docs).
+         * Region is always 'auto' for R2; endpoint is the
+         * https://<account-id>.r2.cloudflarestorage.com URL from the
+         * Cloudflare dashboard. R2_PUBLIC_BASE is the *public-read*
+         * URL prefix (either a custom domain like images.carepath.io
+         * or the auto-generated pub-xxxxxx.r2.dev), used when we
+         * build hot-link URLs for the frontend.
+         */
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'url' => env('R2_PUBLIC_BASE'),
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

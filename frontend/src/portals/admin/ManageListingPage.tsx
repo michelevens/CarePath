@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Check,
   ExternalLink,
+  Image as ImageIcon,
   Loader2,
   Pencil,
   Plus,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  Upload,
   X,
 } from "lucide-react"
 import { Link } from "react-router-dom"
@@ -50,7 +52,28 @@ interface Amenity {
   sort_order: number
 }
 
-type Tab = "profile" | "amenities"
+type Tab = "profile" | "amenities" | "photos"
+
+interface Photo {
+  id: string
+  facility_id: string
+  url: string
+  caption: string | null
+  category: string | null
+  sort_order: number
+  is_active: boolean
+}
+
+const PHOTO_CATEGORIES: Array<{ value: string; label: string }> = [
+  { value: "exterior", label: "Exterior" },
+  { value: "common_room", label: "Common room" },
+  { value: "dining", label: "Dining" },
+  { value: "suite", label: "Suite / room" },
+  { value: "outdoor", label: "Outdoor" },
+  { value: "clinical", label: "Clinical" },
+]
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024
 
 const FACILITY_TYPES: Array<{ value: string; label: string }> = [
   { value: "snf", label: "Skilled nursing" },
@@ -112,12 +135,16 @@ export function ManageListingPage() {
         <TabButton active={tab === "profile"} onClick={() => setTab("profile")}>
           Profile
         </TabButton>
+        <TabButton active={tab === "photos"} onClick={() => setTab("photos")}>
+          Photos
+        </TabButton>
         <TabButton active={tab === "amenities"} onClick={() => setTab("amenities")}>
           Amenities
         </TabButton>
       </div>
 
       {tab === "profile" && <ProfileTab headers={headers} />}
+      {tab === "photos" && <PhotosTab headers={headers} />}
       {tab === "amenities" && <AmenitiesTab headers={headers} />}
     </div>
   )
@@ -770,6 +797,364 @@ function AmenityEditor({
               Visible
             </label>
           </div>
+          {error && <div className="text-xs text-red-700">{error}</div>}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="mr-1 h-3 w-3" /> Save
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ----------------------------------------------------------------------
+// Photos tab
+// ----------------------------------------------------------------------
+
+function PhotosTab({ headers }: { headers: Record<string, string> | undefined }) {
+  const [rows, setRows] = useState<Photo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [editing, setEditing] = useState<Photo | null>(null)
+
+  const refresh = () =>
+    api
+      .get<{ data: Photo[] }>("/facility/photos", { headers })
+      .then((r) => setRows(r.data.data))
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError(null)
+    api
+      .get<{ data: Photo[] }>("/facility/photos", { headers })
+      .then((r) => alive && setRows(r.data.data))
+      .catch((e) =>
+        alive && setError(e.response?.data?.message ?? "Failed to load photos.")
+      )
+      .finally(() => alive && setLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [headers])
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setError(null)
+    setUploading(true)
+    try {
+      // Sequential upload so a bad file doesn't tank the whole batch
+      // and the per-photo error message is clear about which one.
+      for (const file of Array.from(files)) {
+        if (file.size > MAX_FILE_BYTES) {
+          throw new Error(`"${file.name}" is over 5 MB. Resize and try again.`)
+        }
+        const form = new FormData()
+        form.append("photo", file)
+        await api.post("/facility/photos", form, {
+          headers: { ...(headers ?? {}), "Content-Type": "multipart/form-data" },
+        })
+      }
+      await refresh()
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string }
+      setError(e.response?.data?.message ?? e.message ?? "Upload failed.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const move = async (id: string, direction: -1 | 1) => {
+    const idx = rows.findIndex((r) => r.id === id)
+    if (idx < 0) return
+    const swap = idx + direction
+    if (swap < 0 || swap >= rows.length) return
+    const next = rows.slice()
+    ;[next[idx], next[swap]] = [next[swap], next[idx]]
+    setRows(next)
+    try {
+      await api.post(
+        "/facility/photos/reorder",
+        { order: next.map((r) => r.id) },
+        { headers }
+      )
+    } catch {
+      refresh()
+    }
+  }
+
+  const remove = async (p: Photo) => {
+    if (!confirm("Remove this photo? This can't be undone.")) return
+    const prev = rows
+    setRows((rs) => rs.filter((r) => r.id !== p.id))
+    try {
+      await api.delete(`/facility/photos/${p.id}`, { headers })
+    } catch {
+      setRows(prev)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading photos…
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">
+                {rows.length} {rows.length === 1 ? "photo" : "photos"}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                JPEG, PNG, or WebP. Up to 5 MB each, 30 photos total. The first
+                photo is your cover.
+              </p>
+            </div>
+            <label
+              className={cn(
+                "inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity",
+                uploading && "pointer-events-none opacity-60"
+              )}
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {uploading ? "Uploading…" : "Upload photos"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  void uploadFiles(e.target.files)
+                  e.target.value = ""
+                }}
+              />
+            </label>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Tip: a sunny exterior shot makes the best cover. Avoid stock-photo
+            looks — families fall for authentic over polished.
+          </p>
+        </CardContent>
+      </Card>
+
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            <ImageIcon className="mx-auto h-6 w-6 text-violet-500" />
+            <p className="mt-2">
+              No photos yet. Listings with at least three real photos convert
+              tour requests at roughly 2× the rate of photo-less listings.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((p, i) => (
+            <Card key={p.id}>
+              <CardContent className="p-0">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg bg-muted">
+                  <img
+                    src={p.url}
+                    alt={p.caption ?? `Facility photo ${i + 1}`}
+                    loading="lazy"
+                    className={cn(
+                      "h-full w-full object-cover",
+                      !p.is_active && "opacity-40 grayscale"
+                    )}
+                  />
+                  {i === 0 && (
+                    <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                      Cover
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2 p-3">
+                  <div className="text-xs">
+                    {p.category ? (
+                      <span className="rounded-full bg-accent/50 px-2 py-0.5 font-medium text-accent-foreground">
+                        {PHOTO_CATEGORIES.find((c) => c.value === p.category)?.label ?? p.category}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Uncategorized</span>
+                    )}
+                  </div>
+                  {p.caption && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">{p.caption}</p>
+                  )}
+                  <div className="flex items-center justify-between gap-1 pt-1">
+                    <div className="flex gap-1">
+                      <button
+                        title="Move up"
+                        onClick={() => move(p.id, -1)}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        title="Move down"
+                        onClick={() => move(p.id, 1)}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        title="Edit caption + category"
+                        onClick={() => setEditing(p)}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        title="Delete"
+                        onClick={() => remove(p)}
+                        className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <PhotoEditor
+          photo={editing}
+          headers={headers}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            await refresh()
+            setEditing(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function PhotoEditor({
+  photo,
+  headers,
+  onClose,
+  onSaved,
+}: {
+  photo: Photo
+  headers: Record<string, string> | undefined
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [caption, setCaption] = useState(photo.caption ?? "")
+  const [category, setCategory] = useState(photo.category ?? "")
+  const [active, setActive] = useState(photo.is_active)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      await api.put(
+        `/facility/photos/${photo.id}`,
+        {
+          caption: caption || null,
+          category: category || null,
+          is_active: active,
+        },
+        { headers }
+      )
+      onSaved()
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } } }
+      setError(e.response?.data?.message ?? "Save failed.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-lg bg-card shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b p-4">
+          <h3 className="text-sm font-semibold">Edit photo</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <img src={photo.url} alt="" className="max-h-60 w-full object-cover" />
+        <form onSubmit={submit} className="space-y-4 p-4">
+          <Field label="Category">
+            <select
+              className={INPUT_CLS}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">— None —</option>
+              {PHOTO_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Caption" hint="Optional — shown on hover and read by screen readers.">
+            <input
+              className={INPUT_CLS}
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              maxLength={200}
+              placeholder="e.g. Garden patio with morning sun"
+            />
+          </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
+            />
+            Show on public listing
+          </label>
           {error && <div className="text-xs text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
