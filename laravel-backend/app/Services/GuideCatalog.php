@@ -49,6 +49,9 @@ class GuideCatalog
             'audience' => 'Touring families',
             'value_props' => ['Walk in with confidence', 'Spot the red flags fast', 'Compare facilities on the same yardstick'],
             'hero_panel' => ['eyebrow' => 'Touring', 'title' => 'What to Notice When You Visit'],
+            // Unsplash photo: caregiver + senior touring a community. Sized
+            // for cover-page hero — width=1200 keeps the PDF lean.
+            'hero_image_url' => 'https://images.unsplash.com/photo-1573497019418-b400bb3ab074?w=1200&q=80&auto=format&fit=crop',
             'toc' => [
                 ['n' => 1, 'label' => 'Before you arrive', 'page' => 2],
                 ['n' => 2, 'label' => 'First 60 seconds', 'page' => 3],
@@ -68,6 +71,7 @@ class GuideCatalog
             'audience' => 'Pre-admission families',
             'value_props' => ['Know what Medicare covers', 'Plan for the day Medicare stops paying', 'Avoid common billing surprises'],
             'hero_panel' => ['eyebrow' => 'Medicare', 'title' => 'The 20 / 80 / 100 Day Rule'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1504439468489-c8920d796a29?w=1200&q=80&auto=format&fit=crop',
             'toc' => [
                 ['n' => 1, 'label' => 'What Medicare actually pays for', 'page' => 2],
                 ['n' => 2, 'label' => 'The 100-day SNF benefit', 'page' => 3],
@@ -86,6 +90,7 @@ class GuideCatalog
             'audience' => 'Families planning Medicaid application',
             'value_props' => ['Know what counts as a transfer', 'Use exemptions you didn\'t know existed', 'Avoid penalty-period delays'],
             'hero_panel' => ['eyebrow' => 'Medicaid', 'title' => '60 Months of Scrutiny'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200&q=80&auto=format&fit=crop',
             'toc' => [
                 ['n' => 1, 'label' => 'What the look-back actually checks', 'page' => 2],
                 ['n' => 2, 'label' => 'Transfers that always trigger penalty', 'page' => 3],
@@ -104,6 +109,7 @@ class GuideCatalog
             'audience' => 'Veterans and surviving spouses',
             'value_props' => ['Confirm eligibility in minutes', 'Gather every required document', 'Submit the right way the first time'],
             'hero_panel' => ['eyebrow' => 'VA Benefits', 'title' => 'Most Families Leave Money On the Table'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1582719188393-bb71ca45dbb9?w=1200&q=80&auto=format&fit=crop',
             'toc' => [
                 ['n' => 1, 'label' => 'Who qualifies (and who doesn\'t)', 'page' => 2],
                 ['n' => 2, 'label' => 'Required documents checklist', 'page' => 3],
@@ -123,6 +129,7 @@ class GuideCatalog
             'audience' => 'First-time families',
             'value_props' => ['Compare care levels at a glance', 'Match needs to the right setting', 'Avoid paying for care you don\'t need'],
             'hero_panel' => ['eyebrow' => 'Care Types', 'title' => 'Pick the Right Level First'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=80&auto=format&fit=crop',
             'toc' => [
                 ['n' => 1, 'label' => 'What "assisted living" actually means', 'page' => 2],
                 ['n' => 2, 'label' => 'Daily activities (ADLs) explained', 'page' => 3],
@@ -141,6 +148,7 @@ class GuideCatalog
             'audience' => 'Decision-stage families',
             'value_props' => ['A structured 9-step decision flow', 'Red flags every family should know', 'Cost comparison done right'],
             'hero_panel' => ['eyebrow' => 'Decision Framework', 'title' => 'A Path Through the 47 Options'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=1200&q=80&auto=format&fit=crop',
             'toc' => [
                 ['n' => 1, 'label' => 'Match level of care', 'page' => 2],
                 ['n' => 2, 'label' => 'Set the budget honestly', 'page' => 3],

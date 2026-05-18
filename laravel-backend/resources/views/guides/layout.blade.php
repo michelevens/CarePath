@@ -98,16 +98,33 @@
             max-width: 360pt;
         }
 
-        /* Sage hero panel below the title — placeholder for the
-           magazine photo. Renders as a gradient block so the cover
-           never looks empty even without a hero image. */
+        /* Hero photo — dominant cover element, the way the mockup
+           shows the older woman + caregiver on a couch. When a
+           hero_image_url is supplied on the guide, we render the
+           photo as a full-width image. When it isn't, we fall back
+           to a sage gradient block with the eyebrow + title so the
+           cover never looks empty. */
+        .hero-photo {
+            margin-top: 22pt;
+            width: 100%;
+            border-radius: 14pt;
+            overflow: hidden;
+            background: #8FAF9F;
+        }
+        .hero-photo img {
+            display: block;
+            width: 100%;
+            height: 280pt;
+            object-fit: cover;
+            border-radius: 14pt;
+        }
         .hero-block {
-            margin-top: 28pt;
+            margin-top: 22pt;
             background: #8FAF9F;
             border-radius: 14pt;
             padding: 26pt 24pt;
             color: #FFFFFF;
-            min-height: 160pt;
+            min-height: 200pt;
         }
         .hero-block .eye {
             font-size: 8pt;
@@ -402,7 +419,11 @@
                 <hr class="cover-rule" />
                 <p class="cover-subtitle">{{ $guide['subtitle'] }}</p>
 
-                @if(! empty($guide['hero_panel']))
+                @if(! empty($guide['hero_image_url']))
+                    <div class="hero-photo">
+                        <img src="{{ $guide['hero_image_url'] }}" alt="{{ $guide['title'] }}">
+                    </div>
+                @elseif(! empty($guide['hero_panel']))
                     <div class="hero-block">
                         <div class="eye">{{ $guide['hero_panel']['eyebrow'] }}</div>
                         <div class="htitle">{{ $guide['hero_panel']['title'] }}</div>

@@ -103,10 +103,15 @@ class GuideController extends Controller
             'status' => 'new',
         ]);
 
+        // setOption (singular) sets one key without nuking the vendor
+        // defaults — needed for the magazine-style hero photos that
+        // load from images.unsplash.com.
         $pdf = Pdf::loadView('guides.' . $guide['slug'], [
             'guide' => $guide,
             'today' => now()->format('F j, Y'),
-        ])->setPaper('letter');
+        ])
+            ->setOption('isRemoteEnabled', true)
+            ->setPaper('letter');
 
         $filename = 'carepath-' . $guide['slug'] . '.pdf';
 
