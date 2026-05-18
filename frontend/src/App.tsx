@@ -75,6 +75,11 @@ const SuperAdminLicensingPage = lazy(() => import("@/portals/superadmin/Licensin
 const HelpPage = lazy(() => import("@/portals/help/HelpPage").then(m => ({ default: m.HelpPage })))
 const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
 const ManageListingPage = lazy(() => import("@/portals/admin/ManageListingPage").then(m => ({ default: m.ManageListingPage })))
+const AdminFacilityOverview = lazy(() => import("@/portals/admin/FacilityOverviewPage").then(m => ({ default: m.FacilityOverviewPage })))
+const StaffFacilityOverview = lazy(() => import("@/portals/staff/FacilityOverviewPage").then(m => ({ default: m.FacilityOverviewPage })))
+const SuperAdminFacilityDetail = lazy(() => import("@/portals/superadmin/FacilityDetailPage").then(m => ({ default: m.FacilityDetailPage })))
+const NetworkFacilityDetail = lazy(() => import("@/portals/network/FacilityDetailPage").then(m => ({ default: m.FacilityDetailPage })))
+const ReferralFacilityDetail = lazy(() => import("@/portals/referral/FacilityDetailPage").then(m => ({ default: m.FacilityDetailPage })))
 const AdmissionsKanban = lazy(() => import("@/portals/admin/AdmissionsKanban").then(m => ({ default: m.AdmissionsKanban })))
 const ToursPage = lazy(() => import("@/portals/admin/ToursPage").then(m => ({ default: m.ToursPage })))
 const LeadsPage = lazy(() => import("@/portals/admin/LeadsPage").then(m => ({ default: m.LeadsPage })))
@@ -229,6 +234,7 @@ function App() {
                 <Route path="users/:id" element={<SuperAdminUserDetailPage />} />
                 <Route path="plans" element={<SuperAdminPlansPage />} />
                 <Route path="licensing" element={<SuperAdminLicensingPage />} />
+                <Route path="facilities/:slug" element={<SuperAdminFacilityDetail />} />
               </>
             )}
             {path === "admin" && (
@@ -238,6 +244,7 @@ function App() {
                 <Route path="leads" element={<LeadsPage />} />
                 <Route path="data" element={<FacilityDataPage />} />
                 <Route path="listing" element={<ManageListingPage />} />
+                <Route path="facility" element={<AdminFacilityOverview />} />
                 <Route path="billing" element={<BillingPage />} />
                 <Route path="sponsored" element={<SponsoredCampaignsPage />} />
                 <Route path="sponsored/:id" element={<SponsoredCampaignDetailPage />} />
@@ -248,6 +255,7 @@ function App() {
               <>
                 <Route path="care-plans" element={<CarePlanIndex />} />
                 <Route path="care-plans/:residentId" element={<CarePlanDetail />} />
+                <Route path="facility" element={<StaffFacilityOverview />} />
               </>
             )}
             {path === "referral" && (
@@ -257,7 +265,11 @@ function App() {
                 <Route path="placements" element={<ReferralPayoutsPage />} />
                 <Route path="pipeline" element={<ReferralPipelinePage />} />
                 <Route path="billing" element={<ReferralBillingPage />} />
+                <Route path="facilities/:slug" element={<ReferralFacilityDetail />} />
               </>
+            )}
+            {path === "network" && (
+              <Route path="facilities/:slug" element={<NetworkFacilityDetail />} />
             )}
             {path === "hospital" && (
               <>

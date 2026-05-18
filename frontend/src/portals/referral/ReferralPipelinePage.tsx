@@ -164,7 +164,7 @@ export function ReferralPipelinePage() {
                   <td className="px-3 py-3 align-top">
                     {a.facility ? (
                       <>
-                        <Link to={`/facility/${a.facility.slug}`} className="font-semibold text-primary hover:underline">
+                        <Link to={`/referral/facilities/${a.facility.slug}`} className="font-semibold text-primary hover:underline">
                           {a.facility.name}
                         </Link>
                         <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">

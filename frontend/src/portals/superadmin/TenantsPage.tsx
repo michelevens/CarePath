@@ -245,7 +245,7 @@ export function TenantsPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
-                        to={`/facility/${r.slug}`}
+                        to={`/superadmin/facilities/${r.slug}`}
                         className="inline-flex items-center gap-1 text-xs text-violet-700 hover:underline"
                       >
                         Open <ExternalLink className="h-3 w-3" />

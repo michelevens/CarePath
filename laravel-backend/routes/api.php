@@ -29,6 +29,10 @@ use App\Http\Controllers\Facility\CarePlanController;
 use App\Http\Controllers\Facility\FacilityAmenityController;
 use App\Http\Controllers\Facility\FacilityDataController;
 use App\Http\Controllers\Facility\FacilityProfileController;
+use App\Http\Controllers\Facility\OverviewController as FacilityOverviewController;
+use App\Http\Controllers\Network\FacilityDetailController as NetworkFacilityDetailController;
+use App\Http\Controllers\Referral\FacilityDetailController as ReferralFacilityDetailController;
+use App\Http\Controllers\SuperAdmin\FacilityDetailController as SuperAdminFacilityDetailController;
 use App\Http\Controllers\Facility\LeadController;
 use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
@@ -178,6 +182,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/recent-facilities', [SuperAdminController::class, 'recentFacilities']);
             Route::get('/tenants', [SuperAdminController::class, 'tenants']);
 
+            // Per-facility "fact sheet" — tenant team + claims + sponsored
+            // + placements + listing-event funnel + audit slice. Drives the
+            // /superadmin/facilities/{slug} detail page.
+            Route::get('/facilities/{slug}', [SuperAdminFacilityDetailController::class, 'show']);
+
             // Cross-tenant oversight tabs.
             Route::get('/verifications', [SuperAdminController::class, 'verifications']);
             Route::post('/verifications/advisors/{id}/approve', [SuperAdminController::class, 'approveAdvisor']);
@@ -247,7 +256,20 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/audit-log', [AuditLogController::class, 'index']);
         });
 
+    // Network-operator portal — chain executives drilling into any
+    // single facility in their portfolio. SuperAdmin bypasses the
+    // membership gate inside the controller.
+    Route::prefix('network')
+        ->middleware('role:network_admin|super_admin')
+        ->group(function () {
+            Route::get('/facilities/{slug}', [NetworkFacilityDetailController::class, 'show']);
+        });
+
     Route::prefix('facility')->middleware('facility.scope')->group(function () {
+        // Glanceable overview consumed by both /admin/facility and
+        // /staff/facility — frontend picks which cards to render.
+        Route::get('/overview', [FacilityOverviewController::class, 'show']);
+
         // Billing — list available plans, fetch current subscription,
         // start checkout, cancel at period end.
         Route::get('/billing/plans', [FacilityBillingController::class, 'plans']);
@@ -395,6 +417,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/stats', [ReferralController::class, 'stats']);
             Route::get('/placements', [ReferralController::class, 'placements']);
             Route::get('/pipeline', [ReferralController::class, 'pipeline']);
+
+            // Per-facility view for advisors — capacity + their own
+            // placement + commission history at this facility.
+            Route::get('/facilities/{slug}', [ReferralFacilityDetailController::class, 'show']);
 
             // Advisor SaaS subscription management.
             Route::get('/billing/plans', [ReferralBillingController::class, 'plans']);

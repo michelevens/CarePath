@@ -54,6 +54,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     title: "Staff",
     items: [
       { to: "/staff", label: "Today", icon: Home },
+      { to: "/staff/facility", label: "Facility overview", icon: Building2 },
       { to: "/staff/residents", label: "Residents", icon: Users },
       { to: "/staff/care-plans", label: "Care plans", icon: ClipboardList },
       { to: "/staff/handoffs", label: "Shift handoffs", icon: Calendar },
@@ -63,6 +64,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     title: "Facility admin",
     items: [
       { to: "/admin", label: "Census", icon: Home },
+      { to: "/admin/facility", label: "Facility overview", icon: Building2 },
       { to: "/admin/listing", label: "Public listing", icon: Pencil },
       { to: "/admin/admissions", label: "Admissions", icon: Users },
       { to: "/admin/beds", label: "Beds & rooms", icon: Building2 },
