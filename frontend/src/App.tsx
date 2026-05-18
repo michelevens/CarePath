@@ -43,6 +43,11 @@ const VaEligibilityPage = lazy(() => import("@/pages/VaEligibilityPage").then(m 
 const SecuritySettingsPage = lazy(() => import("@/pages/SecuritySettingsPage").then(m => ({ default: m.SecuritySettingsPage })))
 const ProfileSettingsPage = lazy(() => import("@/pages/ProfileSettingsPage").then(m => ({ default: m.ProfileSettingsPage })))
 const MessagesPage = lazy(() => import("@/pages/MessagesPage").then(m => ({ default: m.MessagesPage })))
+const LegalPrivacyPage = lazy(() => import("@/pages/legal/LegalPrivacyPage").then(m => ({ default: m.LegalPrivacyPage })))
+const LegalTermsPage = lazy(() => import("@/pages/legal/LegalTermsPage").then(m => ({ default: m.LegalTermsPage })))
+const LegalCookiesPage = lazy(() => import("@/pages/legal/LegalCookiesPage").then(m => ({ default: m.LegalCookiesPage })))
+const LegalAccessibilityPage = lazy(() => import("@/pages/legal/LegalAccessibilityPage").then(m => ({ default: m.LegalAccessibilityPage })))
+const LegalDataPage = lazy(() => import("@/pages/legal/LegalDataPage").then(m => ({ default: m.LegalDataPage })))
 
 const FamilyDashboard = lazy(() => import("@/portals/family/FamilyDashboard").then(m => ({ default: m.FamilyDashboard })))
 const FamilyPlacementsPage = lazy(() => import("@/portals/family/FamilyPlacementsPage").then(m => ({ default: m.FamilyPlacementsPage })))
@@ -187,6 +192,13 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+        {/* Legal — accessible to anyone, no auth required. */}
+        <Route path="/legal/privacy" element={<LegalPrivacyPage />} />
+        <Route path="/legal/terms" element={<LegalTermsPage />} />
+        <Route path="/legal/cookies" element={<LegalCookiesPage />} />
+        <Route path="/legal/accessibility" element={<LegalAccessibilityPage />} />
+        <Route path="/legal/data" element={<LegalDataPage />} />
 
         {/* Embeddable widget for hospital partners — iframe target. */}
         <Route path="/embed/search" element={<EmbedSearchPage />} />
