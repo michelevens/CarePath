@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Laravel\Facades\Image;
 
 /**
  * Facility-manager photo upload. Files go to Cloudflare R2 via the
@@ -30,6 +31,13 @@ class FacilityPhotoController extends Controller
 {
     private const MAX_PHOTOS = 30;
     private const MAX_BYTES = 5 * 1024 * 1024;
+    // Hero on the public detail page is rendered at ~1200px wide on
+    // a 2k monitor; serving 4k JPEGs from a phone camera is wasted
+    // bytes. Cap the long edge at 2000 — generous for retina + lightbox
+    // zoom, but a 10x cut over a typical phone-camera original. WebP
+    // re-encodes for an additional ~25% reduction at q=82.
+    private const MAX_LONG_EDGE = 2000;
+    private const WEBP_QUALITY = 82;
 
     public function index(Request $request): JsonResponse
     {
@@ -68,17 +76,29 @@ class FacilityPhotoController extends Controller
         }
 
         $file = $request->file('photo');
-        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension());
+
+        // Resize + WebP-encode in memory before pushing to R2. We
+        // store ONE optimized file per upload (not a thumb/medium/full
+        // pyramid) — simplest mental model, no per-render lookups
+        // for "which variant am I serving here", and 5× smaller than
+        // a typical phone-camera JPEG so the storage tradeoff vs
+        // pyramid is negligible.
+        $img = Image::read($file->getRealPath());
+        if ($img->width() > self::MAX_LONG_EDGE || $img->height() > self::MAX_LONG_EDGE) {
+            $img->scaleDown(width: self::MAX_LONG_EDGE, height: self::MAX_LONG_EDGE);
+        }
+        $encoded = $img->toWebp(quality: self::WEBP_QUALITY);
+
         // UUID-based filename so we never overwrite or leak the
         // uploader's original name, and so concurrent uploads can't
-        // collide.
-        $path = sprintf('facility-photos/%s/%s.%s', $facilityId, (string) Str::uuid(), $ext);
+        // collide. Extension is always .webp now regardless of input.
+        $path = sprintf('facility-photos/%s/%s.webp', $facilityId, (string) Str::uuid());
 
         Storage::disk('r2')
-            ->putFileAs(dirname($path), $file, basename($path), [
+            ->put($path, (string) $encoded, [
                 'visibility' => 'public',
                 'CacheControl' => 'public, max-age=31536000, immutable',
-                'ContentType' => $file->getMimeType(),
+                'ContentType' => 'image/webp',
             ]);
 
         $publicUrl = $this->publicUrl($path);
