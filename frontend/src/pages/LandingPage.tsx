@@ -255,6 +255,16 @@ export function LandingPage() {
               p.set("radius", "25")
               navigate(`/search?${p.toString()}`)
             }}
+            onCoords={({ lat, lon }) => {
+              // ~25mi bbox half-side at this latitude — 1° lat ≈ 69mi,
+              // longitude shrinks by cos(lat).
+              const dLat = 25 / 69
+              const dLon = 25 / (69 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
+              const bbox = `${(lat - dLat).toFixed(4)},${(lon - dLon).toFixed(4)},${(lat + dLat).toFixed(4)},${(lon + dLon).toFixed(4)}`
+              const p = new URLSearchParams()
+              p.set("bbox", bbox)
+              navigate(`/search?${p.toString()}`)
+            }}
           />
         </div>
 

@@ -119,8 +119,13 @@ class ZipLookupService
         // but requires a User-Agent and is rate-limited. We cache hits
         // back into zip_centroids so the next visitor from the same
         // neighborhood gets the fast path.
+        //
+        // zoom must be 16+ to reliably get the postcode tag in the
+        // response — at city-level (zoom 10) postcode is almost never
+        // populated. Previous version used 10 and silently returned
+        // null for every lookup.
         try {
-            $resp = Http::timeout(5)
+            $resp = Http::timeout(8)
                 ->withHeaders([
                     'User-Agent' => 'CarePath/1.0 (hello@carepath.io)',
                     'Accept-Language' => 'en-US,en',
@@ -129,22 +134,26 @@ class ZipLookupService
                     'format' => 'json',
                     'lat' => $lat,
                     'lon' => $lon,
-                    'zoom' => 10, // city-level — gets the postal code
+                    'zoom' => 16,
                     'addressdetails' => 1,
                     'countrycodes' => 'us',
                 ]);
 
-            if (! $resp->successful()) return null;
+            if (! $resp->successful()) {
+                \Log::warning('Nominatim reverse-zip non-200', ['status' => $resp->status()]);
+                return null;
+            }
             $body = $resp->json();
             $addr = $body['address'] ?? [];
             $zip = $addr['postcode'] ?? null;
-            if (! $zip || ! preg_match('/^\d{5}/', $zip, $m)) return null;
+            if (! $zip || ! preg_match('/^\d{5}/', $zip, $m)) {
+                \Log::info('Nominatim no postcode in response', ['lat' => $lat, 'lon' => $lon, 'addr_keys' => array_keys($addr)]);
+                return null;
+            }
             $zip = $m[0];
-            $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['county'] ?? null;
-            // State comes as full name from Nominatim — convert to 2-letter.
+            $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['hamlet'] ?? $addr['county'] ?? null;
             $state = isset($addr['ISO3166-2-lvl4']) ? substr($addr['ISO3166-2-lvl4'], -2) : null;
 
-            // Cache back so subsequent calls are instant.
             DB::table('zip_centroids')->updateOrInsert(
                 ['zip' => $zip],
                 [
@@ -164,7 +173,8 @@ class ZipLookupService
                 'lat' => (float) ($body['lat'] ?? $lat),
                 'lon' => (float) ($body['lon'] ?? $lon),
             ];
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            \Log::warning('Nominatim reverse-zip threw', ['error' => $e->getMessage()]);
             return null;
         }
     }

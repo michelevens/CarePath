@@ -4,27 +4,36 @@ import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 /**
- * Geolocation → nearest ZIP via /marketplace/reverse-zip.
- * Renders as either a bold "Search near me" button (hero variant) or
- * a small "Near me" link (compact variant for filter sidebars).
+ * Geolocation → ZIP (preferred) or raw coords (fallback) so the user
+ * gets results either way.
+ *
+ * Flow:
+ *   1. Get browser geolocation.
+ *   2. Try POST /marketplace/reverse-zip → ZIP + city + state.
+ *      Caller routes the family to a ZIP-based search.
+ *   3. If reverse-zip can't find a ZIP (rural / new dev / Nominatim
+ *      hiccup), fall back to onCoords({lat, lon}) so the caller can
+ *      do a bbox-based "near you" search — no ZIP required to return
+ *      actual facility results.
  *
  * UX rules:
- *   - Label stays "Search near me" / "Near me" — error messages render
- *     as a separate inline note so families don't lose the affordance.
- *   - Error auto-clears after 4s so the button looks fresh again.
- *   - "Permission denied" gets a contextual hint to enter ZIP manually.
- *   - Success briefly flashes a checkmark before the parent's ZIP
- *     filter takes over the visual cue.
- *   - HTTPS warning: geolocation silently fails on http:// origins, so
- *     in non-secure contexts we short-circuit with a clearer message
- *     rather than waiting for the permission API to time out.
+ *   - Label stays "Search near me" / "Near me"; errors render as a
+ *     separate auto-dismissing note so the affordance never disappears.
+ *   - HTTPS warning short-circuits insecure origins immediately.
+ *   - Distinct PositionError messages per code (denied / unavailable
+ *     / timeout) so the hint is actually useful.
  */
 export function NearMeButton({
   onZip,
+  onCoords,
   variant = "hero",
   className,
 }: {
   onZip: (zip: string) => void
+  /** Called when ZIP lookup misses but we still have coords. The caller
+   * should run a bbox-based search around the point. When omitted, a
+   * "no ZIP" error is shown instead. */
+  onCoords?: (coords: { lat: number; lon: number }) => void
   variant?: "hero" | "compact"
   className?: string
 }) {
@@ -32,9 +41,6 @@ export function NearMeButton({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Auto-dismiss the error / success indicator so the button returns
-  // to its default state after a few seconds — sticky errors confuse
-  // first-time users who think the feature is broken.
   useEffect(() => {
     if (!error && !success) return
     const t = setTimeout(() => {
@@ -52,8 +58,6 @@ export function NearMeButton({
       setError("Not supported in this browser")
       return
     }
-    // Geolocation silently fails on http:// in modern browsers.
-    // Tell families upfront rather than waiting for a timeout.
     if (typeof window !== "undefined" && window.location.protocol === "http:" && window.location.hostname !== "localhost") {
       setError("Needs HTTPS — type your ZIP instead")
       return
@@ -63,27 +67,37 @@ export function NearMeButton({
     setError(null)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        const lat = pos.coords.latitude
+        const lon = pos.coords.longitude
+
+        // Try ZIP lookup first. Either route handles the result;
+        // failure here is non-fatal because we have coords.
+        let zip: string | null = null
         try {
           const r = await api.get<{ data: { zip: string } | null }>(
             "/marketplace/reverse-zip",
-            { params: { lat: pos.coords.latitude, lon: pos.coords.longitude } },
+            { params: { lat, lon } },
           )
-          if (r.data?.data?.zip) {
-            onZip(r.data.data.zip)
-            setSuccess(true)
-          } else {
-            setError("No nearby ZIP found")
-          }
+          zip = r.data?.data?.zip ?? null
         } catch {
-          setError("Couldn't look up ZIP")
-        } finally {
-          setBusy(false)
+          // Silent — fall through to coords fallback below.
         }
+
+        if (zip) {
+          onZip(zip)
+          setSuccess(true)
+        } else if (onCoords) {
+          // ZIP lookup missed but we still know roughly where the user
+          // is — run a "near you" search via the coords instead.
+          onCoords({ lat, lon })
+          setSuccess(true)
+        } else {
+          setError("Couldn't find a nearby ZIP — try typing one")
+        }
+        setBusy(false)
       },
       (err) => {
         setBusy(false)
-        // Distinguish the three possible PositionError codes so the
-        // hint we surface is actually useful.
         switch (err.code) {
           case err.PERMISSION_DENIED:
             setError("Location denied — type ZIP instead")

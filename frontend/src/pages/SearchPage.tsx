@@ -369,7 +369,18 @@ export function SearchPage() {
                 <div>
                   <div className="flex items-baseline justify-between gap-2">
                     <label className="text-xs font-medium text-muted-foreground">ZIP</label>
-                    <NearMeButton variant="compact" onZip={setZip} />
+                    <NearMeButton
+                      variant="compact"
+                      onZip={setZip}
+                      onCoords={({ lat, lon }) => {
+                        // Fall back to a ~25mi bbox around the coords
+                        // when reverse-zip can't find a postcode.
+                        const dLat = 25 / 69
+                        const dLon = 25 / (69 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
+                        setActiveBbox(`${(lat - dLat).toFixed(4)},${(lon - dLon).toFixed(4)},${(lat + dLat).toFixed(4)},${(lon + dLon).toFixed(4)}`)
+                        setZip("")
+                      }}
+                    />
                   </div>
                   <input
                     type="text"
