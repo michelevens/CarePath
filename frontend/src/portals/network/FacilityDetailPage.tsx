@@ -24,7 +24,7 @@ interface Payload {
     subscription_tier: string | null
   }
   beds: { total: number; available: number; occupied: number }
-  event_funnel_30d: Record<string, number>
+  event_funnel_30d: Record<string, number | string>
   placements_30d: number
   portfolio_benchmark: Record<string, { avg: number; this_facility: number }> | null
   admins: Array<{ id: string; name: string; email: string; role: string }>
@@ -93,8 +93,8 @@ export function FacilityDetailPage() {
         subtitle="From a family seeing this site in search to submitting a lead."
       >
         <div className="grid gap-3 sm:grid-cols-4">
-          {(["impression", "detail_view", "tour_request", "lead"] as const).map((k) => (
-            <PortalStatTile key={k} label={k.replace("_", " ")} value={data.event_funnel_30d[k] ?? 0} />
+          {(["impression", "detail_view", "tour_request", "phone_click"] as const).map((k) => (
+            <PortalStatTile key={k} label={k.replace("_", " ")} value={Number(data.event_funnel_30d[k] ?? 0)} />
           ))}
         </div>
       </PortalSectionCard>

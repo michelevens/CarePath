@@ -73,9 +73,9 @@ class OverviewController extends Controller
         $eventFunnel = DB::table('facility_listing_events')
             ->where('facility_id', $facilityId)
             ->where('occurred_at', '>=', now()->subDays(30))
-            ->selectRaw('event_type, count(*) as c')
-            ->groupBy('event_type')
-            ->pluck('c', 'event_type');
+            ->selectRaw('kind, count(*) as c')
+            ->groupBy('kind')
+            ->pluck('c', 'kind');
 
         $leadsOpen = (int) Lead::query()
             ->where('facility_id', $facilityId)

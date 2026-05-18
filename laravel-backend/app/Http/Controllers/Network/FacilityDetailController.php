@@ -50,9 +50,9 @@ class FacilityDetailController extends Controller
         $eventFunnel = DB::table('facility_listing_events')
             ->where('facility_id', $facility->id)
             ->where('occurred_at', '>=', now()->subDays(30))
-            ->selectRaw('event_type, count(*) as c')
-            ->groupBy('event_type')
-            ->pluck('c', 'event_type');
+            ->selectRaw('kind, count(*) as c')
+            ->groupBy('kind')
+            ->pluck('c', 'kind');
 
         $placements30d = (int) Placement::where('facility_id', $facility->id)
             ->where('admitted_on', '>=', now()->subDays(30))
@@ -70,16 +70,16 @@ class FacilityDetailController extends Controller
             $rows = DB::table('facility_listing_events')
                 ->whereIn('facility_id', $portfolioFacilityIds)
                 ->where('occurred_at', '>=', now()->subDays(30))
-                ->selectRaw('facility_id, event_type, count(*) as c')
-                ->groupBy('facility_id', 'event_type')
+                ->selectRaw('facility_id, kind, count(*) as c')
+                ->groupBy('facility_id', 'kind')
                 ->get();
 
             $byType = [];
             foreach ($rows as $r) {
-                $byType[$r->event_type][] = (int) $r->c;
+                $byType[$r->kind][] = (int) $r->c;
             }
             $portfolioBenchmark = [];
-            foreach (['impression', 'detail_view', 'tour_request', 'lead'] as $t) {
+            foreach (['impression', 'detail_view', 'tour_request', 'phone_click'] as $t) {
                 $counts = $byType[$t] ?? [];
                 $portfolioBenchmark[$t] = [
                     'avg' => $counts ? round(array_sum($counts) / max(1, count($counts)), 1) : 0,

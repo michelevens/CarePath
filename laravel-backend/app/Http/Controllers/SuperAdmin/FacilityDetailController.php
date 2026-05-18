@@ -91,9 +91,9 @@ class FacilityDetailController extends Controller
         $eventFunnel = DB::table('facility_listing_events')
             ->where('facility_id', $facility->id)
             ->where('occurred_at', '>=', now()->subDays(30))
-            ->selectRaw('event_type, count(*) as c')
-            ->groupBy('event_type')
-            ->pluck('c', 'event_type');
+            ->selectRaw('kind, count(*) as c')
+            ->groupBy('kind')
+            ->pluck('c', 'kind');
 
         // Compact audit slice — last 25 events touching this facility
         // OR records nested under it. The SuperAdmin audit log page is

@@ -55,7 +55,7 @@ interface Payload {
     platform_cents_lifetime: number
     by_status: Record<string, number>
   }
-  event_funnel_30d: Record<string, number>
+  event_funnel_30d: Record<string, number | string>
   audit_recent: Array<{
     id: string
     action: string
@@ -297,11 +297,11 @@ export function FacilityDetailPage() {
         subtitle="From impression to lead — same data as the public-listing analytics."
       >
         <div className="grid gap-3 sm:grid-cols-4">
-          {(["impression", "detail_view", "tour_request", "lead"] as const).map((k) => (
+          {(["impression", "detail_view", "tour_request", "phone_click"] as const).map((k) => (
             <PortalStatTile
               key={k}
               label={k.replace("_", " ")}
-              value={data.event_funnel_30d[k] ?? 0}
+              value={Number(data.event_funnel_30d[k] ?? 0)}
             />
           ))}
         </div>

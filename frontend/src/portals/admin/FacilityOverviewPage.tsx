@@ -29,7 +29,7 @@ interface Payload {
   residents: { total: number; unassigned: number }
   care_plans: { total: number; unsigned: number }
   admissions_by_stage: Record<string, number>
-  event_funnel_30d: Record<string, number>
+  event_funnel_30d: Record<string, number | string>
   leads_open: number
   sponsored_active: number
   claims_pending: number
@@ -138,8 +138,8 @@ export function FacilityOverviewPage() {
         }
       >
         <div className="grid gap-3 sm:grid-cols-4">
-          {(["impression", "detail_view", "tour_request", "lead"] as const).map((k) => (
-            <PortalStatTile key={k} label={k.replace("_", " ")} value={data.event_funnel_30d[k] ?? 0} />
+          {(["impression", "detail_view", "tour_request", "phone_click"] as const).map((k) => (
+            <PortalStatTile key={k} label={k.replace("_", " ")} value={Number(data.event_funnel_30d[k] ?? 0)} />
           ))}
         </div>
       </PortalSectionCard>
