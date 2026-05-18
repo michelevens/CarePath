@@ -189,7 +189,7 @@ export function PlacementsPage() {
                       <td className="px-4 py-3">
                         {p.facility ? (
                           <Link
-                            to={`/facility/${p.facility.slug}`}
+                            to={`/superadmin/facilities/${p.facility.slug}`}
                             className="inline-flex items-center gap-1 font-medium hover:underline"
                           >
                             {p.facility.name}

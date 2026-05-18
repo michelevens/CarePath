@@ -261,7 +261,7 @@ export function SponsoredPage() {
                         <td className="px-4 py-3">
                           {c.facility ? (
                             <Link
-                              to={`/facility/${c.facility.slug}`}
+                              to={`/superadmin/facilities/${c.facility.slug}`}
                               className="inline-flex items-center gap-1 hover:underline"
                             >
                               {c.facility.name}

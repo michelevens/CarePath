@@ -464,7 +464,7 @@ function ClaimsSection() {
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <Link
-                        to={`/facility/${c.facility?.slug ?? ""}`}
+                        to={`/superadmin/facilities/${c.facility?.slug ?? ""}`}
                         className="text-sm font-semibold hover:underline"
                       >
                         {c.facility?.name ?? "—"}
@@ -604,7 +604,7 @@ function ClaimsSection() {
                 <li key={r.id} className="flex justify-between">
                   <span>
                     <Link
-                      to={`/facility/${r.facility_slug ?? ""}`}
+                      to={`/superadmin/facilities/${r.facility_slug ?? ""}`}
                       className="text-violet-700 hover:underline"
                     >
                       {r.facility_name ?? "—"}

@@ -303,7 +303,7 @@ export function UserDetailPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <Link
-                        to={`/facility/${m.slug}`}
+                        to={`/superadmin/facilities/${m.slug}`}
                         className="font-medium hover:underline"
                       >
                         {m.name}

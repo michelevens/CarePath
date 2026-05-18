@@ -313,7 +313,7 @@ export function SuperAdminDashboard() {
                   <tr key={f.id} className="border-b last:border-b-0">
                     <td className="py-3">
                       <Link
-                        to={`/facility/${f.slug}`}
+                        to={`/superadmin/facilities/${f.slug}`}
                         className="font-medium text-foreground hover:underline"
                       >
                         {f.name}
