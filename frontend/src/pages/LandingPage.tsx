@@ -13,12 +13,14 @@ import {
   Clock,
   HeartHandshake,
   Heart,
+  Home,
   Search,
   Shield,
   ShieldCheck,
   Sparkles,
   Star,
   Stethoscope,
+  Users,
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -53,6 +55,18 @@ const CARE_TYPES = [
     label: "Continuing Care",
     description: "Independent → assisted → skilled in one place",
     icon: Activity,
+  },
+  {
+    type: "independent_living",
+    label: "Independent Living",
+    description: "55+ housing, no daily care needed",
+    icon: Home,
+  },
+  {
+    type: "group_home",
+    label: "Group Home",
+    description: "Small residential setting for adults with IDD",
+    icon: Users,
   },
 ]
 
@@ -242,6 +256,8 @@ export function LandingPage() {
               <option value="memory_care">Memory Care</option>
               <option value="snf">Skilled Nursing</option>
               <option value="ccrc">Continuing Care</option>
+              <option value="independent_living">Independent Living</option>
+              <option value="group_home">Group Home</option>
             </select>
           </div>
           <Button type="submit" size="lg" className="rounded-lg md:rounded-full">
