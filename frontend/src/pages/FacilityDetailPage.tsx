@@ -1982,7 +1982,25 @@ function AmenitiesSection({ amenities }: { amenities: Amenity[] }) {
     (c) => grouped[c].length > 0
   )
 
-  if (orderedCategories.length === 0) return null
+  // Empty state still renders the heading so families know amenities
+  // are tracked here — previously the whole section vanished, which
+  // made it look like the feature didn't exist.
+  if (orderedCategories.length === 0) {
+    return (
+      <section>
+        <h2 className="text-lg font-semibold">Amenities &amp; services</h2>
+        <div className="mt-3 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            This facility hasn't listed amenities yet.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Tour notes typically capture dining, activities, healthcare services, room
+            features, and transportation — ask about them when you visit.
+          </p>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section>

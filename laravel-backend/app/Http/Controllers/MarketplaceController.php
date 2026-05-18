@@ -244,6 +244,22 @@ class MarketplaceController extends Controller
             ->groupBy('facility_id')
             ->pluck('last_updated', 'facility_id');
 
+        // Top-3 featured (or first) amenities per facility — drives the
+        // amenity preview chip row on each search card. One batched
+        // query, ordered so is_featured wins then sort_order.
+        $amenityPreviews = DB::table('facility_amenities')
+            ->whereIn('facility_id', $facilityIds)
+            ->where('is_active', true)
+            ->orderBy('facility_id')
+            ->orderByDesc('is_featured')
+            ->orderBy('sort_order')
+            ->get(['facility_id', 'name', 'category'])
+            ->groupBy('facility_id')
+            ->map(fn ($rows) => $rows->take(3)->map(fn ($r) => [
+                'name' => $r->name,
+                'category' => $r->category,
+            ])->values());
+
         // Photo counts in one batched query (avoids N+1 on cards).
         $photoCounts = DB::table('facility_photos')
             ->whereIn('facility_id', $facilityIds)
@@ -263,9 +279,11 @@ class MarketplaceController extends Controller
         // explainable badge instead of an opaque number.
         $matchPrefs = $data['match'] ?? null;
 
-        $rows = $facilities->map(function ($f) use ($availability, $bedUpdated, $photoCounts, $claimed, $matchPrefs) {
+        $rows = $facilities->map(function ($f) use ($availability, $bedUpdated, $photoCounts, $claimed, $amenityPreviews, $matchPrefs) {
             $arr = $f->toArray();
             $arr['available_beds'] = (int) ($availability[$f->id] ?? 0);
+            // Top-3 amenities for the card preview row.
+            $arr['amenity_preview'] = ($amenityPreviews[$f->id] ?? collect())->all();
             if (isset($f->distance_miles)) {
                 $arr['distance_miles'] = round($f->distance_miles, 1);
             }

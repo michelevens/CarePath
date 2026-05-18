@@ -41,6 +41,7 @@ import { ServiceTypeHelper } from "@/components/ServiceTypeHelper"
 import { AiSearchBar } from "@/components/AiSearchBar"
 import { NearMeButton } from "@/components/NearMeButton"
 import { SERVICE_TYPE_LABEL, metaFor } from "@/lib/serviceTypes"
+import { amenityIcon } from "@/lib/amenityIcons"
 import { Flag, Info, Sparkles, Users } from "lucide-react"
 
 interface MatchReason {
@@ -82,6 +83,7 @@ interface FacilityResult {
   match?: MatchScore
   trust_badges?: TrustBadge[]
   completeness_pct?: number
+  amenity_preview?: Array<{ name: string; category: string }>
   is_sponsored: boolean
   sponsored_campaign_id: string | null
   sponsored_creative_id?: string | null
@@ -1023,6 +1025,22 @@ function ResultCard({ r }: { r: FacilityResult }) {
                 {r.trust_badges.map((b) => (
                   <TrustChip key={b.key} badge={b} />
                 ))}
+              </div>
+            )}
+            {r.amenity_preview && r.amenity_preview.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                {r.amenity_preview.map((a) => {
+                  const AIcon = amenityIcon(a.name)
+                  return (
+                    <span
+                      key={a.name}
+                      className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5"
+                    >
+                      <AIcon className="h-3 w-3 text-primary" />
+                      {a.name}
+                    </span>
+                  )
+                })}
               </div>
             )}
             <div className="mt-4 flex items-end justify-between">
