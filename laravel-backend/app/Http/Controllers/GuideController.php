@@ -61,21 +61,38 @@ class GuideController extends Controller
         RateLimiter::hit($throttleKey, 600);
 
         $data = $request->validate([
+            // Identification (required) — without name + phone we can't
+            // actually follow up; email-only leads are mostly junk.
+            'first_name' => ['required', 'string', 'max:80'],
+            'last_name' => ['required', 'string', 'max:80'],
             'email' => ['required', 'email', 'max:191'],
+            'phone' => ['required', 'string', 'min:7', 'max:30'],
+
+            // Context (optional) — helps later qualification.
             'zip' => ['nullable', 'string', 'max:10'],
             'care_type' => ['nullable', 'in:assisted_living,memory_care,snf,ccrc,independent'],
             'relationship_to_prospect' => ['nullable', 'in:self,spouse,adult_child,poa,hospital,other'],
+            'timeline' => ['nullable', 'in:now,30d,90d,6mo,researching'],
+            'consent_followup' => ['nullable', 'boolean'],
         ]);
+
+        $fullName = trim($data['first_name'] . ' ' . $data['last_name']);
 
         Lead::create([
             'source' => 'guide_download',
             'email' => strtolower($data['email']),
+            'phone' => $data['phone'],
+            'name' => $fullName,
             'zip' => $data['zip'] ?? null,
             'relationship_to_prospect' => $data['relationship_to_prospect'] ?? null,
             'context' => [
                 'guide_slug' => $guide['slug'],
                 'guide_title' => $guide['title'],
                 'care_type' => $data['care_type'] ?? null,
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'timeline' => $data['timeline'] ?? null,
+                'consent_followup' => (bool) ($data['consent_followup'] ?? false),
             ],
             'utm_source' => $request->query('utm_source'),
             'utm_medium' => $request->query('utm_medium'),

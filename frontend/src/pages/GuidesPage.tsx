@@ -229,10 +229,15 @@ function GuideDownloadDialog({
   guide: Guide
   onClose: () => void
 }) {
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [zip, setZip] = useState("")
   const [careType, setCareType] = useState("")
   const [relationship, setRelationship] = useState("")
+  const [timeline, setTimeline] = useState("")
+  const [consentFollowup, setConsentFollowup] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -245,10 +250,15 @@ function GuideDownloadDialog({
       const res = await api.post(
         `/marketplace/guides/${guide.slug}/download`,
         {
-          email,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
           zip: zip || undefined,
           care_type: careType || undefined,
           relationship_to_prospect: relationship || undefined,
+          timeline: timeline || undefined,
+          consent_followup: consentFollowup,
         },
         { responseType: "blob" }
       )
@@ -312,6 +322,22 @@ function GuideDownloadDialog({
             </DialogHeader>
 
             <div className="mt-4 grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="First name"
+                  required
+                  value={firstName}
+                  onChange={setFirstName}
+                  placeholder="Sarah"
+                />
+                <Field
+                  label="Last name"
+                  required
+                  value={lastName}
+                  onChange={setLastName}
+                  placeholder="Chen"
+                />
+              </div>
               <Field
                 label="Email"
                 type="email"
@@ -319,6 +345,14 @@ function GuideDownloadDialog({
                 value={email}
                 onChange={setEmail}
                 placeholder="you@example.com"
+              />
+              <Field
+                label="Phone"
+                type="tel"
+                required
+                value={phone}
+                onChange={setPhone}
+                placeholder="(555) 123-4567"
               />
               <div className="grid grid-cols-2 gap-3">
                 <Field
@@ -329,7 +363,7 @@ function GuideDownloadDialog({
                   maxLength={5}
                 />
                 <Select
-                  label="Looking for (optional)"
+                  label="Looking for"
                   value={careType}
                   onChange={setCareType}
                   options={[
@@ -342,25 +376,54 @@ function GuideDownloadDialog({
                   ]}
                 />
               </div>
-              <Select
-                label="You are (optional)"
-                value={relationship}
-                onChange={setRelationship}
-                options={[
-                  { value: "", label: "Prefer not to say" },
-                  { value: "self", label: "The person needing care" },
-                  { value: "spouse", label: "Spouse / partner" },
-                  { value: "adult_child", label: "Adult child" },
-                  { value: "poa", label: "Power of attorney" },
-                  { value: "hospital", label: "Hospital / discharge planner" },
-                  { value: "other", label: "Other family / friend" },
-                ]}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <Select
+                  label="You are"
+                  value={relationship}
+                  onChange={setRelationship}
+                  options={[
+                    { value: "", label: "Prefer not to say" },
+                    { value: "self", label: "The person needing care" },
+                    { value: "spouse", label: "Spouse / partner" },
+                    { value: "adult_child", label: "Adult child" },
+                    { value: "poa", label: "Power of attorney" },
+                    { value: "hospital", label: "Hospital / discharge planner" },
+                    { value: "other", label: "Other family / friend" },
+                  ]}
+                />
+                <Select
+                  label="Timeline"
+                  value={timeline}
+                  onChange={setTimeline}
+                  options={[
+                    { value: "", label: "Not sure yet" },
+                    { value: "now", label: "Need help now" },
+                    { value: "30d", label: "Within 30 days" },
+                    { value: "90d", label: "Within 90 days" },
+                    { value: "6mo", label: "Within 6 months" },
+                    { value: "researching", label: "Just researching" },
+                  ]}
+                />
+              </div>
+
+              <label className="mt-1 flex items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={consentFollowup}
+                  onChange={(e) => setConsentFollowup(e.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span>
+                  It's OK to email or text me occasional follow-up resources
+                  (no facility cold-calls, ever). Optional — leave unchecked
+                  if you only want the PDF.
+                </span>
+              </label>
             </div>
 
             <p className="mt-3 inline-flex items-start gap-2 text-xs text-muted-foreground">
               <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              We don't sell, share, or trade your email. Unsubscribe any time.
+              We don't sell, share, or trade your contact info with facilities or advisors.
             </p>
 
             {error && (
@@ -373,7 +436,16 @@ function GuideDownloadDialog({
               <Button type="button" variant="ghost" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting || !email}>
+              <Button
+                type="submit"
+                disabled={
+                  submitting ||
+                  !firstName.trim() ||
+                  !lastName.trim() ||
+                  !email.trim() ||
+                  phone.trim().length < 7
+                }
+              >
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 <Download className="h-4 w-4" />
                 Download PDF
