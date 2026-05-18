@@ -403,6 +403,17 @@ class SponsoredController extends Controller
             'target_states.*' => ['string', 'size:2'],
             'target_cities' => ['nullable', 'array'],
             'target_cities.*' => ['string', 'max:80'],
+            // Negative targeting
+            'exclude_states' => ['nullable', 'array'],
+            'exclude_states.*' => ['string', 'size:2'],
+            'exclude_types' => ['nullable', 'array'],
+            'exclude_types.*' => ['string', 'in:snf,assisted_living,memory_care,ccrc,independent_living,group_home,adult_family_home,icf_iid'],
+            // Per-surface bid multipliers — clamped to 0.1..3.0 in
+            // the service when applied; validation here is permissive
+            // so partial updates work.
+            'surface_bid_multipliers' => ['nullable', 'array'],
+            'surface_bid_multipliers.search' => ['nullable', 'numeric', 'min:0.1', 'max:3'],
+            'surface_bid_multipliers.embed' => ['nullable', 'numeric', 'min:0.1', 'max:3'],
         ];
         return $request->validate($rules);
     }
@@ -431,6 +442,9 @@ class SponsoredController extends Controller
             'ends_on' => $c->ends_on,
             'target_states' => $c->target_states ?? [],
             'target_cities' => $c->target_cities ?? [],
+            'exclude_states' => $c->exclude_states ?? [],
+            'exclude_types' => $c->exclude_types ?? [],
+            'surface_bid_multipliers' => $c->surface_bid_multipliers ?? null,
             'spent_today_cents' => $c->spent_today_cents,
             'spent_total_cents' => $c->spent_total_cents,
             'created_at' => $c->created_at,

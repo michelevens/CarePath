@@ -141,11 +141,13 @@ class SponsoredListingService
             );
         }
 
-        // 5. Quality-score blend: rank by (bid * quality), not bid alone.
-        //    Ties broken by random to avoid first-mover lock-in.
+        // 5. Quality-score blend: rank by (effective bid × quality),
+        //    where effective bid applies any per-surface multiplier set
+        //    on the campaign. Ties broken by random.
         $ranked = $matching
-            ->map(function ($c) {
-                $c->__score = $this->blendScore($c);
+            ->map(function ($c) use ($surface) {
+                $c->__score = $this->blendScore($c, $surface);
+                $c->__effective_bid_cents = $c->effectiveCpcCents($surface);
                 return $c;
             })
             ->sortByDesc(fn ($c) => $c->__score)
@@ -206,19 +208,20 @@ class SponsoredListingService
     }
 
     /**
-     * (bid_cents) × (quality_score 0..1). Quality is derived from CMS
-     * Five-Star rating with a small floor so unrated facilities don't
-     * get auto-zeroed out. Unrated = treated as 2.5 stars (neutral).
+     * (effective_bid_cents) × (quality_score 0..1). Quality is derived
+     * from CMS Five-Star rating with a small floor so unrated
+     * facilities don't get auto-zeroed out. Unrated = treated as 2.5
+     * stars (neutral). Effective bid honors the per-surface multiplier
+     * so a "raise bid on embed surface 1.4x" actually wins more embed
+     * auctions.
      */
-    private function blendScore(SponsoredCampaign $c): float
+    private function blendScore(SponsoredCampaign $c, string $surface = 'search'): float
     {
         $stars = (int) ($c->facility->cms_five_star_overall ?? 0);
-        // 0..5 stars → 0.4..1.0 multiplier. A 1-star facility's bid is
-        // effectively halved against a 5-star at the same dollar amount.
         $quality = $stars > 0
             ? 0.4 + ($stars / 5.0) * 0.6
-            : 0.5; // unrated = mid-pack
-        return $c->cpc_bid_cents * $quality + (mt_rand() / mt_getrandmax()) * 0.001;
+            : 0.5;
+        return $c->effectiveCpcCents($surface) * $quality + (mt_rand() / mt_getrandmax()) * 0.001;
     }
 
     /**
@@ -327,6 +330,7 @@ class SponsoredListingService
         ?string $sessionId,
         Request $request,
         ?string $creativeId = null,
+        string $surface = 'search',
     ): bool {
         $campaign = SponsoredCampaign::find($campaignId);
         if (! $campaign) return false;
@@ -339,23 +343,25 @@ class SponsoredListingService
             ->exists();
         if (! $hasImpression) return false;
 
-        DB::transaction(function () use ($campaign, $sessionId, $request, $creativeId): void {
+        $billedCents = $campaign->effectiveCpcCents($surface);
+
+        DB::transaction(function () use ($campaign, $sessionId, $request, $creativeId, $billedCents): void {
             SponsoredClick::create([
                 'campaign_id' => $campaign->id,
                 'creative_id' => $creativeId,
                 'facility_id' => $campaign->facility_id,
                 'session_id' => $sessionId,
-                'billed_cents' => $campaign->cpc_bid_cents,
+                'billed_cents' => $billedCents,
                 'ip_address' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 500) ?: null,
                 'clicked_at' => now(),
             ]);
 
-            $campaign->increment('spent_today_cents', $campaign->cpc_bid_cents);
-            $campaign->increment('spent_total_cents', $campaign->cpc_bid_cents);
+            $campaign->increment('spent_today_cents', $billedCents);
+            $campaign->increment('spent_total_cents', $billedCents);
 
             $campaign->refresh();
-            if ($campaign->spent_today_cents + $campaign->cpc_bid_cents > $campaign->daily_budget_cents) {
+            if ($campaign->spent_today_cents + $billedCents > $campaign->daily_budget_cents) {
                 $campaign->update(['status' => 'depleted']);
             }
 
@@ -398,6 +404,7 @@ class SponsoredListingService
 
     private function campaignTargetingMatches(SponsoredCampaign $c, array $filters): bool
     {
+        // Positive targeting: when set, the filter must match.
         if (! empty($c->target_states) && ! empty($filters['state'])) {
             $allowed = array_map('strtoupper', $c->target_states);
             if (! in_array(strtoupper($filters['state']), $allowed, true)) {
@@ -407,6 +414,21 @@ class SponsoredListingService
         if (! empty($c->target_cities) && ! empty($filters['city'])) {
             $allowed = array_map('strtolower', $c->target_cities);
             if (! in_array(strtolower($filters['city']), $allowed, true)) {
+                return false;
+            }
+        }
+
+        // Negative targeting: when set, the filter must NOT match.
+        // Saves a facility from paying to appear on irrelevant searches.
+        if (! empty($c->exclude_states) && ! empty($filters['state'])) {
+            $blocked = array_map('strtoupper', $c->exclude_states);
+            if (in_array(strtoupper($filters['state']), $blocked, true)) {
+                return false;
+            }
+        }
+        if (! empty($c->exclude_types) && ! empty($filters['type'])) {
+            $blocked = array_map('strtolower', $c->exclude_types);
+            if (in_array(strtolower($filters['type']), $blocked, true)) {
                 return false;
             }
         }

@@ -41,6 +41,9 @@ interface Campaign {
   ends_on: string | null
   target_states: string[]
   target_cities: string[]
+  exclude_states: string[]
+  exclude_types: string[]
+  surface_bid_multipliers: { search?: number; embed?: number } | null
   spent_today_cents: number
   spent_total_cents: number
   created_at: string
@@ -420,6 +423,9 @@ export function SponsoredCampaignsPage() {
                           <div className="text-sm text-muted-foreground">No recommendations yet — need more data.</div>
                         )}
 
+                        {/* Advanced targeting: negative lists + per-surface bids */}
+                        <AdvancedTargeting campaign={c} onSaved={load} />
+
                         {/* A/B creative variants editor */}
                         <CreativeVariants campaignId={c.id} />
                       </td>
@@ -453,6 +459,180 @@ export function SponsoredCampaignsPage() {
           await load()
         }}
       />
+    </div>
+  )
+}
+
+/**
+ * Negative targeting + per-surface bid multipliers. Stops the "we paid
+ * to show on irrelevant searches" leak and gives facilities a knob to
+ * bid higher on high-intent surfaces (e.g. hospital discharge embed)
+ * vs lower on browsing surfaces.
+ */
+function AdvancedTargeting({
+  campaign,
+  onSaved,
+}: {
+  campaign: Campaign
+  onSaved: () => Promise<void>
+}) {
+  const [excludeStates, setExcludeStates] = useState(campaign.exclude_states.join(", "))
+  const [excludeTypes, setExcludeTypes] = useState<string[]>(campaign.exclude_types)
+  const [searchMult, setSearchMult] = useState(
+    campaign.surface_bid_multipliers?.search ?? 1,
+  )
+  const [embedMult, setEmbedMult] = useState(
+    campaign.surface_bid_multipliers?.embed ?? 1,
+  )
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const toggleType = (t: string) =>
+    setExcludeTypes((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+    )
+
+  const save = async () => {
+    setSaving(true)
+    setSaved(false)
+    try {
+      const states = excludeStates
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => /^[A-Z]{2}$/.test(s))
+      await api.put(`/facility/sponsored/campaigns/${campaign.id}`, {
+        exclude_states: states,
+        exclude_types: excludeTypes,
+        surface_bid_multipliers: {
+          search: searchMult,
+          embed: embedMult,
+        },
+      })
+      setSaved(true)
+      await onSaved()
+      setTimeout(() => setSaved(false), 2000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const careTypes: Array<{ value: string; label: string }> = [
+    { value: "assisted_living", label: "Assisted Living" },
+    { value: "memory_care", label: "Memory Care" },
+    { value: "snf", label: "Skilled Nursing" },
+    { value: "ccrc", label: "Continuing Care" },
+    { value: "independent_living", label: "Independent Living" },
+    { value: "group_home", label: "Group Home" },
+  ]
+
+  const effSearch = Math.round(campaign.cpc_bid_cents * searchMult)
+  const effEmbed = Math.round(campaign.cpc_bid_cents * embedMult)
+
+  return (
+    <div className="mt-4 border-t border-violet-200 pt-4">
+      <div className="text-xs font-semibold uppercase tracking-wider text-violet-900">
+        Advanced targeting
+      </div>
+
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        {/* Negative targeting */}
+        <div>
+          <label className="text-xs font-medium">Exclude states (2-letter, comma-separated)</label>
+          <input
+            type="text"
+            value={excludeStates}
+            onChange={(e) => setExcludeStates(e.target.value)}
+            placeholder="e.g. TX, NY"
+            className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm uppercase"
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Don't show this ad when family searches in these states.
+          </p>
+        </div>
+        <div>
+          <label className="text-xs font-medium">Exclude care types</label>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {careTypes.map((t) => (
+              <button
+                type="button"
+                key={t.value}
+                onClick={() => toggleType(t.value)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs",
+                  excludeTypes.includes(t.value)
+                    ? "border-red-500 bg-red-50 text-red-800"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Don't show on searches filtered to these care types.
+          </p>
+        </div>
+      </div>
+
+      {/* Per-surface bid multipliers */}
+      <div className="mt-5">
+        <div className="text-xs font-medium">Per-surface bid multipliers</div>
+        <div className="mt-2 grid gap-3 md:grid-cols-2">
+          <div className="rounded-md border bg-white p-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-semibold">Search results</span>
+              <span className="text-xs text-muted-foreground">
+                effective: ${(effSearch / 100).toFixed(2)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="range"
+                min={0.1}
+                max={3}
+                step={0.1}
+                value={searchMult}
+                onChange={(e) => setSearchMult(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="w-12 text-right text-sm tabular-nums">{searchMult.toFixed(1)}×</span>
+            </div>
+          </div>
+          <div className="rounded-md border bg-white p-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-semibold">Hospital embed</span>
+              <span className="text-xs text-muted-foreground">
+                effective: ${(effEmbed / 100).toFixed(2)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="range"
+                min={0.1}
+                max={3}
+                step={0.1}
+                value={embedMult}
+                onChange={(e) => setEmbedMult(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="w-12 text-right text-sm tabular-nums">{embedMult.toFixed(1)}×</span>
+            </div>
+          </div>
+        </div>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Multiplier of your base CPC bid (${(campaign.cpc_bid_cents / 100).toFixed(2)}). Discharge-
+          planner traffic from the hospital embed is highest-intent — most facilities bid 1.2-1.5× there.
+        </p>
+      </div>
+
+      <div className="mt-4 flex justify-end gap-2">
+        {saved && (
+          <span className="self-center text-xs text-emerald-700">✓ Saved</span>
+        )}
+        <Button size="sm" onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+        </Button>
+      </div>
     </div>
   )
 }

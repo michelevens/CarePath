@@ -379,6 +379,7 @@ class MarketplaceController extends Controller
             'click_token' => ['required', 'string'],
             'session_id'  => ['required', 'string', 'max:60'],
             'creative_id' => ['nullable', 'string'], // A/B variant id
+            'surface' => ['nullable', 'in:search,embed'], // for per-surface bid mult
         ]);
 
         // 1. Signature: prove the (campaign, facility) pair was minted
@@ -401,6 +402,7 @@ class MarketplaceController extends Controller
             $data['session_id'],
             $request,
             $data['creative_id'] ?? null,
+            $data['surface'] ?? 'search',
         );
 
         return response()->json(['ok' => true, 'billed' => $billed]);

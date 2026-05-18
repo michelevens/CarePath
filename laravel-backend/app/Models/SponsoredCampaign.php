@@ -20,6 +20,8 @@ class SponsoredCampaign extends Model
         'daily_budget_cents', 'total_budget_cents', 'cpc_bid_cents',
         'starts_on', 'ends_on',
         'target_states', 'target_cities',
+        'exclude_states', 'exclude_types',
+        'surface_bid_multipliers',
         'spent_today_cents', 'spent_total_cents', 'last_spend_reset_at',
     ];
 
@@ -28,8 +30,24 @@ class SponsoredCampaign extends Model
         'ends_on' => 'date',
         'target_states' => 'array',
         'target_cities' => 'array',
+        'exclude_states' => 'array',
+        'exclude_types' => 'array',
+        'surface_bid_multipliers' => 'array',
         'last_spend_reset_at' => 'datetime',
     ];
+
+    /**
+     * Effective CPC after applying the per-surface multiplier. Falls
+     * back to the base bid when the multiplier isn't set or the
+     * surface isn't in the map.
+     */
+    public function effectiveCpcCents(string $surface): int
+    {
+        $multipliers = $this->surface_bid_multipliers ?? [];
+        $mult = isset($multipliers[$surface]) ? (float) $multipliers[$surface] : 1.0;
+        $mult = max(0.1, min(3.0, $mult)); // clamp to a sensible range
+        return (int) max(1, round($this->cpc_bid_cents * $mult));
+    }
 
     public function facility(): BelongsTo
     {
