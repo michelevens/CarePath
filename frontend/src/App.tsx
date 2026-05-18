@@ -11,6 +11,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { MobileBottomNav } from "@/components/MobileBottomNav"
 import { MobileFab } from "@/components/MobileFab"
+import { SiteFooter } from "@/components/SiteFooter"
 
 /**
  * Route-based code splitting. LandingPage and NotFoundPage stay eager
@@ -137,6 +138,24 @@ function MobileAppChrome() {
       <ErrorBoundary silent><MobileFab /></ErrorBoundary>
       <ErrorBoundary silent><MobileBottomNav /></ErrorBoundary>
     </>
+  )
+}
+
+/**
+ * Routes that should render the site-wide marketing footer. Mounted
+ * globally so every public discovery page gets the SEO grid, EHO
+ * trust badge, and recruit-supply CTA — without each page having
+ * to remember to <SiteFooter />. Skipped on portals/auth/embed
+ * (they have their own chrome or are full-bleed surfaces).
+ */
+function MarketingFooterMount() {
+  const { pathname } = useLocation()
+  const hide = NO_MOBILE_NAV_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  if (hide) return null
+  return (
+    <ErrorBoundary silent>
+      <SiteFooter />
+    </ErrorBoundary>
   )
 }
 
@@ -295,6 +314,7 @@ function App() {
         in any of them can't blank the whole app (a single AiChatWidget
         hooks-violation took every route to blank screens on 2026-05-17).
       */}
+      <MarketingFooterMount />
       <ErrorBoundary silent><PWAPrompt /></ErrorBoundary>
       <ErrorBoundary silent><AiChatWidget /></ErrorBoundary>
       <ErrorBoundary silent><OnboardingWizard /></ErrorBoundary>
