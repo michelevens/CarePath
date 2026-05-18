@@ -1,5 +1,8 @@
 [phases.setup]
-nixPkgs = ['...', 'php84', 'php84Packages.composer']
+# GD is needed by intervention/image for photo resizing + WebP encoding
+# (the manager photo-upload pipeline). PHP's default Nix build does not
+# bundle GD — declare the variant explicitly here.
+nixPkgs = ['...', 'php84', 'php84Extensions.gd', 'php84Packages.composer']
 
 [variables]
 NIXPACKS_PHP_VERSION = '8.4'
