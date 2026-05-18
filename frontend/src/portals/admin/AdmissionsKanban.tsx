@@ -136,15 +136,15 @@ export function AdmissionsKanban() {
 
   if (!facilityId) {
     return (
-      <div className="p-8 text-sm text-muted-foreground">
+      <div className="p-4 text-sm text-muted-foreground sm:p-8">
         Select a facility from the switcher to view admissions.
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-8">
-      <div className="flex items-start justify-between">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Admissions</h1>
           <p className="text-sm text-muted-foreground">

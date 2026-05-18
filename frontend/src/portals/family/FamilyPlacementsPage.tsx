@@ -335,7 +335,7 @@ function PlacementDetailView({ id }: { id: string }) {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Details
           </h2>
-          <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs">
             <dt className="text-muted-foreground">Level of care</dt>
             <dd className="font-medium">{data.level_of_care.replace(/_/g, " ")}</dd>
             {data.inquirer_name && (

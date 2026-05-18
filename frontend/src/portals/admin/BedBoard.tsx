@@ -124,7 +124,7 @@ export function BedBoard() {
 
   if (!facilityId) {
     return (
-      <div className="p-8 text-sm text-muted-foreground">
+      <div className="p-4 text-sm text-muted-foreground sm:p-8">
         Select a facility from the switcher above to view the bed board.
       </div>
     )
@@ -132,8 +132,8 @@ export function BedBoard() {
 
   return (
     <>
-      <div className="space-y-6 p-8">
-        <div className="flex items-start justify-between">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start sm:gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Census</h1>
             <p className="text-sm text-muted-foreground">

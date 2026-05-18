@@ -511,7 +511,7 @@ export function FacilityDetailPage() {
       </div>
 
       {!sidebarVisible && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-3 shadow-lg backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold">{facility.name}</div>
@@ -525,9 +525,10 @@ export function FacilityDetailPage() {
                 {facility.available_beds} bed{facility.available_beds === 1 ? "" : "s"} available
               </div>
             </div>
-            <Button onClick={() => openTour()} size="lg">
+            <Button onClick={() => openTour()} size="lg" className="shrink-0">
               <Calendar className="h-4 w-4" />
-              Request a tour
+              <span className="hidden sm:inline">Request a tour</span>
+              <span className="sm:hidden">Tour</span>
             </Button>
           </div>
         </div>

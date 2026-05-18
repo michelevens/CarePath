@@ -282,10 +282,18 @@ function CompareTable({
   amenityRows: AmenityRow[]
   onRemove: (id: string) => void
 }) {
-  const cols = `minmax(180px, 1fr) repeat(${facilities.length}, minmax(180px, 1fr))`
+  // Narrower label column on phones so two facility columns fit
+  // without immediate horizontal scroll; full-width on sm+.
+  const cols = `minmax(120px, 0.7fr) repeat(${facilities.length}, minmax(160px, 1fr))`
 
   return (
-    <div className="mt-8 overflow-x-auto rounded-xl border bg-card">
+    <div className="mt-8">
+      {facilities.length >= 2 && (
+        <p className="mb-2 text-xs text-muted-foreground sm:hidden">
+          ← Swipe to see all {facilities.length} facilities →
+        </p>
+      )}
+      <div className="overflow-x-auto rounded-xl border bg-card">
       {/* Header row with hero images + name + remove */}
       <div className="grid border-b" style={{ gridTemplateColumns: cols }}>
         <div className="border-r p-4" />
@@ -480,6 +488,7 @@ function CompareTable({
             </Button>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )

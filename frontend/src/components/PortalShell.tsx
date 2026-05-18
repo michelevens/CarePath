@@ -171,6 +171,9 @@ export function PortalShell({ portal }: { portal: Portal }) {
                 key={item.to}
                 to={item.to}
                 end={item.to === `/${portal}`}
+                // Auto-close the mobile drawer after a nav click — otherwise
+                // the drawer sits open over the page the user just navigated to.
+                onClick={() => setMobileSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
@@ -252,18 +255,21 @@ export function PortalShell({ portal }: { portal: Portal }) {
         />
         <main className="flex-1 overflow-y-auto">
           {user && !user.email_verified && (
-            <div className="flex items-center gap-3 border-b bg-muted/50 px-6 py-3 text-sm">
-              <MailWarning className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="flex-1 text-muted-foreground">
-                Please verify your email address to unlock all features.
-              </span>
+            <div className="flex flex-col gap-2 border-b bg-muted/50 px-4 py-3 text-sm sm:flex-row sm:items-center sm:gap-3 sm:px-6">
+              <div className="flex items-start gap-2">
+                <MailWarning className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  Please verify your email to unlock all features.
+                </span>
+              </div>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleResend}
                 disabled={resendState !== "idle"}
+                className="self-start sm:ml-auto"
               >
-                {resendState === "idle" && "Resend verification email"}
+                {resendState === "idle" && "Resend verification"}
                 {resendState === "sending" && "Sending…"}
                 {resendState === "sent" && "Sent — check your inbox"}
               </Button>

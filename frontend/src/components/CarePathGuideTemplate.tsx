@@ -175,7 +175,7 @@ export function CarePathGuideTemplate({
             {guide.sectionEyebrow}
           </p>
           <h2
-            className="mt-3 text-4xl font-bold md:text-5xl"
+            className="mt-3 text-3xl font-bold sm:text-4xl md:text-5xl"
             style={{ color: PALETTE.navy, fontFamily: SERIF }}
           >
             {guide.sectionTitle}
@@ -185,8 +185,9 @@ export function CarePathGuideTemplate({
           </p>
         </div>
 
-        {/* Main two-column layout — collapses on mobile */}
-        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+        {/* Main two-column layout — collapses on mobile, splits at md so
+            tablets get the side-by-side layout the design assumes. */}
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] lg:gap-8">
           {/* LEFT: guide cover card */}
           <article className="rounded-3xl bg-white p-6 shadow-xl sm:p-8">
             <header className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -260,7 +261,7 @@ export function CarePathGuideTemplate({
                 }}
               >
                 <div
-                  className="flex h-full min-h-[280px] flex-col justify-end rounded-2xl p-6"
+                  className="flex h-full min-h-[200px] flex-col justify-end rounded-2xl p-6 sm:min-h-[260px]"
                   style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
                 >
                   <p className="text-sm uppercase tracking-wide">

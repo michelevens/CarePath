@@ -94,10 +94,10 @@ export function WriteReviewModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-xl overflow-hidden rounded-lg border bg-card shadow-2xl"
+        className="flex max-h-[95vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border bg-card shadow-2xl"
       >
         <div className="flex items-start justify-between border-b p-4">
           <div>
@@ -118,7 +118,7 @@ export function WriteReviewModal({
           </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {/* Star rating */}
           <div>
             <label className="text-xs font-medium">Overall rating *</label>
@@ -195,19 +195,20 @@ export function WriteReviewModal({
             <label className="text-xs font-medium">Sub-scores (optional)</label>
             <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {SUBSCORE_DIMENSIONS.map((d) => (
-                <div key={d.key} className="flex items-center justify-between rounded border bg-card px-2 py-1.5 text-xs">
-                  <span>{d.label}</span>
-                  <div className="flex items-center gap-0.5">
+                <div key={d.key} className="flex items-center justify-between gap-2 rounded border bg-card px-2 py-2 text-xs">
+                  <span className="min-w-0 flex-1 truncate">{d.label}</span>
+                  <div className="flex shrink-0 items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
                         key={n}
                         type="button"
                         onClick={() => setSubscores({ ...subscores, [d.key]: n })}
-                        className="p-0.5"
+                        className="p-1"
+                        aria-label={`${d.label}: ${n} star${n === 1 ? "" : "s"}`}
                       >
                         <Star
                           className={cn(
-                            "h-3.5 w-3.5",
+                            "h-4 w-4",
                             n <= (subscores[d.key] ?? 0)
                               ? "fill-amber-400 text-amber-500"
                               : "text-muted-foreground/40"
