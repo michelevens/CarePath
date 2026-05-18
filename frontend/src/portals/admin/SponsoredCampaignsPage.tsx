@@ -76,6 +76,19 @@ interface CreativeVariant {
   ctr_pct: number
 }
 
+interface InvoiceRow {
+  id: string
+  period_label: string
+  period_start: string
+  period_end: string
+  total_clicks: number
+  amount_due_cents: number
+  status: "draft" | "sent" | "paid" | "failed" | "void"
+  issued_at: string | null
+  paid_at: string | null
+  stripe_invoice_url: string | null
+}
+
 interface PeriodStats {
   impressions: number
   clicks: number
@@ -420,6 +433,8 @@ export function SponsoredCampaignsPage() {
         </div>
       )}
 
+      <SponsoredInvoicesPanel />
+
       <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground">
         <strong className="text-foreground">How sponsored listings work:</strong>{" "}
         Your listing appears at the top of search results that match your
@@ -439,6 +454,95 @@ export function SponsoredCampaignsPage() {
         }}
       />
     </div>
+  )
+}
+
+/**
+ * Monthly invoice history for sponsored-ad spend. Replaces the
+ * old invisible billed_cents accumulator with a real legible
+ * record + downloadable branded invoice PDFs.
+ */
+function SponsoredInvoicesPanel() {
+  const [rows, setRows] = useState<InvoiceRow[] | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api
+      .get<{ data: InvoiceRow[] }>("/facility/sponsored/invoices")
+      .then((r) => setRows(r.data.data))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div className="text-sm text-muted-foreground">Loading invoices…</div>
+
+  return (
+    <section className="rounded-lg border bg-card p-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Monthly invoices
+        </h2>
+        <span className="text-xs text-muted-foreground">
+          Auto-issued on the 2nd of each month
+        </span>
+      </div>
+
+      {rows && rows.length > 0 ? (
+        <ul className="mt-3 divide-y rounded-md border">
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{r.period_label}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                      r.status === "paid" ? "bg-emerald-100 text-emerald-800"
+                      : r.status === "sent" ? "bg-violet-100 text-violet-800"
+                      : r.status === "failed" ? "bg-red-100 text-red-800"
+                      : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {r.status}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {r.total_clicks.toLocaleString()} clicks ·{" "}
+                  {r.issued_at && <>Issued {new Date(r.issued_at).toLocaleDateString()}</>}
+                  {r.paid_at && <> · Paid {new Date(r.paid_at).toLocaleDateString()}</>}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-base font-bold tabular-nums">
+                  ${(r.amount_due_cents / 100).toFixed(2)}
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                {r.stripe_invoice_url && (
+                  <Button asChild size="sm" variant="outline">
+                    <a href={r.stripe_invoice_url} target="_blank" rel="noreferrer">Pay online</a>
+                  </Button>
+                )}
+                <Button asChild size="sm" variant="ghost">
+                  <a
+                    href={`${import.meta.env.VITE_API_URL ?? "/api"}/facility/sponsored/invoices/${r.id}/pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    PDF
+                  </a>
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">
+          No invoices yet. Your first invoice will be issued at the end of your first
+          active billing month.
+        </p>
+      )}
+    </section>
   )
 }
 

@@ -8,7 +8,10 @@ use App\Models\SponsoredCampaign;
 use App\Models\SponsoredClick;
 use App\Models\SponsoredCreative;
 use App\Models\SponsoredImpression;
+use App\Models\SponsoredInvoice;
 use App\Services\BidRecommendationService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -337,6 +340,53 @@ class SponsoredController extends Controller
             ->findOrFail($id);
         $variant->delete();
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * GET /api/facility/sponsored/invoices
+     */
+    public function listInvoices(): JsonResponse
+    {
+        $facility = $this->facilityOrFail();
+        $rows = SponsoredInvoice::query()
+            ->where('facility_id', $facility->id)
+            ->orderByDesc('period_start')
+            ->limit(24)
+            ->get();
+        return response()->json([
+            'data' => $rows->map(fn ($r) => [
+                'id' => $r->id,
+                'period_label' => $r->period_start->format('F Y'),
+                'period_start' => $r->period_start->toDateString(),
+                'period_end' => $r->period_end->toDateString(),
+                'total_clicks' => $r->total_clicks,
+                'amount_due_cents' => $r->amount_due_cents,
+                'status' => $r->status,
+                'issued_at' => $r->issued_at?->toIso8601String(),
+                'paid_at' => $r->paid_at?->toIso8601String(),
+                'stripe_invoice_url' => $r->stripe_invoice_url,
+                'line_items' => $r->line_items,
+            ]),
+        ]);
+    }
+
+    /**
+     * GET /api/facility/sponsored/invoices/{id}/pdf — branded invoice PDF.
+     */
+    public function invoicePdf(string $id): Response
+    {
+        $facility = $this->facilityOrFail();
+        $invoice = SponsoredInvoice::query()
+            ->where('id', $id)
+            ->where('facility_id', $facility->id)
+            ->firstOrFail();
+
+        $pdf = Pdf::loadView('invoices.sponsored', [
+            'invoice' => $invoice,
+            'facility' => $facility,
+        ])->setPaper('letter');
+
+        return $pdf->download('carepath-sponsored-' . $invoice->period_start->format('Y-m') . '.pdf');
     }
 
     private function validateCampaign(Request $request, bool $partial = false): array

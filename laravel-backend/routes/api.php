@@ -269,6 +269,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/sponsored/creatives/{id}', [FacilitySponsoredController::class, 'updateCreative']);
         Route::delete('/sponsored/creatives/{id}', [FacilitySponsoredController::class, 'destroyCreative']);
 
+        // Sponsored-ad monthly invoices.
+        Route::get('/sponsored/invoices', [FacilitySponsoredController::class, 'listInvoices']);
+        Route::get('/sponsored/invoices/{id}/pdf', [FacilitySponsoredController::class, 'invoicePdf']);
+
         // Listing analytics — impressions, detail views, tour requests
         // for the active facility over the last 30 days vs prior 30.
         Route::get('/listing-analytics', [FacilityAnalyticsController::class, 'listing']);

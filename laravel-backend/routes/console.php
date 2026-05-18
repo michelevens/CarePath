@@ -45,3 +45,12 @@ Schedule::command('carepath:run-saved-search-alerts')
     ->timezone('UTC')
     ->withoutOverlapping(60)
     ->runInBackground();
+
+// Sponsored-ad monthly invoicing. Runs on the 2nd of each month
+// at 4am UTC — gives the daily-reset job time to settle the prior
+// day's spend before we close the month.
+Schedule::command('sponsored:bill-month')
+    ->monthlyOn(2, '04:00')
+    ->timezone('UTC')
+    ->withoutOverlapping(180)
+    ->runInBackground();
