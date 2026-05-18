@@ -645,19 +645,49 @@ function PhotoGallery({ photos, facilityName }: { photos: Photo[]; facilityName:
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   if (photos.length === 0) {
+    /*
+     * Empty-state acquisition hook. ~80% of our directory is OSM-
+     * ingested facilities that haven't been claimed yet, so this is
+     * the first thing a family sees. Instead of a row of generic
+     * Building2 icons, overlay a quiet "are you the manager?" CTA on
+     * top of the same skeleton grid — same visual weight, but pulls
+     * a manager into the claim flow when they Google their own
+     * facility and find the page bare.
+     */
     return (
-      <div className="mb-6 grid h-72 grid-cols-4 gap-2 overflow-hidden rounded-xl">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className={cn(
-              "flex items-center justify-center bg-muted text-muted-foreground/40",
-              i === 0 && "col-span-2 row-span-2"
-            )}
-          >
-            <Building2 className="h-10 w-10" />
+      <div className="relative mb-6 h-72 overflow-hidden rounded-xl">
+        <div className="grid h-full grid-cols-4 gap-2">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex items-center justify-center bg-muted text-muted-foreground/40",
+                i === 0 && "col-span-2 row-span-2"
+              )}
+            >
+              <Building2 className="h-10 w-10" />
+            </div>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-5">
+          <div className="pointer-events-auto flex max-w-md flex-col items-center gap-2 text-center">
+            <p className="text-sm font-medium text-white">
+              {facilityName} hasn't shared photos yet.
+            </p>
+            <a
+              href="#claim-facility"
+              onClick={(e) => {
+                e.preventDefault()
+                document
+                  .getElementById("claim-facility")
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" })
+              }}
+              className="rounded-full bg-white/95 px-4 py-1.5 text-xs font-semibold text-foreground shadow-sm hover:bg-white"
+            >
+              Are you the manager? Claim this listing →
+            </a>
           </div>
-        ))}
+        </div>
       </div>
     )
   }
@@ -2846,7 +2876,7 @@ function ClaimFacilitySection({
 
   return (
     <>
-      <Card>
+      <Card id="claim-facility" className="scroll-mt-24">
         <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center">
           <Flag className="h-6 w-6 shrink-0 text-violet-700" />
           <div className="flex-1">
