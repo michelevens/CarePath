@@ -161,6 +161,7 @@ class IngestFacilitiesCsv extends Command
                 'city' => $this->titleStr($data['city'] ?? null),
                 'state' => $state,
                 'zip' => $this->normalizeZip($data['zip'] ?? null),
+                'county' => $this->titleStr($data['county'] ?? null),
                 'phone' => $this->normalizePhone($data['phone'] ?? null),
                 'email' => $this->nullableStr($data['email'] ?? null),
                 'website' => $this->nullableStr($data['website'] ?? null),
