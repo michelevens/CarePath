@@ -249,9 +249,15 @@ export function LandingPage() {
 
         <div className="mx-auto mt-3 flex max-w-2xl items-center justify-center gap-3">
           <NearMeButton
-            onZip={(zip) => {
+            onZip={(zip, coords) => {
+              // Pass lat/lon alongside the ZIP so the backend filters
+              // by the exact browser location — skips the often-empty
+              // zip → centroid lookup that left "near me" returning all
+              // facilities nationwide.
               const p = new URLSearchParams()
               p.set("zip", zip)
+              p.set("lat", coords.lat.toFixed(6))
+              p.set("lon", coords.lon.toFixed(6))
               p.set("radius", "25")
               navigate(`/search?${p.toString()}`)
             }}

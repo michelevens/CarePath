@@ -35,6 +35,7 @@ import { Meta } from "@/components/Meta"
 import { QualityScoreBadge, type QualityScore } from "@/components/QualityScoreBadge"
 import { FamilyProModal } from "@/components/FamilyProModal"
 import { Sparkles } from "lucide-react"
+import { amenityIcon } from "@/lib/amenityIcons"
 
 interface Photo {
   id: string
@@ -2030,17 +2031,20 @@ function AmenityCategoryCard({
           <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
         </div>
         <ul className="mt-3 space-y-1.5 text-sm">
-          {visible.map((a) => (
-            <li key={a.id} className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-              <span>
-                {a.name}
-                {a.detail && (
-                  <span className="ml-1 text-muted-foreground">— {a.detail}</span>
-                )}
-              </span>
-            </li>
-          ))}
+          {visible.map((a) => {
+            const AIcon = amenityIcon(a.name)
+            return (
+              <li key={a.id} className="flex items-start gap-2">
+                <AIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <span>
+                  {a.name}
+                  {a.detail && (
+                    <span className="ml-1 text-muted-foreground">— {a.detail}</span>
+                  )}
+                </span>
+              </li>
+            )
+          })}
         </ul>
         {hasMore && (
           <button

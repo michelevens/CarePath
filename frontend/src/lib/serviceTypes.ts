@@ -12,7 +12,20 @@
  *   - signals: plain-language symptoms/needs that point to this type
  *   - typical_cost_band: helps families self-disqualify
  *   - typical_payer: who pays
+ *   - icon: a Lucide component used wherever the service type renders
  */
+
+import {
+  Activity,
+  Brain,
+  Building2,
+  Crown,
+  HeartHandshake,
+  Home,
+  Stethoscope,
+  Users,
+  type LucideIcon,
+} from "lucide-react"
 
 export type ServiceType =
   | "independent_living"
@@ -31,6 +44,10 @@ export interface ServiceTypeMeta {
   signals: string[]
   typical_cost_band: string
   typical_payer: string
+  icon: LucideIcon
+  /** Tailwind text color class — paired with `tone_bg` for chip rendering. */
+  tone_text: string
+  tone_bg: string
 }
 
 export const SERVICE_TYPES: ServiceTypeMeta[] = [
@@ -46,6 +63,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "$2,500 – $5,500/mo",
     typical_payer: "Private pay (rarely Medicaid)",
+    icon: Activity,
+    tone_text: "text-emerald-700",
+    tone_bg: "bg-emerald-100",
   },
   {
     value: "assisted_living",
@@ -59,6 +79,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "$4,500 – $7,500/mo",
     typical_payer: "Private pay, LTC insurance, some Medicaid waivers",
+    icon: HeartHandshake,
+    tone_text: "text-violet-700",
+    tone_bg: "bg-violet-100",
   },
   {
     value: "memory_care",
@@ -72,6 +95,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "$6,000 – $9,500/mo",
     typical_payer: "Private pay, LTC insurance, some Medicaid waivers",
+    icon: Brain,
+    tone_text: "text-pink-700",
+    tone_bg: "bg-pink-100",
   },
   {
     value: "ccrc",
@@ -85,6 +111,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "Entry $100k+ then $3,000–$6,000/mo",
     typical_payer: "Private pay (entry fee + monthly)",
+    icon: Crown,
+    tone_text: "text-amber-700",
+    tone_bg: "bg-amber-100",
   },
   {
     value: "snf",
@@ -98,6 +127,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "$8,000 – $14,000/mo",
     typical_payer: "Medicare (short-term), Medicaid (long-term), private",
+    icon: Stethoscope,
+    tone_text: "text-sky-700",
+    tone_bg: "bg-sky-100",
   },
   {
     value: "group_home",
@@ -110,6 +142,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "$3,500 – $6,000/mo",
     typical_payer: "Private pay, some Medicaid",
+    icon: Home,
+    tone_text: "text-teal-700",
+    tone_bg: "bg-teal-100",
   },
   {
     value: "adult_family_home",
@@ -122,6 +157,9 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "$3,500 – $7,000/mo",
     typical_payer: "Private pay, Medicaid in some states",
+    icon: Users,
+    tone_text: "text-orange-700",
+    tone_bg: "bg-orange-100",
   },
   {
     value: "icf_iid",
@@ -134,8 +172,17 @@ export const SERVICE_TYPES: ServiceTypeMeta[] = [
     ],
     typical_cost_band: "Varies (state-funded)",
     typical_payer: "Medicaid (primary)",
+    icon: Building2,
+    tone_text: "text-stone-700",
+    tone_bg: "bg-stone-100",
   },
 ]
+
+/** Helper: get the icon component for a service-type slug, with a
+ *  safe fallback so unknown values don't crash the UI. */
+export function iconFor(value: string): LucideIcon {
+  return SERVICE_TYPES.find((s) => s.value === value)?.icon ?? Building2
+}
 
 export const SERVICE_TYPE_LABEL: Record<ServiceType, string> = Object.fromEntries(
   SERVICE_TYPES.map((s) => [s.value, s.label])

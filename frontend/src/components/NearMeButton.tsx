@@ -29,7 +29,11 @@ export function NearMeButton({
   variant = "hero",
   className,
 }: {
-  onZip: (zip: string) => void
+  /** Called when reverse-zip returns a postal code. The second
+   * argument carries the original geolocation so the caller can pass
+   * lat/lon to the search backend — bypassing the round-trip from
+   * zip → centroid (which often misses for outer suburbs / new ZIPs). */
+  onZip: (zip: string, coords: { lat: number; lon: number }) => void
   /** Called when ZIP lookup misses but we still have coords. The caller
    * should run a bbox-based search around the point. When omitted, a
    * "no ZIP" error is shown instead. */
@@ -84,7 +88,7 @@ export function NearMeButton({
         }
 
         if (zip) {
-          onZip(zip)
+          onZip(zip, { lat, lon })
           setSuccess(true)
         } else if (onCoords) {
           // ZIP lookup missed but we still know roughly where the user

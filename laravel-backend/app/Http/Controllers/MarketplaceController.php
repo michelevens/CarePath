@@ -45,6 +45,10 @@ class MarketplaceController extends Controller
             'state' => ['nullable', 'string', 'size:2'],
             'city' => ['nullable', 'string', 'max:120'],
             'zip' => ['nullable', 'string', 'max:10'],
+            // Direct lat/lon origin — bypasses the zip → centroid round
+            // trip when the caller already has coords (e.g. Near Me).
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lon' => ['nullable', 'numeric', 'between:-180,180'],
             'radius_miles' => ['nullable', 'integer', 'min:1', 'max:200'],
             'type' => ['nullable', 'in:snf,assisted_living,memory_care,ccrc,independent_living,group_home,adult_family_home,icf_iid'],
             'max_price_cents' => ['nullable', 'integer', 'min:0'],
@@ -73,9 +77,20 @@ class MarketplaceController extends Controller
             'match.special_needs.*' => ['string', 'max:50'],
         ]);
 
-        // ZIP → centroid lookup
+        // Resolve search origin. Direct lat/lon wins — it's what the
+        // browser geolocation gave us and means we never have to
+        // forward-geocode a ZIP whose centroid we may not have. ZIP
+        // lookup is the fallback when only a ZIP was supplied.
         $origin = null;
-        if (! empty($data['zip'])) {
+        if (isset($data['lat'], $data['lon'])) {
+            $origin = [
+                'lat' => (float) $data['lat'],
+                'lon' => (float) $data['lon'],
+                'zip' => $data['zip'] ?? null,
+                'city' => null,
+                'state' => $data['state'] ?? null,
+            ];
+        } elseif (! empty($data['zip'])) {
             $origin = $zipLookup->lookup($data['zip']);
         }
 

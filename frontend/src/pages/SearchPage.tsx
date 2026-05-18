@@ -146,6 +146,11 @@ export function SearchPage() {
   const [state, setState] = useState(() => urlParams.get("state") ?? "")
   const [city, setCity] = useState(() => urlParams.get("city") ?? "")
   const [zip, setZip] = useState(() => urlParams.get("zip") ?? "")
+  // Direct geolocation coords (from Near-Me) — when present, the
+  // backend uses these as the search origin instead of forward-
+  // geocoding the ZIP, which often misses for outer-suburb ZIPs.
+  const [originLat, setOriginLat] = useState<string>(() => urlParams.get("lat") ?? "")
+  const [originLon, setOriginLon] = useState<string>(() => urlParams.get("lon") ?? "")
   const [radiusMiles, setRadiusMiles] = useState(() => urlParams.get("radius") ?? "25")
   const [type, setType] = useState(() => urlParams.get("type") ?? "")
   const [medicaidOnly, setMedicaidOnly] = useState(() => urlParams.get("medicaid") === "1")
@@ -208,6 +213,14 @@ export function SearchPage() {
       p.zip = zip
       p.radius_miles = Number(radiusMiles || "25")
     }
+    // When Near-Me handed us exact coords, forward them so the backend
+    // skips the zip → centroid round trip and filters by the real
+    // browser location.
+    if (originLat && originLon) {
+      p.lat = originLat
+      p.lon = originLon
+      if (!p.radius_miles) p.radius_miles = Number(radiusMiles || "25")
+    }
     if (type) p.type = type
     if (medicaidOnly) p.medicaid_only = true
     if (minFiveStar) p.min_five_star = Number(minFiveStar)
@@ -224,7 +237,7 @@ export function SearchPage() {
       if (matchPrefs.special_needs?.length) p["match[special_needs][]"] = matchPrefs.special_needs
     }
     return p
-  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort, matchPrefs, activeBbox])
+  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort, matchPrefs, activeBbox, originLat, originLon])
 
   // Sync state → URL (replace, not push, so back button doesn't trap)
   useEffect(() => {
@@ -242,9 +255,11 @@ export function SearchPage() {
     if (maxPriceMonthly) next.set("max_price", maxPriceMonthly)
     if (sort !== "recommended") next.set("sort", sort)
     if (activeBbox) next.set("bbox", activeBbox)
+    if (originLat) next.set("lat", originLat)
+    if (originLon) next.set("lon", originLon)
     setUrlParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort])
+  }, [q, state, city, zip, radiusMiles, type, medicaidOnly, minFiveStar, maxPriceMonthly, sort, originLat, originLon])
 
   useEffect(() => {
     let alive = true
@@ -371,7 +386,11 @@ export function SearchPage() {
                     <label className="text-xs font-medium text-muted-foreground">ZIP</label>
                     <NearMeButton
                       variant="compact"
-                      onZip={setZip}
+                      onZip={(zip, coords) => {
+                        setZip(zip)
+                        setOriginLat(coords.lat.toFixed(6))
+                        setOriginLon(coords.lon.toFixed(6))
+                      }}
                       onCoords={({ lat, lon }) => {
                         // Fall back to a ~25mi bbox around the coords
                         // when reverse-zip can't find a postcode.
@@ -385,7 +404,14 @@ export function SearchPage() {
                   <input
                     type="text"
                     value={zip}
-                    onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                    onChange={(e) => {
+                      setZip(e.target.value.replace(/\D/g, "").slice(0, 5))
+                      // Typing a different ZIP invalidates any stale
+                      // Near-Me coords — clear them so the backend
+                      // falls back to the new ZIP's centroid.
+                      setOriginLat("")
+                      setOriginLon("")
+                    }}
                     placeholder="85016"
                     maxLength={5}
                     className="mt-1 w-24 rounded-md border bg-background px-3 py-1.5 text-sm outline-hidden focus:ring-2 focus:ring-ring"
@@ -512,6 +538,7 @@ export function SearchPage() {
               setQ(""); setState(""); setCity(""); setZip("")
               setType(""); setMedicaidOnly(false); setMinFiveStar("")
               setMaxPriceMonthly(""); setActiveBbox(null); saveMatchPrefs(null)
+              setOriginLat(""); setOriginLon("")
             }}
           />
 
@@ -765,6 +792,29 @@ function ActiveFilterPills(props: {
   )
 }
 
+/**
+ * Small chip that pairs a service-type icon + tinted background with
+ * the human-readable label. Used on result cards so families can scan
+ * a list and recognize care types at a glance.
+ */
+function ServiceTypeChip({ type }: { type: string }) {
+  const meta = metaFor(type)
+  if (!meta) return <span>{TYPE_LABEL[type] ?? type}</span>
+  const Icon = meta.icon
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        meta.tone_bg,
+        meta.tone_text,
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {meta.label}
+    </span>
+  )
+}
+
 function CompareBar() {
   const compare = useCompare()
   if (compare.list.length === 0) return null
@@ -924,11 +974,15 @@ function ResultCard({ r }: { r: FacilityResult }) {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-semibold">{r.name}</h3>
-                <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {r.city}, {r.state} · {TYPE_LABEL[r.type] ?? r.type}
+                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {r.city}, {r.state}
+                  </span>
+                  <span aria-hidden>·</span>
+                  <ServiceTypeChip type={r.type} />
                   {r.distance_miles !== undefined && (
-                    <span className="ml-1 font-medium text-foreground">
+                    <span className="font-medium text-foreground">
                       · {r.distance_miles} mi
                     </span>
                   )}
