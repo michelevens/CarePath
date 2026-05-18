@@ -203,6 +203,14 @@ class SourcesController extends Controller
      */
     public function uploadCsv(Request $request): JsonResponse
     {
+        // CSV ingest is synchronous + row-by-row; a 5–10k row state
+        // file routinely takes 30–90s. PHP-FPM's default 30s execution
+        // ceiling kills it mid-import. We're already authenticated as
+        // super_admin and rate-limit-gated upstream, so dropping the
+        // per-request limit here is safe.
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'], // 20MB
             'state' => ['nullable', 'string', 'size:2'],     // optional when source is single-state
