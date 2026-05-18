@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, useLocation } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 import { LandingPage } from "@/pages/LandingPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
@@ -9,6 +9,8 @@ import { OnboardingWizard } from "@/components/OnboardingWizard"
 import { PortalShell } from "@/components/PortalShell"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { MobileBottomNav } from "@/components/MobileBottomNav"
+import { MobileFab } from "@/components/MobileFab"
 
 /**
  * Route-based code splitting. LandingPage and NotFoundPage stay eager
@@ -100,6 +102,36 @@ function RouteFallback() {
       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       Loading…
     </div>
+  )
+}
+
+/**
+ * Routes that should NOT show the mobile bottom nav or FAB.
+ * - Portal routes already render their own sidebar/topbar.
+ * - Auth pages: the bottom nav distracts from the form.
+ * - /embed is an iframe target — no app chrome at all.
+ * - /messages is a chat surface (full-bleed reading), bottom nav
+ *   would cover the composer.
+ */
+const PORTAL_PREFIXES = [
+  "/family", "/resident", "/staff", "/admin", "/network",
+  "/referral", "/hospital", "/superadmin",
+]
+const NO_MOBILE_NAV_PREFIXES = [
+  ...PORTAL_PREFIXES,
+  "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email",
+  "/settings", "/embed", "/messages",
+]
+
+function MobileAppChrome() {
+  const { pathname } = useLocation()
+  const hide = NO_MOBILE_NAV_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  if (hide) return null
+  return (
+    <>
+      <ErrorBoundary silent><MobileFab /></ErrorBoundary>
+      <ErrorBoundary silent><MobileBottomNav /></ErrorBoundary>
+    </>
   )
 }
 
@@ -254,6 +286,7 @@ function App() {
       <ErrorBoundary silent><PWAPrompt /></ErrorBoundary>
       <ErrorBoundary silent><AiChatWidget /></ErrorBoundary>
       <ErrorBoundary silent><OnboardingWizard /></ErrorBoundary>
+      <MobileAppChrome />
     </ErrorBoundary>
   )
 }

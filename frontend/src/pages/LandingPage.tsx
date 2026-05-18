@@ -160,12 +160,15 @@ export function LandingPage() {
         description="Find skilled nursing, assisted living, and memory care with real availability, real reviews, and transparent pricing. No lead-selling, ever."
         canonical="/"
       />
-      <header className="border-b">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link to="/" className="text-xl font-semibold tracking-tight">
+      <header
+        className="sticky top-0 z-30 border-b bg-card/85 backdrop-blur-md supports-[backdrop-filter]:bg-card/70"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6">
+          <Link to="/" className="text-lg font-semibold tracking-tight sm:text-xl">
             CarePath
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2 sm:gap-4">
             <Link to="/search" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
               Find care
             </Link>
@@ -178,10 +181,10 @@ export function LandingPage() {
             <Link to="/articles" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">
               Articles
             </Link>
-            <Button variant="ghost" asChild>
+            <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
               <Link to="/login">Sign in</Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm">
               <Link to="/signup">List your facility</Link>
             </Button>
           </nav>
@@ -198,15 +201,15 @@ export function LandingPage() {
               "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 18%, transparent), transparent)",
           }}
         />
-        <div className="mx-auto max-w-7xl px-4 py-14 text-center sm:px-6 sm:py-20 md:py-28">
+        <div className="mx-auto max-w-7xl px-4 py-10 text-center sm:px-6 sm:py-20 md:py-28">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border bg-accent/60 px-3 py-1 text-xs font-medium text-accent-foreground">
             <Sparkles className="h-3.5 w-3.5" />
             Live CMS data · No lead-selling
           </div>
-          <h1 className="mt-5 text-balance text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
+          <h1 className="mt-4 text-balance text-[28px] font-semibold leading-[1.1] tracking-tight sm:mt-5 sm:text-4xl md:text-5xl lg:text-6xl">
             Find the right long-term care.
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-muted-foreground sm:mt-6 sm:text-lg">
+          <p className="mx-auto mt-3 max-w-2xl text-balance text-[15px] text-muted-foreground sm:mt-6 sm:text-lg">
             8,400+ real facilities. Live availability. CMS Five-Star ratings.
             Transparent pricing.{" "}
             <span className="font-medium text-foreground">No lead-selling, ever.</span>

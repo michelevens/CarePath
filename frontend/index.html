@@ -6,6 +6,17 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#7c3aed" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--
+      Apple PWA hints — let CarePath behave like a native app when a
+      user installs it from Safari's "Add to Home Screen". Mirrors the
+      same setup the EnnHealth sibling project uses for its mobile
+      app feel. The status bar style stays "default" so our header
+      doesn't paint over the time/battery row.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CarePath" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>CarePath — Long-term care, modernized</title>
     <meta
       name="description"

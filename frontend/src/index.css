@@ -115,6 +115,34 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /*
+   * Mobile-app native feel — modeled on the EnnHealth Psychiatry
+   * mobile-app.js polish (sibling project). When CarePath is opened
+   * on a phone or installed as a PWA, it should feel like an app,
+   * not a browser tab: no rubber-band overscroll, no blue tap flash
+   * on every touch, no iOS auto-zoom when focusing a 14px input.
+   */
+  @media (max-width: 768px) {
+    html {
+      overscroll-behavior-y: none;
+    }
+    body {
+      -webkit-tap-highlight-color: transparent;
+      /* Clears space under the fixed mobile bottom nav so the last
+       * row of content isn't permanently hidden behind it. The
+       * env() bit accounts for the home-indicator on notched iPhones. */
+      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    }
+    /* iOS Safari auto-zooms when focusing an input whose computed
+     * font-size is < 16px. Forcing 16px on form controls disables
+     * that zoom without changing how the inputs look on desktop. */
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
 }
 
 /*
