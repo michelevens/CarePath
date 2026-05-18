@@ -387,6 +387,12 @@ export function SearchPage() {
                     <NearMeButton
                       variant="compact"
                       onZip={(zip, coords) => {
+                        // Clear any active map-area bbox — it overrides
+                        // the radius filter on the backend, which would
+                        // ignore the lat/lon we just got from the browser
+                        // and return whatever was inside the old bbox.
+                        setActiveBbox(null)
+                        setPendingBbox(null)
                         setZip(zip)
                         setOriginLat(coords.lat.toFixed(6))
                         setOriginLon(coords.lon.toFixed(6))
@@ -397,6 +403,7 @@ export function SearchPage() {
                         const dLat = 25 / 69
                         const dLon = 25 / (69 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
                         setActiveBbox(`${(lat - dLat).toFixed(4)},${(lon - dLon).toFixed(4)},${(lat + dLat).toFixed(4)},${(lon + dLon).toFixed(4)}`)
+                        setPendingBbox(null)
                         setZip("")
                       }}
                     />

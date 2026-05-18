@@ -92,18 +92,30 @@ function FitBounds({ points }: { points: LatLngTuple[] }) {
 }
 
 /**
- * Reports the visible map bounds upward after every pan/zoom so the
+ * Reports the visible map bounds upward after a user pan/zoom so the
  * page can offer a "Search this area" affordance (Seniorly-style).
- * Debounced inside the parent rather than here — Leaflet's moveend
- * already fires once per gesture.
+ *
+ * Suppresses the programmatic initial fitBounds (and the first user-
+ * interaction-equivalent moveend Leaflet fires right after mount) so
+ * the "Search this area" button doesn't show up the instant the map
+ * loads. Previous version triggered immediately, confusing users into
+ * clicking it before they'd actually moved the map — which then
+ * committed a stale wide bbox.
  */
 function BoundsReporter({
   onChange,
 }: {
   onChange: NonNullable<Props["onBoundsChange"]>
 }) {
+  const userMoved = useRef(false)
   useMapEvents({
+    movestart() {
+      // Once the user has actually grabbed/dragged the map, we count
+      // subsequent moveends as user gestures.
+      userMoved.current = true
+    },
     moveend(e) {
+      if (!userMoved.current) return
       const b = e.target.getBounds()
       onChange({
         minLat: b.getSouth(),
