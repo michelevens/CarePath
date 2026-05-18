@@ -12,6 +12,7 @@ use App\Services\CostProjectionService;
 use App\Services\FacilityTrustService;
 use App\Services\FamilyMatchScoreService;
 use App\Services\QualityScoreService;
+use App\Services\SponsoredAttributionService;
 use App\Services\SponsoredListingService;
 use App\Services\ZipLookupService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -1439,6 +1440,14 @@ class MarketplaceController extends Controller
             'notes' => $data['notes'] ?? null,
             'stage_changed_at' => now(),
         ]);
+
+        // Attribute the inquiry back to a sponsored click if there was
+        // one in the session within the last 30 days. Drives the ROAS
+        // column on the facility-side analytics page.
+        app(SponsoredAttributionService::class)->attributeAdmission(
+            $admission,
+            $request->header('X-Carepath-Session-Id') ?: $request->query('session_id'),
+        );
 
         return response()->json([
             'ok' => true,

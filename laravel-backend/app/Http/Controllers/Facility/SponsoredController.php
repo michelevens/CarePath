@@ -149,6 +149,37 @@ class SponsoredController extends Controller
             ? round(($monthClicks / $monthImpressions) * 100, 1)
             : 0;
 
+        // Conversion rollups for ROAS — clicks that have a converted_at
+        // were stamped by SponsoredAttributionService when the inquiry
+        // landed. Two buckets (tour_request vs admission) so the UI
+        // can show the funnel honestly.
+        $convRow = function ($from) use ($campaignIds) {
+            $rows = SponsoredClick::query()
+                ->whereIn('campaign_id', $campaignIds)
+                ->where('clicked_at', '>=', $from)
+                ->whereNotNull('converted_at')
+                ->selectRaw('converted_to, count(*) as n, sum(attributed_value_cents) as value_cents')
+                ->groupBy('converted_to')
+                ->get()
+                ->keyBy('converted_to');
+            return [
+                'tour_requests' => (int) ($rows->get('tour_request')->n ?? 0)
+                    + (int) ($rows->get('admission')->n ?? 0), // admissions also count as tour
+                'admissions' => (int) ($rows->get('admission')->n ?? 0),
+                'attributed_value_cents' => (int) (
+                    ($rows->get('tour_request')->value_cents ?? 0)
+                    + ($rows->get('admission')->value_cents ?? 0)
+                ),
+            ];
+        };
+
+        $todayConv = $convRow($today);
+        $monthConv = $convRow($monthStart);
+
+        $roas = fn (array $c, int $spend) => $spend > 0
+            ? round($c['attributed_value_cents'] / $spend, 2)
+            : null;
+
         return response()->json([
             'data' => [
                 'today' => [
@@ -156,12 +187,20 @@ class SponsoredController extends Controller
                     'clicks' => $todayClicks,
                     'spend_cents' => $todaySpend,
                     'ctr_pct' => $todayCtr,
+                    'tour_requests' => $todayConv['tour_requests'],
+                    'admissions' => $todayConv['admissions'],
+                    'attributed_value_cents' => $todayConv['attributed_value_cents'],
+                    'roas' => $roas($todayConv, $todaySpend),
                 ],
                 'this_month' => [
                     'impressions' => $monthImpressions,
                     'clicks' => $monthClicks,
                     'spend_cents' => $monthSpend,
                     'ctr_pct' => $monthCtr,
+                    'tour_requests' => $monthConv['tour_requests'],
+                    'admissions' => $monthConv['admissions'],
+                    'attributed_value_cents' => $monthConv['attributed_value_cents'],
+                    'roas' => $roas($monthConv, $monthSpend),
                 ],
             ],
         ]);
@@ -169,7 +208,11 @@ class SponsoredController extends Controller
 
     private function emptyStats(): array
     {
-        $z = ['impressions' => 0, 'clicks' => 0, 'spend_cents' => 0, 'ctr_pct' => 0];
+        $z = [
+            'impressions' => 0, 'clicks' => 0, 'spend_cents' => 0, 'ctr_pct' => 0,
+            'tour_requests' => 0, 'admissions' => 0,
+            'attributed_value_cents' => 0, 'roas' => null,
+        ];
         return ['today' => $z, 'this_month' => $z];
     }
 

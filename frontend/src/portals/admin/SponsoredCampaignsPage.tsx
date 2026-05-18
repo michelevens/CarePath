@@ -43,9 +43,20 @@ interface Campaign {
   created_at: string
 }
 
+interface PeriodStats {
+  impressions: number
+  clicks: number
+  spend_cents: number
+  ctr_pct: number
+  tour_requests: number
+  admissions: number
+  attributed_value_cents: number
+  roas: number | null
+}
+
 interface Stats {
-  today: { impressions: number; clicks: number; spend_cents: number; ctr_pct: number }
-  this_month: { impressions: number; clicks: number; spend_cents: number; ctr_pct: number }
+  today: PeriodStats
+  this_month: PeriodStats
 }
 
 const STATUS_META: Record<Campaign["status"], { label: string; tone: "good" | "warn" | "neutral" | "bad" }> = {
@@ -131,13 +142,49 @@ export function SponsoredCampaignsPage() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — activity row */}
       {stats && (
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatTile icon={Eye} label="Impressions today" value={stats.today.impressions.toLocaleString()} sub={`${stats.this_month.impressions.toLocaleString()} this month`} />
           <StatTile icon={MousePointerClick} label="Clicks today" value={stats.today.clicks.toLocaleString()} sub={`${stats.today.ctr_pct}% CTR today`} />
           <StatTile icon={Wallet} label="Spend today" value={`$${(stats.today.spend_cents / 100).toFixed(2)}`} sub={`$${(stats.this_month.spend_cents / 100).toFixed(2)} this month`} highlight />
           <StatTile icon={BarChart3} label="Month CTR" value={`${stats.this_month.ctr_pct}%`} sub={`${stats.this_month.clicks} clicks / ${stats.this_month.impressions} impressions`} />
+        </div>
+      )}
+
+      {/* ROAS row — turns clicks into placements turn into a value
+          number facilities can defend internally. */}
+      {stats && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/30 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-violet-900">
+            Return on ad spend · this month
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <div className="text-xs text-muted-foreground">Tour requests attributed</div>
+              <div className="mt-0.5 text-xl font-bold tabular-nums">{stats.this_month.tour_requests}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Admissions attributed</div>
+              <div className="mt-0.5 text-xl font-bold tabular-nums">{stats.this_month.admissions}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Attributed value</div>
+              <div className="mt-0.5 text-xl font-bold tabular-nums text-emerald-700">
+                ${(stats.this_month.attributed_value_cents / 100).toLocaleString()}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">ROAS</div>
+              <div className="mt-0.5 text-xl font-bold tabular-nums">
+                {stats.this_month.roas === null ? "—" : `${stats.this_month.roas}×`}
+              </div>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            30-day attribution window. Tour requests get an estimated $500 value;
+            admissions get $5,000 unless a real placement fee is recorded.
+          </p>
         </div>
       )}
 
