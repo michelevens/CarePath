@@ -69,6 +69,11 @@ class SponsoredListingService
      * @param  array|null  $origin          ['lat'=>..., 'lon'=>..., 'radius_miles'=>...]
      *                                      from the search's ZIP or geocode.
      * @param  string|null $sessionId       Browser session for frequency-cap enforcement.
+     * @param  array|null  $bbox            [minLat, minLon, maxLat, maxLon] when the search
+     *                                      is driven by an explicit map area instead of a
+     *                                      radius. Facilities outside the bbox are excluded
+     *                                      so a Phoenix campaign can't show on a Florida
+     *                                      drag-to-refine search.
      * @return Collection<int, Facility>
      */
     public function selectForSearch(
@@ -77,6 +82,7 @@ class SponsoredListingService
         ?int $organicCount = null,
         ?array $origin = null,
         ?string $sessionId = null,
+        ?array $bbox = null,
     ): Collection {
         // 1. Surface opt-in. The marketplace search + embed widget are
         //    the only places ads fire today. Any other caller — sitemap
@@ -127,12 +133,20 @@ class SponsoredListingService
 
         // 3. Filter eligibility: facility must actually match the search,
         //    the campaign's own state/city targets must overlap, and
-        //    (if origin) the facility must be inside the search radius.
+        //    (if origin) the facility must be inside the search radius,
+        //    and (if bbox) the facility must be inside the map area.
         $matching = $campaigns
             ->filter(fn ($c) => $c->facility && $c->facility->is_active)
             ->filter(fn ($c) => $this->facilityMatchesSearch($c->facility, $filters))
             ->filter(fn ($c) => $this->campaignTargetingMatches($c, $filters))
-            ->filter(fn ($c) => $this->withinRadius($c->facility, $origin));
+            ->filter(fn ($c) => $this->withinRadius($c->facility, $origin))
+            ->filter(fn ($c) => $this->withinBbox($c->facility, $bbox))
+            // Dedupe: never show the same facility twice in sponsored
+            // results — if two campaigns target the same facility, the
+            // highest-bid one wins via the rank step below.
+            ->groupBy(fn ($c) => $c->facility->id)
+            ->map(fn ($group) => $group->sortByDesc('cpc_bid_cents')->first())
+            ->values();
 
         // 4. Frequency cap per session.
         if ($sessionId) {
@@ -232,7 +246,11 @@ class SponsoredListingService
     private function withinRadius(Facility $f, ?array $origin): bool
     {
         if (! $origin || ! isset($origin['lat'], $origin['lon'])) return true;
-        if ($f->latitude === null || $f->longitude === null) return true; // can't measure, allow
+        // Sponsored ads MUST be geo-attached to be relevant. A facility
+        // with no coords can't be verified as nearby, so reject it
+        // (previous behavior was to allow — which let Phoenix sponsored
+        // results bleed into Florida searches).
+        if ($f->latitude === null || $f->longitude === null) return false;
 
         $radius = (float) ($origin['radius_miles'] ?? 25);
         $miles = $this->haversine(
@@ -240,6 +258,24 @@ class SponsoredListingService
             (float) $f->latitude, (float) $f->longitude,
         );
         return $miles <= $radius;
+    }
+
+    /**
+     * Map-area filter for sponsored. When the search is driven by an
+     * explicit bbox (drag-to-refine), sponsored picks must fall inside
+     * the visible area — otherwise a Phoenix campaign shows on a
+     * Florida search. Returns true when no bbox is set.
+     */
+    private function withinBbox(Facility $f, ?array $bbox): bool
+    {
+        if (! $bbox || count($bbox) !== 4) return true;
+        // Same "no coords = no claim of relevance" rule as withinRadius.
+        if ($f->latitude === null || $f->longitude === null) return false;
+        [$minLat, $minLon, $maxLat, $maxLon] = $bbox;
+        return (float) $f->latitude >= $minLat
+            && (float) $f->latitude <= $maxLat
+            && (float) $f->longitude >= $minLon
+            && (float) $f->longitude <= $maxLon;
     }
 
     private function haversine(float $lat1, float $lon1, float $lat2, float $lon2): float

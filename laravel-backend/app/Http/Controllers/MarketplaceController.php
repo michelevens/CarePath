@@ -194,12 +194,18 @@ class MarketplaceController extends Controller
         $originForAds = $origin
             ? ['lat' => $origin['lat'], 'lon' => $origin['lon'], 'radius_miles' => $radiusMiles]
             : null;
+        // Bbox-driven searches (drag-to-refine) need the bbox passed too,
+        // otherwise sponsored facilities outside the map area still show.
+        $bboxForAds = ! empty($data['bbox'])
+            ? array_map('floatval', explode(',', $data['bbox']))
+            : null;
         $sponsoredFacilities = $sponsored->selectForSearch(
             filters: $data,
             surface: 'search',
             organicCount: $facilities->count(),
             origin: $originForAds,
             sessionId: $request->header('X-Carepath-Session-Id') ?: $request->query('session_id'),
+            bbox: $bboxForAds,
         );
         if ($sponsoredFacilities->isNotEmpty()) {
             $sponsoredIds = $sponsoredFacilities->pluck('id')->all();
