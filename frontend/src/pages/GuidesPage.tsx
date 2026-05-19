@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Lock,
   Shield,
 } from "lucide-react"
 import { api } from "@/lib/api"
@@ -40,6 +41,10 @@ interface Guide {
   audience: string
   author: Person | null
   reviewer: Person | null
+  /** Server-enforced — true means the download requires an authenticated
+   *  user with at least one FacilityClaim. UI swaps the lead-capture
+   *  download for a "Claim a facility to unlock" CTA. */
+  requires_claim?: boolean
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -51,6 +56,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   financial: "Financial planning",
   legal: "Legal",
   dementia: "Memory care",
+  facility_operators: "For operators",
 }
 
 export function GuidesPage() {
@@ -210,10 +216,26 @@ function GuideCard({ guide, onDownload }: { guide: Guide; onDownload: () => void
               <Button asChild size="sm" variant="ghost">
                 <Link to={`/guides/${guide.slug}`}>Preview</Link>
               </Button>
-              <Button size="sm" onClick={onDownload}>
-                <Download className="h-3.5 w-3.5" />
-                Download
-              </Button>
+              {guide.requires_claim ? (
+                /*
+                 * Operator-gated guide. Don't pop the family-side lead-
+                 * capture dialog — the download endpoint will reject the
+                 * request anyway. Route to /search instead, where the
+                 * operator finds their facility and clicks "Claim" to
+                 * unlock the download.
+                 */
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/search?intent=claim">
+                    <Lock className="h-3.5 w-3.5" />
+                    Claim to unlock
+                  </Link>
+                </Button>
+              ) : (
+                <Button size="sm" onClick={onDownload}>
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </Button>
+              )}
             </div>
           </div>
         </div>

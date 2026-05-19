@@ -3003,7 +3003,7 @@ function ClaimFacilityModal({
           </button>
         </div>
         {done ? (
-          <div className="space-y-3 p-5 text-sm">
+          <div className="space-y-4 p-5 text-sm">
             <div className="flex items-center gap-2 text-emerald-700">
               <CheckCircle2 className="h-5 w-5" />
               <strong>Claim submitted.</strong>
@@ -3012,6 +3012,54 @@ function ClaimFacilityModal({
               We'll review and email you within 1-2 business days. Once approved,
               your account will gain admin access on the facility's listing.
             </p>
+            {/*
+              Marketing reward at the highest-engagement moment. The manager
+              just took the conversion action — give them a polished asset
+              to flip through while they wait for the verification email.
+            */}
+            <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-4">
+              <div className="text-sm font-semibold text-foreground">
+                Bonus: the 2026 Operator's Playbook
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A 4-page guide on why claimed listings convert 2-3× better,
+                what the free tier covers, and when Pro pays for itself.
+                Unlocked the moment you submitted this claim.
+              </p>
+              <Button
+                onClick={() => {
+                  // Hit the gated download endpoint. The backend recognizes
+                  // the manager's pending FacilityClaim and bypasses the
+                  // family-side lead-capture form.
+                  void api
+                    .post(
+                      "/marketplace/guides/why-list-on-carepath/download",
+                      {},
+                      { responseType: "blob" }
+                    )
+                    .then((r) => {
+                      const blob = new Blob([r.data as BlobPart], { type: "application/pdf" })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement("a")
+                      a.href = url
+                      a.download = "carepath-why-list-on-carepath.pdf"
+                      document.body.appendChild(a)
+                      a.click()
+                      a.remove()
+                      URL.revokeObjectURL(url)
+                    })
+                    .catch(() => {
+                      // No-op — the download is a nice-to-have, not the
+                      // primary action. The user got their claim through.
+                    })
+                }}
+                size="sm"
+                variant="outline"
+                className="mt-3 w-full border-violet-300 bg-white text-violet-800 hover:bg-violet-100"
+              >
+                Download the Operator's Playbook (PDF)
+              </Button>
+            </div>
             <Button onClick={onClose} className="w-full">
               Done
             </Button>

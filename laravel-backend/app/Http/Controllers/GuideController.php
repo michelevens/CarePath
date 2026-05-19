@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FacilityClaim;
 use App\Models\Lead;
 use App\Services\GuideCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +36,11 @@ class GuideController extends Controller
                 'audience' => $g['audience'],
                 'author' => $g['author'] ?? null,
                 'reviewer' => $g['reviewer'] ?? null,
+                // Surface the operator-gate to the frontend so the
+                // catalog UI can render a lock affordance + a "claim
+                // a facility to unlock" CTA instead of the regular
+                // lead-capture dialog.
+                'requires_claim' => (bool) ($g['requires_claim'] ?? false),
             ], GuideCatalog::all()),
         ]);
     }
@@ -59,6 +66,27 @@ class GuideController extends Controller
             ]);
         }
         RateLimiter::hit($throttleKey, 600);
+
+        // Operator-gated guides (e.g., "Why List on CarePath") bypass
+        // the family-side lead-capture form, but require the caller to
+        // be authenticated AND to hold at least one FacilityClaim. The
+        // claim does not need to be approved — submitting a claim is
+        // the unlock action, which is the marketing reward for taking
+        // a step into the funnel.
+        if (! empty($guide['requires_claim'])) {
+            $user = Auth::user();
+            if (! $user) {
+                abort(401, 'Sign in and submit a facility claim to download this guide.');
+            }
+            $hasClaim = FacilityClaim::query()
+                ->where('user_id', $user->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->exists();
+            if (! $hasClaim) {
+                abort(403, 'Submit a facility claim to unlock this operator-only guide.');
+            }
+            return $this->renderPdf($guide);
+        }
 
         $data = $request->validate([
             // Identification (required) — without name + phone we can't
@@ -103,6 +131,16 @@ class GuideController extends Controller
             'status' => 'new',
         ]);
 
+        return $this->renderPdf($guide);
+    }
+
+    /**
+     * Render + stream the guide PDF. Extracted so both the family-side
+     * (with lead capture) and operator-side (with claim gate) paths
+     * share one rendering call.
+     */
+    private function renderPdf(array $guide): Response
+    {
         // setOption (singular) sets one key without nuking the vendor
         // defaults — needed for the magazine-style hero photos that
         // load from images.unsplash.com.

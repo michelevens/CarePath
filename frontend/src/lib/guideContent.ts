@@ -278,6 +278,54 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── Why List on CarePath (operator-gated) ─────────────── */
+  "why-list-on-carepath": {
+    sectionEyebrow: "For Facility Operators",
+    sectionTitle: "Why List on CarePath",
+    sectionLede:
+      "A 2026 playbook for SNF, ALF, memory care, CCRC, and group-home owners. Real tour requests, no placement-fee auction, free claim.",
+    coverEyebrow: "Operator Playbook · 4 pages",
+    coverTitle: "Why Claim Pays For Itself",
+    coverSubtitle:
+      "The lead-auction math, the listing zones families actually read, and the 30-second claim path.",
+    valueProps: [
+      "Zero placement-fee per move-in",
+      "Real photos + your own pricing",
+      "Free tier covers full listing edit + analytics",
+    ],
+    heroPanel: {
+      eyebrow: "Operators",
+      title: "Claimed vs Unclaimed",
+      body: "Eight zones on every facility page. Five sit empty on an unclaimed listing. Claim turns them on — and converts 2-3× more tour requests.",
+    },
+    toc: [
+      "The lead-auction math you don't have to play",
+      "What families see when you claim",
+      "What the free tier gets you",
+      "The Pro tier (optional)",
+      "The CMS Five-Star reality",
+      "How to claim (under two minutes)",
+    ],
+    tocFooter: "Free to claim, free to edit, free forever for the basics.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The Lead-Auction Math",
+      body: "APFM and Caring.com charge 70-100% of a single month's resident rent per move-in. On a $5,500/mo suite, that's $3,800-5,500 per family. CarePath does not run a placement-fee auction.",
+      bullets: [
+        "$0 per move-in fee — keep your top-line revenue",
+        "Tour requests routed to YOUR admissions inbox, never resold",
+        "Verified-manager badge — trust signal families look for",
+        "Public CMS rating you can respond to with context",
+      ],
+      tip: "Your first edit after approval should be 3-5 real photos. Single biggest tour-conversion lift.",
+    },
+    // Operator-gated guide — the download requires an authenticated user
+    // with at least one FacilityClaim. Frontend detects requires_claim
+    // from the API and routes the CTA to /facility/{slug} (or the
+    // claim-success modal) instead of the lead-capture dialog.
+    downloadHref: "/guides?download=why-list-on-carepath",
+    contact: CONTACT_DEFAULT,
+  },
 }
 
 export function guideContentFor(slug: string): GuideContent | null {

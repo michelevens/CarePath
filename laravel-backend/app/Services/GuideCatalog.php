@@ -158,6 +158,43 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── Facility-operator playbook ───────────────────────────────
+        // Lead-magnet for facility managers, gated server-side: the
+        // download endpoint requires the authenticated user to hold at
+        // least one FacilityClaim (any status). This sits behind the
+        // claim-submission "thank you" moment as the value-delivery
+        // reward for taking the action — and stays in the public
+        // catalog for SEO/discovery (with a Lock affordance) so
+        // operators search-engine-find it on their own.
+        [
+            'slug' => 'why-list-on-carepath',
+            'title' => 'Why List on CarePath',
+            'subtitle' => "The 2026 facility operator's playbook for free listings, real tour requests, and zero placement fees",
+            'description' => "For SNF, ALF, memory care, CCRC, and group-home operators. Why claiming your CarePath listing converts 2-3× better than the unclaimed default, and what the free tier gets you on day one.",
+            'category' => 'facility_operators',
+            'page_count' => 4,
+            'audience' => 'Facility owners, administrators, and DONs',
+            'value_props' => [
+                'No placement-fee auction — keep every move-in dollar',
+                'Real photos + your own pricing replace the generic placeholder',
+                'Free tier covers full listing edit + tour-request routing + analytics',
+            ],
+            'hero_panel' => ['eyebrow' => 'Operators', 'title' => 'Why Claim Pays For Itself'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => "The lead-auction math you don't have to play", 'page' => 2],
+                ['n' => 2, 'label' => 'What families see when you claim', 'page' => 3],
+                ['n' => 3, 'label' => 'What the free tier gets you', 'page' => 4],
+                ['n' => 4, 'label' => 'The Pro tier (optional)', 'page' => 5],
+                ['n' => 5, 'label' => "The CMS Five-Star reality", 'page' => 6],
+                ['n' => 6, 'label' => 'How to claim (under two minutes)', 'page' => 7],
+            ],
+            // Server-side gating flag, read by GuideController::download().
+            // When true, the download requires an authenticated user with
+            // at least one FacilityClaim (pending OR approved) rather than
+            // the family-side lead-capture form.
+            'requires_claim' => true,
+        ],
     ];
 
     public static function all(): array
