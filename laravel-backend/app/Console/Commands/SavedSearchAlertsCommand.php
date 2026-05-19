@@ -4,11 +4,11 @@ namespace App\Console\Commands;
 
 use App\Models\Bed;
 use App\Models\Facility;
-use App\Models\Notification;
 use App\Models\SavedSearch;
+use App\Models\User;
+use App\Notifications\SavedSearchMatch;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * Daily sweep of every user's saved searches with alerts on. For each
@@ -77,29 +77,31 @@ class SavedSearchAlertsCommand extends Command
                 continue;
             }
 
-            // Persist an in-app notification (the bell icon picks it up
-            // via the existing /me/notifications endpoint).
-            Notification::create([
-                'id' => (string) Str::uuid(),
-                'type' => 'App\\Notifications\\SavedSearchMatch',
-                'notifiable_type' => 'App\\Models\\User',
-                'notifiable_id' => $search->user_id,
-                'data' => json_encode([
-                    'title' => count($newIds) === 1
-                        ? "1 new match for '{$search->name}'"
-                        : count($newIds) . " new matches for '{$search->name}'",
-                    'message' => $newFacilities->pluck('name')->join(', ')
-                        . (count($newIds) > 5 ? ' and ' . (count($newIds) - 5) . ' more' : ''),
-                    'href' => '/search?' . http_build_query($params),
-                    'kind' => 'saved_search_match',
-                    'saved_search_id' => $search->id,
-                ]),
-            ]);
+            // Fire the SavedSearchMatch notification — drives both an
+            // email (so the user actually sees it without being logged
+            // in) and a database row that the bell-icon endpoint
+            // picks up. Replaces the bare DB-insert this command did
+            // previously, which fired in-app only.
+            $user = User::find($search->user_id);
+            if ($user) {
+                try {
+                    $user->notify(new SavedSearchMatch($search, $newFacilities, $params));
+                } catch (\Throwable $e) {
+                    // Bury so a transient mail failure doesn't take
+                    // down the whole sweep. Snapshot still updates so
+                    // we don't re-alert on the same facilities tomorrow.
+                    \Log::warning('SavedSearchMatch notify failed', [
+                        'saved_search_id' => $search->id,
+                        'user_id' => $search->user_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             // TODO(push): when push fan-out service lands, dispatch
             // a job here keyed off push_device_tokens.user_id =
-            // $search->user_id. The notifications insert above is the
-            // durable record either way.
+            // $search->user_id. The notification above is the durable
+            // record either way.
 
             $search->update([
                 'last_seen_facility_ids' => $currentIds,
