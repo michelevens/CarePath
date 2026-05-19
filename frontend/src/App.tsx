@@ -43,6 +43,7 @@ const VaEligibilityPage = lazy(() => import("@/pages/VaEligibilityPage").then(m 
 const SecuritySettingsPage = lazy(() => import("@/pages/SecuritySettingsPage").then(m => ({ default: m.SecuritySettingsPage })))
 const ProfileSettingsPage = lazy(() => import("@/pages/ProfileSettingsPage").then(m => ({ default: m.ProfileSettingsPage })))
 const MessagesPage = lazy(() => import("@/pages/MessagesPage").then(m => ({ default: m.MessagesPage })))
+const OnboardingFacilityPage = lazy(() => import("@/pages/OnboardingFacilityPage").then(m => ({ default: m.OnboardingFacilityPage })))
 const LegalPrivacyPage = lazy(() => import("@/pages/legal/LegalPrivacyPage").then(m => ({ default: m.LegalPrivacyPage })))
 const LegalTermsPage = lazy(() => import("@/pages/legal/LegalTermsPage").then(m => ({ default: m.LegalTermsPage })))
 const LegalCookiesPage = lazy(() => import("@/pages/legal/LegalCookiesPage").then(m => ({ default: m.LegalCookiesPage })))
@@ -192,6 +193,10 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+        {/* Post-claim onboarding — authenticated; the page itself handles
+            the redirect to /login if the user isn't signed in. */}
+        <Route path="/onboarding/facility/:slug" element={<OnboardingFacilityPage />} />
 
         {/* Legal — accessible to anyone, no auth required. */}
         <Route path="/legal/privacy" element={<LegalPrivacyPage />} />

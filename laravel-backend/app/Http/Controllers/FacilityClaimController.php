@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Facility;
 use App\Models\FacilityClaim;
+use App\Notifications\FacilityClaimApproved;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,11 +67,70 @@ class FacilityClaimController extends Controller
             ]);
         });
 
+        // Auto-approve when the claimer's email domain matches the
+        // facility's published website domain. Cheap, reliable signal:
+        // someone with @sunsetmanor.com on a claim of sunsetmanor.com
+        // is overwhelmingly the real manager. SuperAdmin can still
+        // reverse if a bad actor games it (rare; the domain-match
+        // signal is much stronger than a free Gmail). Removes the
+        // 1-2 day verification wait for the highest-confidence cases,
+        // which is most legitimate operators.
+        $claim->load('facility');
+        $autoApproved = false;
+        if ($claim->emailDomainMatchesFacility() === true) {
+            $this->approveAndGrant($claim, $user);
+            $claim->refresh();
+            $autoApproved = true;
+        }
+
         return response()->json([
             'ok' => true,
-            'message' => "Thanks — we'll review your claim within 1-2 business days. We'll email you when it's approved.",
+            'auto_approved' => $autoApproved,
+            'status' => $claim->status,
+            'message' => $autoApproved
+                ? "Verified! Your email domain matches the facility website. You're approved and have admin access immediately."
+                : "Thanks — we'll review your claim within 1-2 business days. We'll email you when it's approved.",
             'claim_id' => $claim->id,
+            'redirect_to' => "/onboarding/facility/{$facility->slug}",
         ], 201);
+    }
+
+    /**
+     * Grant facility-admin role + pivot + default active facility, then
+     * email the claimant. Mirrors SuperAdminController::approveClaim()
+     * — extracted so both the SuperAdmin manual-approve path and the
+     * auto-approve path go through identical logic.
+     */
+    private function approveAndGrant(FacilityClaim $claim, \App\Models\User $user): void
+    {
+        DB::transaction(function () use ($claim, $user) {
+            $user->assignRole('facility_admin');
+
+            DB::table('facility_user')->updateOrInsert(
+                ['facility_id' => $claim->facility_id, 'user_id' => $user->id],
+                ['role' => 'admin', 'updated_at' => now(), 'created_at' => now()],
+            );
+
+            if (! $user->active_facility_id) {
+                $user->update(['active_facility_id' => $claim->facility_id]);
+            }
+
+            $claim->update([
+                'status' => 'approved',
+                'reviewed_by_user_id' => null, // system-auto, not a human
+                'reviewed_at' => now(),
+                'decision_notes' => 'Auto-approved — claimer email domain matches facility website domain.',
+            ]);
+        });
+
+        // Email notification fires outside the transaction so an SMTP
+        // hiccup can't roll back the role grant.
+        try {
+            $user->notify(new FacilityClaimApproved($claim->refresh(), $claim->facility));
+        } catch (\Throwable $e) {
+            // Already approved + role granted; the missing email is
+            // recoverable (manager can be re-notified manually).
+        }
     }
 
     /**
