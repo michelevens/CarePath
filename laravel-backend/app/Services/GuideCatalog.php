@@ -158,6 +158,81 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── Group homes / AFHs evaluation ────────────────────────────
+        [
+            'slug' => 'group-home-evaluation-guide',
+            'title' => 'Group Homes & Adult Family Homes',
+            'subtitle' => 'How to evaluate a 4-10 bed residential care option without being fooled by either charm or polish',
+            'description' => 'Small-setting residential care is a fundamentally different product from a tower. This guide is how to read a 6-bed home — the staffing math, the Medicaid waiver path, the tour-day red flags specific to small operators.',
+            'category' => 'care_basics',
+            'page_count' => 5,
+            'audience' => 'Families considering small residential care (seniors or IDD adults)',
+            'value_props' => [
+                'Decode the state-by-state alphabet (group home, AFH, RCFE, PCH, ICF/IID)',
+                'Ask the staffing questions small homes try to dodge',
+                "Find the Medicaid waiver path most families don't know covers small-setting care",
+            ],
+            'hero_panel' => ['eyebrow' => 'Small-Setting Care', 'title' => 'Six Beds, One Table'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'The small-setting alphabet soup', 'page' => 2],
+                ['n' => 2, 'label' => "When a small setting is the right answer", 'page' => 3],
+                ['n' => 3, 'label' => 'The staffing math', 'page' => 4],
+                ['n' => 4, 'label' => 'Money + the Medicaid path', 'page' => 5],
+                ['n' => 5, 'label' => 'Tour-day reality check', 'page' => 6],
+                ['n' => 6, 'label' => 'Red flags + state-side homework', 'page' => 7],
+            ],
+        ],
+        // ── State Medicaid HCBS waiver landscape ─────────────────────
+        [
+            'slug' => 'state-medicaid-waiver-map',
+            'title' => 'The State Medicaid Waiver Map',
+            'subtitle' => "Every state's HCBS / ALW waiver, the waitlist reality, and how to apply before you need it",
+            'description' => "Medicaid's nursing-home benefit is open-ended; the community-care alternatives (assisted living, group homes, in-home) run through HCBS waivers — each state's own — and most have waitlists. File now, even if you don't need services yet.",
+            'category' => 'medicaid',
+            'page_count' => 6,
+            'audience' => 'Families planning LTC funding',
+            'value_props' => [
+                'Find your state in 30 seconds — waiver names, waitlist status, who qualifies',
+                'Avoid the most common Medicaid-planning mistake (waiting to apply)',
+                "Understand what HCBS pays for and what it doesn't",
+            ],
+            'hero_panel' => ['eyebrow' => 'Medicaid', 'title' => 'The Waiver Behind the Waitlist'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'What HCBS waivers actually cover', 'page' => 2],
+                ['n' => 2, 'label' => 'The 50-state landscape, grouped', 'page' => 3],
+                ['n' => 3, 'label' => 'Who qualifies — the three filters', 'page' => 4],
+                ['n' => 4, 'label' => 'How to apply (universal steps)', 'page' => 5],
+                ['n' => 5, 'label' => "Where to look up your state's waiver", 'page' => 6],
+                ['n' => 6, 'label' => 'The action checklist', 'page' => 7],
+            ],
+        ],
+        // ── POA / healthcare proxy walkthrough ───────────────────────
+        [
+            'slug' => 'power-of-attorney-healthcare-proxy',
+            'title' => 'Power of Attorney & Healthcare Proxy',
+            'subtitle' => 'The four documents every family caregiver needs in place before they are needed',
+            'description' => 'Once cognitive capacity is gone, the only path left is guardianship — slow, expensive, adversarial. This guide explains the four documents (durable financial POA, healthcare proxy, living will, POLST/MOLST), who to choose as agent, and how to execute them so they actually work at the bank, hospital, and facility.',
+            'category' => 'legal',
+            'page_count' => 5,
+            'audience' => 'Family caregivers and adult children',
+            'value_props' => [
+                'Pick the right type of POA (durable, springing, immediate) for your situation',
+                'Avoid the bank-rejects-the-POA disaster',
+                "Know what to do if capacity is already gone (guardianship path)",
+            ],
+            'hero_panel' => ['eyebrow' => 'Legal', 'title' => 'Four Documents, 90 Minutes'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'The four documents', 'page' => 2],
+                ['n' => 2, 'label' => 'Choosing the right agent', 'page' => 3],
+                ['n' => 3, 'label' => 'Executing the documents correctly', 'page' => 4],
+                ['n' => 4, 'label' => 'State-portability', 'page' => 5],
+                ['n' => 5, 'label' => 'When no documents exist + capacity is gone', 'page' => 6],
+                ['n' => 6, 'label' => 'The action checklist', 'page' => 7],
+            ],
+        ],
         // ── Facility-operator playbook ───────────────────────────────
         // Lead-magnet for facility managers, gated server-side: the
         // download endpoint requires the authenticated user to hold at

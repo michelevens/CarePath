@@ -278,6 +278,135 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── Group homes / AFHs ─────────────── */
+  "group-home-evaluation-guide": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Small-Setting Care, Done Right",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "Group Homes & Adult Family Homes",
+    coverSubtitle:
+      "How to evaluate a 4-10 bed residential care option without being fooled by either the charm of the setting or the lack of polish.",
+    valueProps: [
+      "Decode the state-by-state alphabet — group home, AFH, RCFE, PCH, ICF/IID",
+      "Ask the staffing questions small homes try to dodge",
+      "Find the Medicaid waiver path most families miss",
+    ],
+    heroPanel: {
+      eyebrow: "Small-Setting Care",
+      title: "Six Beds, One Table",
+      body: "A 6-bed adult family home is a different product from a 200-bed tower. The decision criteria are different too.",
+    },
+    toc: [
+      "The small-setting alphabet soup",
+      "When a small setting is the right answer",
+      "The staffing math",
+      "Money + the Medicaid path",
+      "Tour-day reality check",
+      "Red flags + state-side homework",
+    ],
+    tocFooter: "Done right, the closest thing to aging at home with real support.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The Staffing Math You Have to Ask About",
+      body: "Small homes win on intimacy and lose on staffing redundancy. The third night shift in a row when one caregiver is sick is where the model gets tested.",
+      bullets: [
+        "Day-shift, night-shift, and weekend caregiver-to-resident ratios",
+        "Who covers when a caregiver calls out sick (family? agency? unfilled?)",
+        "Owner-operator on-site presence — radically changes the home's culture",
+        "Training and licensure level of the caregivers",
+      ],
+      tip: "Show up unannounced for a second visit. Legitimate operators welcome it.",
+    },
+    downloadHref: "/guides?download=group-home-evaluation-guide",
+    contact: CONTACT_DEFAULT,
+  },
+
+  /* ─────────────── State Medicaid waiver map ─────────────── */
+  "state-medicaid-waiver-map": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Find Your State's Medicaid Waiver",
+    coverEyebrow: "Free Guide · 6 pages",
+    coverTitle: "The State Medicaid Waiver Map",
+    coverSubtitle:
+      "Every state's HCBS / ALW waiver, the waitlist reality, and how to apply before you need services.",
+    valueProps: [
+      "Find your state in 30 seconds",
+      "Avoid the most common Medicaid mistake — waiting to apply",
+      "Know what HCBS covers and what it doesn't",
+    ],
+    heroPanel: {
+      eyebrow: "Medicaid",
+      title: "The Waiver Behind the Waitlist",
+      body: "Medicaid pays for nursing homes everywhere. Paying for assisted living, group homes, and in-home care runs through a different door — and each state runs its own.",
+    },
+    toc: [
+      "What HCBS waivers actually cover",
+      "The 50-state landscape, grouped",
+      "Who qualifies — the three filters",
+      "How to apply (universal steps)",
+      "Where to look up your state",
+      "The action checklist",
+    ],
+    tocFooter: "File now even if you don't need services yet — your application date is your priority.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "Waivers With Significant Waiting Lists",
+      body: "Florida, Texas, Georgia, Tennessee — multi-year waitlists are the norm. The earlier you apply, the earlier you're served.",
+      bullets: [
+        "Florida SMMC-LTC: 5-15 year waitlist for non-Medicaid-pending applicants",
+        "Texas STAR+PLUS HCBS: 6-10 year interest list typical",
+        "Florida iBudget (IDD): 22,000+ on the waitlist",
+        "Vermont Choices for Care: uniquely runs as managed-care entitlement, no waitlist",
+      ],
+      tip: "Call your state's Aging & Disability Resource Center this week. Free, neutral, the right place to start.",
+    },
+    downloadHref: "/guides?download=state-medicaid-waiver-map",
+    contact: CONTACT_DEFAULT,
+  },
+
+  /* ─────────────── POA / healthcare proxy ─────────────── */
+  "power-of-attorney-healthcare-proxy": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Get the Paperwork in Place",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "Power of Attorney & Healthcare Proxy",
+    coverSubtitle:
+      "The four documents every family caregiver needs in place before they're needed.",
+    valueProps: [
+      "Pick the right POA type — durable, springing, immediate",
+      "Avoid the bank-rejects-the-POA disaster",
+      "Know what to do when capacity is already gone",
+    ],
+    heroPanel: {
+      eyebrow: "Legal",
+      title: "Four Documents, 90 Minutes",
+      body: "Get these signed while capacity is intact. The alternative is guardianship — slow, expensive, adversarial.",
+    },
+    toc: [
+      "The four documents",
+      "Choosing the right agent",
+      "Executing the documents correctly",
+      "State portability",
+      "When no documents exist + capacity is gone",
+      "The action checklist",
+    ],
+    tocFooter: "A $300 elder-law consultation prevents the worst version of every story that follows.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "Durable, Springing, or Immediate?",
+      body: "All POAs need to be durable (survives loss of capacity). The springing-vs-immediate choice is the one most families get wrong.",
+      bullets: [
+        "Durable means the POA survives the principal losing capacity — always make it durable",
+        "Springing means it activates upon a triggering event (typically a physician's certification)",
+        "Banks frequently refuse springing POAs until shown formal capacity findings",
+        "Immediate is the simpler path and what most elder-law attorneys recommend",
+      ],
+      tip: "Get at least 3 notarized originals. Banks often keep the original they're shown.",
+    },
+    downloadHref: "/guides?download=power-of-attorney-healthcare-proxy",
+    contact: CONTACT_DEFAULT,
+  },
+
   /* ─────────────── Why List on CarePath (operator-gated) ─────────────── */
   "why-list-on-carepath": {
     sectionEyebrow: "For Facility Operators",
