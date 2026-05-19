@@ -278,6 +278,49 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── Family meeting framework ─────────────── */
+  "family-meeting-framework": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "The Conversation No One Wants to Host",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "The Family Meeting Framework",
+    coverSubtitle:
+      "Three adult children, three opinions, one mother who needs care now. How to call it, run it, and end it with decisions.",
+    valueProps: [
+      "Send the invite so siblings actually show up",
+      "The 5-section agenda that produces decisions",
+      "Defuse the 4 conflicts that derail meetings",
+    ],
+    heroPanel: {
+      eyebrow: "Family",
+      title: "Same Room, Same Information",
+      body: "The family meeting isn't the moment everyone agrees. It's the moment everyone is looking at the same information at the same time.",
+    },
+    toc: [
+      "Decide who's at the table",
+      "Send the invite right",
+      "The 5-section agenda",
+      "The 4 conflicts that derail meetings",
+      "After the meeting",
+      "When you need outside help",
+    ],
+    tocFooter: "Most meetings won't produce the placement decision. They'll produce the smaller decisions that unblock it.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The 4 Conflicts That Derail Meetings",
+      body: "Family conflict in caregiving conversations usually rhymes with older family dynamics. Same script, new stakes.",
+      bullets: [
+        "'You weren't there for the last 10 years' — separate information from resources",
+        "'Mom would never want to leave her home' — separate wishes from capacity",
+        "'We can't afford that' — run the 60-second runway math together",
+        "'You're trying to take her money' — transparency, shared spreadsheet, neutral fiduciary",
+      ],
+      tip: "Send a written summary within 24 hours. Schedule the follow-up before this one ends.",
+    },
+    downloadHref: "/guides?download=family-meeting-framework",
+    contact: CONTACT_DEFAULT,
+  },
+
   /* ─────────────── F-tag survey reports ─────────────── */
   "reading-f-tag-survey-reports": {
     ...SECTION_DEFAULT,

@@ -158,6 +158,32 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── Family meeting framework ───────────────────────────────
+        [
+            'slug' => 'family-meeting-framework',
+            'title' => 'The Family Meeting Framework',
+            'subtitle' => 'How to call it, run it, and end it with decisions — not just feelings',
+            'description' => "Three adult children, three opinions, one mother who needs care now. The conversation no one wants to host is the one that determines everything that follows. The 5-section agenda, the 4 conflicts that derail meetings, and what to decide vs defer.",
+            'category' => 'transition',
+            'page_count' => 5,
+            'audience' => 'Adult children + spouses navigating a shared decision',
+            'value_props' => [
+                'How to invite siblings so they actually show up',
+                'The 5-section agenda that produces decisions',
+                'How to defuse the 4 conflicts that derail meetings',
+            ],
+            'hero_panel' => ['eyebrow' => 'Family', 'title' => 'The Conversation No One Wants to Host'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => "Decide who's at the table", 'page' => 2],
+                ['n' => 2, 'label' => 'Send the invite right', 'page' => 3],
+                ['n' => 3, 'label' => 'The 5-section agenda', 'page' => 4],
+                ['n' => 4, 'label' => 'The 4 conflicts that derail meetings', 'page' => 5],
+                ['n' => 5, 'label' => 'After the meeting', 'page' => 6],
+                ['n' => 6, 'label' => 'When you need outside help', 'page' => 7],
+            ],
+        ],
+
         // ── How to read an F-tag survey report ─────────────────────
         [
             'slug' => 'reading-f-tag-survey-reports',
