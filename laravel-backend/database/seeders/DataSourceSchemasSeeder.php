@@ -408,6 +408,48 @@ class DataSourceSchemasSeeder extends Seeder
                 ],
                 'access_instructions' => 'Use for any state not pre-mapped. CSV must use canonical column names (see above) — or add a new source entry with custom column_mappings before upload.',
             ],
+
+            // ── OpenStreetMap (federal, all-states, community data) ─
+            // Catch-all for the ALF / IL / memory care rows we pull
+            // from OSM via the carepath:ingest-osm command. Tier 1
+            // (open API) but data is community-sourced. Mostly the
+            // fallback for facilities not yet in any state licensure
+            // feed.
+            [
+                'source_key' => 'osm',
+                'display_name' => 'OpenStreetMap (community)',
+                'state' => null,
+                'regulator' => null,
+                'access_tier' => 1,
+                'update_frequency' => 'monthly',
+                'cost' => 'free',
+                'api_endpoint' => 'https://overpass-api.de/api/interpreter',
+                'docs_url' => 'https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dnursing_home',
+                'default_canonical_type' => null,
+                'default_license_subtype' => null,
+                'column_mappings' => [],
+                'access_instructions' => "Pulled automatically via the `carepath:ingest-osm` artisan command. Filters OSM nodes/ways with amenity=nursing_home, amenity=social_facility, or healthcare=hospice. Fallback for facilities not present in any state licensure feed.",
+            ],
+
+            // ── Manual SuperAdmin entry (catch-all) ────────────────
+            // For facility rows added by hand via tinker / one-off
+            // scripts / future SuperAdmin add-new UI. Keeps the FK
+            // chain tidy for rows that didn't come from a real feed.
+            [
+                'source_key' => 'manual',
+                'display_name' => 'Manual entry',
+                'state' => null,
+                'regulator' => null,
+                'access_tier' => 1,
+                'update_frequency' => 'on_request',
+                'cost' => 'free',
+                'api_endpoint' => null,
+                'docs_url' => null,
+                'default_canonical_type' => null,
+                'default_license_subtype' => null,
+                'column_mappings' => [],
+                'access_instructions' => "Catch-all source for facility rows added manually (tinker, one-off scripts, future admin UI). Does not correspond to a real ingest pipeline.",
+            ],
         ];
     }
 }
