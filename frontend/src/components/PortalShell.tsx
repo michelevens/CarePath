@@ -18,6 +18,7 @@ import {
   TrendingUp,
   HelpCircle,
   LogOut,
+  Mail,
   MailWarning,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -111,6 +112,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
     items: [
       { to: "/superadmin", label: "Overview", icon: Home },
       { to: "/superadmin/users", label: "Users", icon: Users },
+      { to: "/superadmin/leads", label: "Leads", icon: Mail },
       { to: "/superadmin/tenants", label: "Facilities", icon: Building2 },
       { to: "/superadmin/sources", label: "Data sources", icon: ClipboardList },
       { to: "/superadmin/licensing", label: "State licensing", icon: Shield },

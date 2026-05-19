@@ -39,6 +39,7 @@ use App\Http\Controllers\Facility\MedicationController;
 use App\Http\Controllers\Facility\ResidentController;
 use App\Http\Controllers\Facility\TourController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
+use App\Http\Controllers\SuperAdmin\LeadsController as SuperAdminLeadsController;
 use App\Http\Controllers\SuperAdmin\CcldHelperController;
 use App\Http\Controllers\SuperAdmin\LicensingController as SuperAdminLicensingController;
 use App\Http\Controllers\SuperAdmin\MasterDataController;
@@ -187,6 +188,11 @@ Route::middleware('auth:sanctum')->group(function () {
             // + placements + listing-event funnel + audit slice. Drives the
             // /superadmin/facilities/{slug} detail page.
             Route::get('/facilities/{slug}', [SuperAdminFacilityDetailController::class, 'show']);
+
+            // Platform-wide leads browse — every guide download, newsletter
+            // signup, cost-projection capture, tour-request lead. Returns
+            // JSON or CSV (?format=csv). Drives /superadmin/leads.
+            Route::get('/leads', [SuperAdminLeadsController::class, 'index']);
 
             // Cross-tenant oversight tabs.
             Route::get('/verifications', [SuperAdminController::class, 'verifications']);
