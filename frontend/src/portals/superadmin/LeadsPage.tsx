@@ -1,6 +1,18 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { Link } from "react-router-dom"
-import { Download, Loader2, Mail, Phone, Search as SearchIcon } from "lucide-react"
+import {
+  Calendar,
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Phone,
+  Save,
+  Search as SearchIcon,
+  X,
+} from "lucide-react"
 import { api } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,13 +27,28 @@ interface Lead {
   phone: string | null
   zip: string | null
   relationship_to_prospect: string | null
+  notes: string | null
   context: Record<string, unknown> | null
   utm_source: string | null
   utm_medium: string | null
   utm_campaign: string | null
   facility_id: string | null
+  next_follow_up_at: string | null
+  contacted_at: string | null
+  assigned_user_id: number | null
   created_at: string
   facility?: { id: string; name: string; slug: string } | null
+  activities?: LeadActivity[]
+  assigned_user?: { id: number; name: string } | null
+}
+
+interface LeadActivity {
+  id: string
+  type: string
+  body: string | null
+  meta: Record<string, unknown> | null
+  created_at: string
+  actor?: { id: number; name: string } | null
 }
 
 interface Summary {
@@ -55,6 +82,13 @@ const STATUS_LABEL: Record<string, string> = {
   unsubscribed: "Unsubscribed",
 }
 
+const STATUS_PILL: Record<string, string> = {
+  new: "border-violet-200 bg-violet-50 text-violet-800",
+  contacted: "border-amber-200 bg-amber-50 text-amber-800",
+  converted: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  unsubscribed: "border-stone-200 bg-stone-50 text-stone-700",
+}
+
 export function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [meta, setMeta] = useState<Meta | null>(null)
@@ -66,6 +100,15 @@ export function LeadsPage() {
   const [status, setStatus] = useState("")
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
+
+  // Drawer state — clicking a row opens the full lead detail in a
+  // right-side drawer for status updates / notes / follow-up dates /
+  // activity log. The detail loads fresh from /leads/{id} so the
+  // activity log is current.
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null)
+  const onLeadSaved = (updated: Lead) => {
+    setLeads((rows) => rows.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
+  }
 
   useEffect(() => {
     let alive = true
@@ -245,16 +288,22 @@ export function LeadsPage() {
                   <tr className="border-b bg-muted/30 text-left">
                     <th className="px-3 py-2 font-semibold">When</th>
                     <th className="px-3 py-2 font-semibold">Source</th>
+                    <th className="px-3 py-2 font-semibold">Status</th>
                     <th className="px-3 py-2 font-semibold">Name</th>
                     <th className="px-3 py-2 font-semibold">Email</th>
                     <th className="px-3 py-2 font-semibold">Phone</th>
                     <th className="px-3 py-2 font-semibold">Context</th>
+                    <th className="px-3 py-2 font-semibold">Follow-up</th>
                     <th className="px-3 py-2 font-semibold">Facility</th>
                   </tr>
                 </thead>
                 <tbody>
                   {leads.map((lead) => (
-                    <tr key={lead.id} className="border-b last:border-b-0 hover:bg-muted/20">
+                    <tr
+                      key={lead.id}
+                      className="cursor-pointer border-b last:border-b-0 hover:bg-muted/20"
+                      onClick={() => setOpenLeadId(lead.id)}
+                    >
                       <td className="px-3 py-2 align-top text-xs text-muted-foreground">
                         {new Date(lead.created_at).toLocaleString(undefined, {
                           year: "numeric",
@@ -269,8 +318,18 @@ export function LeadsPage() {
                           {SOURCE_LABEL[lead.source] ?? lead.source}
                         </span>
                       </td>
-                      <td className="px-3 py-2 align-top">{lead.name ?? "—"}</td>
                       <td className="px-3 py-2 align-top">
+                        <span
+                          className={cn(
+                            "inline-block rounded-full border px-2 py-0.5 text-xs font-medium uppercase tracking-wide",
+                            STATUS_PILL[lead.status] ?? "border-stone-200 bg-stone-50"
+                          )}
+                        >
+                          {STATUS_LABEL[lead.status] ?? lead.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 align-top">{lead.name ?? "—"}</td>
+                      <td className="px-3 py-2 align-top" onClick={(e) => e.stopPropagation()}>
                         {lead.email ? (
                           <a
                             href={`mailto:${lead.email}`}
@@ -283,7 +342,7 @@ export function LeadsPage() {
                           "—"
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top">
+                      <td className="px-3 py-2 align-top" onClick={(e) => e.stopPropagation()}>
                         {lead.phone ? (
                           <a
                             href={`tel:${lead.phone}`}
@@ -300,6 +359,23 @@ export function LeadsPage() {
                         <LeadContext lead={lead} />
                       </td>
                       <td className="px-3 py-2 align-top text-xs">
+                        {lead.next_follow_up_at ? (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1",
+                              new Date(lead.next_follow_up_at) < new Date()
+                                ? "text-rose-700"
+                                : "text-foreground"
+                            )}
+                          >
+                            <Calendar className="h-3 w-3" />
+                            {new Date(lead.next_follow_up_at).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 align-top text-xs" onClick={(e) => e.stopPropagation()}>
                         {lead.facility ? (
                           <Link
                             to={`/superadmin/facilities/${lead.facility.slug}`}
@@ -345,8 +421,335 @@ export function LeadsPage() {
           </div>
         </div>
       )}
+
+      {openLeadId && (
+        <LeadDrawer
+          id={openLeadId}
+          onClose={() => setOpenLeadId(null)}
+          onSaved={onLeadSaved}
+        />
+      )}
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Lead detail drawer — opens when a row is clicked. Loads /leads/{id}
+// fresh so the activity log is current. PATCHes back to /leads/{id}
+// for status / notes / follow-up date / assignment changes.
+// ─────────────────────────────────────────────────────────────────
+
+function LeadDrawer({
+  id,
+  onClose,
+  onSaved,
+}: {
+  id: string
+  onClose: () => void
+  onSaved: (lead: Lead) => void
+}) {
+  const [lead, setLead] = useState<Lead | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [statusDraft, setStatusDraft] = useState("")
+  const [notesDraft, setNotesDraft] = useState("")
+  const [followupDraft, setFollowupDraft] = useState("")
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    api
+      .get<{ data: Lead }>(`/superadmin/leads/${id}`)
+      .then((r) => {
+        if (!alive) return
+        setLead(r.data.data)
+        setStatusDraft(r.data.data.status)
+        setNotesDraft(r.data.data.notes ?? "")
+        setFollowupDraft(
+          r.data.data.next_follow_up_at
+            ? r.data.data.next_follow_up_at.slice(0, 10)
+            : ""
+        )
+      })
+      .catch((e) =>
+        alive && setError(e.response?.data?.message ?? "Failed to load.")
+      )
+      .finally(() => alive && setLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [id])
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!lead) return
+    setSaving(true)
+    setError(null)
+    try {
+      const r = await api.patch<{ data: Lead }>(`/superadmin/leads/${id}`, {
+        status: statusDraft,
+        notes: notesDraft || null,
+        next_follow_up_at: followupDraft || null,
+      })
+      setLead(r.data.data)
+      onSaved(r.data.data)
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } }
+      setError(err.response?.data?.message ?? "Save failed.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const logCall = async () => {
+    if (!lead) return
+    const body = window.prompt("Call notes:")
+    if (!body) return
+    try {
+      await api.post(`/superadmin/leads/${id}/activities`, {
+        type: "call_logged",
+        body,
+      })
+      const r = await api.get<{ data: Lead }>(`/superadmin/leads/${id}`)
+      setLead(r.data.data)
+    } catch {
+      setError("Failed to log call.")
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-card shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-start justify-between gap-3 border-b p-5">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold truncate">
+              {lead?.name ?? lead?.email ?? "Loading…"}
+            </h2>
+            {lead && (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {lead.email} · {SOURCE_LABEL[lead.source] ?? lead.source} ·{" "}
+                {new Date(lead.created_at).toLocaleString()}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        {loading ? (
+          <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading lead…
+          </div>
+        ) : !lead ? (
+          <div className="p-6 text-sm text-red-700">{error ?? "No lead found."}</div>
+        ) : (
+          <>
+            <div className="space-y-5 p-5">
+              {lead.email && (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <a className="flex-1 truncate text-primary hover:underline" href={`mailto:${lead.email}`}>
+                    {lead.email}
+                  </a>
+                </div>
+              )}
+              {lead.phone && (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <a className="flex-1 truncate text-foreground hover:underline" href={`tel:${lead.phone}`}>
+                    {lead.phone}
+                  </a>
+                </div>
+              )}
+              {lead.facility && (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  <Link
+                    to={`/superadmin/facilities/${lead.facility.slug}`}
+                    className="flex-1 truncate text-primary hover:underline"
+                  >
+                    {lead.facility.name}
+                  </Link>
+                </div>
+              )}
+
+              <form onSubmit={save} className="space-y-4">
+                <div>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Status
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(STATUS_LABEL).map(([v, l]) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setStatusDraft(v)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                          statusDraft === v
+                            ? STATUS_PILL[v]
+                            : "border-stone-200 bg-card text-muted-foreground hover:border-foreground"
+                        )}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Notes (latest)
+                  </div>
+                  <textarea
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    rows={4}
+                    placeholder="Spoke at 2:15p. Looking for memory care, $5k/mo budget, FL panhandle. Will email comparison report."
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Each save appends to the activity log below.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Next follow-up
+                  </div>
+                  <input
+                    type="date"
+                    value={followupDraft}
+                    onChange={(e) => setFollowupDraft(e.target.value)}
+                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  />
+                </div>
+
+                {error && (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                  <Button type="button" variant="outline" size="sm" onClick={logCall}>
+                    <Phone className="mr-1 h-3 w-3" /> Log call
+                  </Button>
+                  <Button type="submit" size="sm" disabled={saving}>
+                    {saving ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="mr-1 h-3 w-3" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </form>
+            </div>
+
+            <div className="border-t bg-muted/20 p-5">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Activity
+              </h3>
+              {lead.activities && lead.activities.length > 0 ? (
+                <ul className="space-y-3 text-sm">
+                  {lead.activities.map((a) => (
+                    <li key={a.id} className="flex items-start gap-3">
+                      <ActivityIcon type={a.type} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs text-muted-foreground">
+                          {a.actor?.name ?? "system"} ·{" "}
+                          {new Date(a.created_at).toLocaleString()}
+                        </div>
+                        <ActivityBody activity={a} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No activity yet. Status changes, notes, calls, and webhook
+                  fires will appear here.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ActivityIcon({ type }: { type: string }) {
+  const map: Record<string, React.ReactNode> = {
+    status_change: <CheckCircle2 className="h-4 w-4 text-emerald-700" />,
+    note: <MessageSquare className="h-4 w-4 text-violet-700" />,
+    call_logged: <Phone className="h-4 w-4 text-amber-700" />,
+    email_sent: <Mail className="h-4 w-4 text-blue-700" />,
+    followup_set: <Calendar className="h-4 w-4 text-amber-700" />,
+    webhook_sent: <ExternalLink className="h-4 w-4 text-muted-foreground" />,
+    resend_synced: <Mail className="h-4 w-4 text-muted-foreground" />,
+  }
+  return (
+    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-card">
+      {map[type] ?? <MessageSquare className="h-4 w-4 text-muted-foreground" />}
+    </div>
+  )
+}
+
+function ActivityBody({ activity }: { activity: LeadActivity }) {
+  if (activity.type === "status_change") {
+    const m = activity.meta as Record<string, string> | null
+    return (
+      <p>
+        Status: <strong>{STATUS_LABEL[m?.from ?? ""] ?? m?.from}</strong> →{" "}
+        <strong>{STATUS_LABEL[m?.to ?? ""] ?? m?.to}</strong>
+      </p>
+    )
+  }
+  if (activity.type === "note") {
+    return <p className="whitespace-pre-line">{activity.body}</p>
+  }
+  if (activity.type === "call_logged") {
+    return <p className="whitespace-pre-line">Call logged: {activity.body}</p>
+  }
+  if (activity.type === "followup_set") {
+    const m = activity.meta as Record<string, string | null> | null
+    return (
+      <p>
+        Follow-up set for{" "}
+        <strong>{m?.at ? new Date(m.at).toLocaleDateString() : "—"}</strong>
+      </p>
+    )
+  }
+  if (activity.type === "webhook_sent") {
+    const m = activity.meta as Record<string, unknown> | null
+    return (
+      <p className="text-xs text-muted-foreground">
+        Pushed to CRM webhook · status {String(m?.status_code ?? "?")}
+      </p>
+    )
+  }
+  if (activity.type === "resend_synced") {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Synced to Resend Audience for nurture sequence
+      </p>
+    )
+  }
+  return <p>{activity.body ?? activity.type}</p>
 }
 
 function StatTile({

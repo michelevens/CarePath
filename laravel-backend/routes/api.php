@@ -189,10 +189,12 @@ Route::middleware('auth:sanctum')->group(function () {
             // /superadmin/facilities/{slug} detail page.
             Route::get('/facilities/{slug}', [SuperAdminFacilityDetailController::class, 'show']);
 
-            // Platform-wide leads browse — every guide download, newsletter
-            // signup, cost-projection capture, tour-request lead. Returns
-            // JSON or CSV (?format=csv). Drives /superadmin/leads.
+            // Platform-wide leads browse + status workflow. JSON or CSV
+            // (?format=csv). Drives /superadmin/leads.
             Route::get('/leads', [SuperAdminLeadsController::class, 'index']);
+            Route::get('/leads/{id}', [SuperAdminLeadsController::class, 'show']);
+            Route::patch('/leads/{id}', [SuperAdminLeadsController::class, 'update']);
+            Route::post('/leads/{id}/activities', [SuperAdminLeadsController::class, 'storeActivity']);
 
             // Cross-tenant oversight tabs.
             Route::get('/verifications', [SuperAdminController::class, 'verifications']);

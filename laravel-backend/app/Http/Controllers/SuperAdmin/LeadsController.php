@@ -4,8 +4,11 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -58,6 +61,103 @@ class LeadsController extends Controller
             ],
             'summary' => $summary,
         ]);
+    }
+
+    /**
+     * GET /api/superadmin/leads/{id} — full row + recent activities.
+     */
+    public function show(string $id): JsonResponse
+    {
+        $lead = Lead::with(['facility:id,name,slug', 'activities.actor:id,name', 'assignedUser:id,name'])
+            ->findOrFail($id);
+        return response()->json(['data' => $lead]);
+    }
+
+    /**
+     * PATCH /api/superadmin/leads/{id} — status / notes / follow-up /
+     * assignment updates. Auto-records a status_change activity row
+     * when the status changes; auto-records a note activity row when
+     * notes content changes.
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $lead = Lead::findOrFail($id);
+
+        $data = $request->validate([
+            'status' => ['sometimes', Rule::in(Lead::STATUSES)],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'next_follow_up_at' => ['nullable', 'date'],
+            'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $userId = Auth::id();
+        $prevStatus = $lead->status;
+        $prevNotes = $lead->notes;
+        $prevFollowup = $lead->next_follow_up_at?->toIso8601String();
+
+        $lead->fill($data);
+        // status=contacted snaps a contacted_at if it wasn't set before
+        if (isset($data['status']) && $data['status'] === 'contacted' && ! $lead->contacted_at) {
+            $lead->contacted_at = now();
+        }
+        $lead->save();
+
+        if (isset($data['status']) && $data['status'] !== $prevStatus) {
+            LeadActivity::create([
+                'lead_id' => $lead->id,
+                'type' => 'status_change',
+                'actor_user_id' => $userId,
+                'meta' => ['from' => $prevStatus, 'to' => $data['status']],
+            ]);
+        }
+        if (isset($data['notes']) && $data['notes'] !== $prevNotes && $data['notes']) {
+            LeadActivity::create([
+                'lead_id' => $lead->id,
+                'type' => 'note',
+                'actor_user_id' => $userId,
+                'body' => $data['notes'],
+            ]);
+        }
+        if (array_key_exists('next_follow_up_at', $data)) {
+            $newFollowup = $lead->next_follow_up_at?->toIso8601String();
+            if ($newFollowup !== $prevFollowup) {
+                LeadActivity::create([
+                    'lead_id' => $lead->id,
+                    'type' => 'followup_set',
+                    'actor_user_id' => $userId,
+                    'meta' => ['at' => $newFollowup],
+                ]);
+            }
+        }
+
+        return response()->json(['data' => $lead->fresh()->load(['facility:id,name,slug', 'activities.actor:id,name', 'assignedUser:id,name'])]);
+    }
+
+    /**
+     * POST /api/superadmin/leads/{id}/activities — log a custom
+     * activity (call_logged, email_sent, etc) with optional body +
+     * meta. Used for ad-hoc activity that doesn't fit the
+     * field-update pattern above.
+     */
+    public function storeActivity(Request $request, string $id): JsonResponse
+    {
+        $lead = Lead::findOrFail($id);
+
+        $data = $request->validate([
+            'type' => ['required', 'string', 'max:40'],
+            'body' => ['nullable', 'string', 'max:5000'],
+            'meta' => ['nullable', 'array'],
+        ]);
+
+        $activity = LeadActivity::create([
+            'lead_id' => $lead->id,
+            'actor_user_id' => Auth::id(),
+            'type' => $data['type'],
+            'body' => $data['body'] ?? null,
+            'meta' => $data['meta'] ?? null,
+        ]);
+
+        return response()->json(['data' => $activity->load('actor:id,name')], 201);
     }
 
     private function buildQuery(Request $request)
