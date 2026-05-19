@@ -46,6 +46,7 @@ class Facility extends Model
         'state',
         'zip',
         'county',
+        'county_id',
         'latitude',
         'longitude',
         'phone',
@@ -158,5 +159,15 @@ class Facility extends Model
     public function stateLicenseCategory(): BelongsTo
     {
         return $this->belongsTo(StateLicenseCategory::class, 'state_license_category_id');
+    }
+
+    /**
+     * The county this facility sits in, as a real model instead of a
+     * varchar. Powers /senior-living/{state}/{county} landing pages
+     * and county-level analytics.
+     */
+    public function countyRel(): BelongsTo
+    {
+        return $this->belongsTo(County::class, 'county_id');
     }
 }

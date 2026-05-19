@@ -193,6 +193,17 @@ class IngestFacilitiesCsv extends Command
                 'state_license_category_id' => $eligibility?->id,
             ];
 
+            // County FK: find-or-create on (state, name). New tuples
+            // immediately become first-class County rows. Skipped when
+            // county name is blank (CMS rows often have empty county).
+            $countyName = $this->titleStr($data['county'] ?? null);
+            if ($countyName) {
+                $county = \App\Models\County::firstOrCreate(
+                    ['state' => $state, 'name' => $countyName],
+                );
+                $attrs['county_id'] = $county->id;
+            }
+
             Facility::updateOrCreate(['slug' => $slug], $attrs);
             $upserted++;
         }
