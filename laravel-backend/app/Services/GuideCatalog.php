@@ -158,6 +158,58 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── 48-hour hospital-to-SNF discharge playbook ──────────────
+        [
+            'slug' => 'hospital-to-snf-48-hour-playbook',
+            'title' => 'The 48-Hour Hospital-to-SNF Discharge Playbook',
+            'subtitle' => 'The hour-by-hour family guide for the most stressful decision of the year',
+            'description' => "Mom is being discharged tomorrow and needs skilled-nursing rehab. You've never done this before. Here's the next 48 hours, hour by hour — get the right list, tour the top 3, advocate at admission, track the 100-day Medicare clock.",
+            'category' => 'transition',
+            'page_count' => 6,
+            'audience' => 'Families facing imminent hospital discharge',
+            'value_props' => [
+                "Get a real list (not the hospital's alphabetical one)",
+                'Tour 3 facilities in a single afternoon — the questions that matter',
+                "Watch the 100-day Medicare clock + appeal premature discharges",
+            ],
+            'hero_panel' => ['eyebrow' => 'Crisis Mode', 'title' => '48 Hours, Hour by Hour'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'Hour 0-4: Get the right list', 'page' => 2],
+                ['n' => 2, 'label' => 'Hour 4-24: Tour the top 3', 'page' => 3],
+                ['n' => 3, 'label' => 'Hour 24-36: Pick + advocate', 'page' => 4],
+                ['n' => 4, 'label' => 'Hour 36-48: The arrival itself', 'page' => 5],
+                ['n' => 5, 'label' => 'The day-after audit', 'page' => 6],
+                ['n' => 6, 'label' => 'The 100-day Medicare clock', 'page' => 7],
+            ],
+        ],
+
+        // ── LTC cost reality check (state breakdown + crossover math) ──
+        [
+            'slug' => 'ltc-cost-reality-check',
+            'title' => 'The 5-Year LTC Cost Reality Check',
+            'subtitle' => 'Real numbers, real states, real crossover-to-Medicaid math — the honest version',
+            'description' => 'The single biggest reason families delay placement is fear of cost. This guide breaks down what each care type actually costs, how state location changes the math by 30-50%, what each funding source covers, and the 60-second test that tells you when your runway runs out.',
+            'category' => 'financial',
+            'page_count' => 6,
+            'audience' => 'Families planning LTC funding',
+            'value_props' => [
+                'Real 2026 cost numbers by care type and state',
+                'The four funding sources, who they pay, who they miss',
+                'The 60-second runway test (when does private money run out?)',
+            ],
+            'hero_panel' => ['eyebrow' => 'Financial', 'title' => "What It Actually Costs"],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => "What the four care types actually cost", 'page' => 2],
+                ['n' => 2, 'label' => 'Where you live matters more than which type', 'page' => 3],
+                ['n' => 3, 'label' => 'Who pays for what — the four sources', 'page' => 4],
+                ['n' => 4, 'label' => 'The crossover-to-Medicaid math', 'page' => 5],
+                ['n' => 5, 'label' => 'Cost-saving moves families miss', 'page' => 6],
+                ['n' => 6, 'label' => 'The 60-second cost reality test', 'page' => 7],
+            ],
+        ],
+
         // ── Group homes / AFHs evaluation ────────────────────────────
         [
             'slug' => 'group-home-evaluation-guide',

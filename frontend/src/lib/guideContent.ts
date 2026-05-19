@@ -278,6 +278,92 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── 48-hour discharge playbook ─────────────── */
+  "hospital-to-snf-48-hour-playbook": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Discharge Crisis — The Next 48 Hours",
+    coverEyebrow: "Free Guide · 6 pages",
+    coverTitle: "The 48-Hour Hospital-to-SNF Discharge Playbook",
+    coverSubtitle:
+      "Mom is being discharged tomorrow and needs rehab. You've never done this before. Here's the next 48 hours, hour by hour.",
+    valueProps: [
+      "Get a real list (not the hospital's alphabetical one)",
+      "Tour 3 facilities in a single afternoon",
+      "Track the 100-day Medicare clock + appeal premature discharges",
+    ],
+    heroPanel: {
+      eyebrow: "Crisis Mode",
+      title: "48 Hours, Hour by Hour",
+      body: "The hospital social worker just told you. You have two days. This is the hour-by-hour play.",
+    },
+    toc: [
+      "Hour 0-4: Get the right list",
+      "Hour 4-24: Tour the top 3",
+      "Hour 24-36: Pick + advocate",
+      "Hour 36-48: The arrival itself",
+      "The day-after audit",
+      "The 100-day Medicare clock",
+    ],
+    tocFooter: "The questions that separate the rehab facilities that will get them home from the ones that won't.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "Hour 4-24: Tour the Top 3",
+      body: "You will not have time to tour ten places. Pick three. Visit all three the same day if humanly possible.",
+      bullets: [
+        "Watch the call lights — anything over 4 minutes is a red flag",
+        "Ask for the rehab unit specifically, not the LTC wing",
+        "Meet the therapy team — how many minutes per day will my mom get?",
+        "Ask the hardest question: 'What's your 30-day readmission rate?'",
+      ],
+      tip: "Smell the air at 11am AND 3pm. Persistent urine smell = understaffing.",
+    },
+    downloadHref: "/guides?download=hospital-to-snf-48-hour-playbook",
+    contact: CONTACT_DEFAULT,
+  },
+
+  /* ─────────────── LTC cost reality check ─────────────── */
+  "ltc-cost-reality-check": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "The Honest Cost Picture",
+    coverEyebrow: "Free Guide · 6 pages",
+    coverTitle: "The 5-Year LTC Cost Reality Check",
+    coverSubtitle:
+      "Real numbers, real states, real crossover-to-Medicaid math. The version no one will sugar-coat.",
+    valueProps: [
+      "2026 cost numbers by care type and state",
+      "Who pays for what — the four sources",
+      "The 60-second runway test",
+    ],
+    heroPanel: {
+      eyebrow: "Financial",
+      title: "What It Actually Costs",
+      body: "The single biggest reason families delay placement is fear of cost. Here's the math, honestly.",
+    },
+    toc: [
+      "What the four care types actually cost",
+      "Where you live matters more",
+      "Who pays for what — the four sources",
+      "The crossover-to-Medicaid math",
+      "Cost-saving moves families miss",
+      "The 60-second cost reality test",
+    ],
+    tocFooter: "Expensive is one thing. Expensive AND unplanned is the disaster.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "Where You Live Matters More Than Which Type You Pick",
+      body: "Moving 100 miles can save $30,000-50,000 per year. AL in Mississippi runs $3,800/mo; the same in Massachusetts runs $7,200.",
+      bullets: [
+        "National median assisted living: $5,511/mo",
+        "Premium markets (Bay Area, NYC, Boston): $6,500-7,200/mo",
+        "Sun Belt budget states (FL, GA, TX): $4,500/mo",
+        "Mississippi / Alabama / Louisiana: $3,800/mo",
+      ],
+      tip: "Families with flexibility on location cross state lines. FL, AZ, TX, NC are the most common destinations.",
+    },
+    downloadHref: "/guides?download=ltc-cost-reality-check",
+    contact: CONTACT_DEFAULT,
+  },
+
   /* ─────────────── Group homes / AFHs ─────────────── */
   "group-home-evaluation-guide": {
     ...SECTION_DEFAULT,
