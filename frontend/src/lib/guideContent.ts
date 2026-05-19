@@ -278,6 +278,92 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── LTC insurance claim playbook ─────────────── */
+  "ltc-insurance-claim-playbook": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Activate Your LTC Policy",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "LTC Insurance — How to Actually File the Claim",
+    coverSubtitle:
+      "The 5-step playbook for activating a policy most families never collect on. Worth $50-150k.",
+    valueProps: [
+      "Find the policy + read the 4 numbers that matter",
+      "Coach the physician on benefit-eligibility wording",
+      "Avoid the 4 mistakes that kill claims",
+    ],
+    heroPanel: {
+      eyebrow: "Financial",
+      title: "Activate the Policy",
+      body: "20+ years of premiums. $50-150k in coverage. Most families never file. The barrier is paperwork, not the policy.",
+    },
+    toc: [
+      "Find the policy first",
+      "The 4 numbers that matter",
+      "The eligibility threshold",
+      "The 5-step claim process",
+      "The 4 mistakes that kill claims",
+      "If you are denied",
+    ],
+    tocFooter: "Initial denials reverse on appeal 60-70% of the time with better documentation.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "Why Families Get Denied Initially",
+      body: "Insurers want documented evidence, not the family's word. The physician must assess and document ADL deficits in clear, insurer-speak.",
+      bullets: [
+        "Vague: 'Mom needs help bathing because of arthritis' → denied",
+        "Specific: 'Mom requires hands-on assistance with bathing due to inability to safely transfer in and out of the tub; cannot complete the task independently' → approved",
+        "Cognitive impairment requires diagnosis + MMSE/MoCA score + specific safety risks of being alone",
+        "Use 'cannot' and 'daily,' not 'has difficulty' and 'sometimes'",
+      ],
+      tip: "Bring a 1-page summary of care needs in clear ADL language to the physician's appointment. They've usually never seen the form before.",
+    },
+    downloadHref: "/guides?download=ltc-insurance-claim-playbook",
+    contact: CONTACT_DEFAULT,
+  },
+
+  /* ─────────────── Sundowning + behavior crisis ─────────────── */
+  "sundowning-behavior-crisis": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Crisis-Moment Triage",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "Sundowning & Behavior-Crisis Decision Tree",
+    coverSubtitle:
+      "ER vs on-call vs hold the line. The in-the-moment triage for the toughest 30 minutes of dementia caregiving.",
+    valueProps: [
+      "60-second triage: when to call 911 vs the on-call doctor",
+      "Why ER is often the wrong call (and when it is the right one)",
+      "The 30-day log that finds the trigger",
+    ],
+    heroPanel: {
+      eyebrow: "Crisis Mode",
+      title: "It's 9pm and Dad Just Tried to Leave",
+      body: "Almost every behavioral crisis has a cause. Your job in the next 30 minutes is to keep everyone safe, not fix the underlying issue.",
+    },
+    toc: [
+      "The 60-second triage",
+      "Why ER is often the wrong call",
+      "Sundowning — the common pattern",
+      "The 6 interventions that work",
+      "Memory care readiness signals",
+      "The 30-day 'what changed' log",
+    ],
+    tocFooter: "Behavioral changes always have a reason. The log is how you find it.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The 60-Second Triage",
+      body: "Three buckets: 911 / ER, call the on-call line, or de-escalate and document.",
+      bullets: [
+        "911 if: threat of harm, suicidal statements, sudden onset confusion, loss of consciousness",
+        "On-call if: severe agitation but safe, new hallucinations (often UTI), recent med change, refusing food >24h",
+        "De-escalate if: agitated but talking, repeated accusations, predictable sundown wandering",
+        "ER is often wrong — bright, loud, bewildering — delirium gets WORSE there",
+      ],
+      tip: "Geriatric psych units are dramatically better than general ERs for behavioral-only episodes in dementia patients.",
+    },
+    downloadHref: "/guides?download=sundowning-behavior-crisis",
+    contact: CONTACT_DEFAULT,
+  },
+
   /* ─────────────── When Mom Can't Live Alone ─────────────── */
   "when-mom-cant-live-alone": {
     ...SECTION_DEFAULT,

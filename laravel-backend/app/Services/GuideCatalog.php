@@ -158,6 +158,58 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── LTC insurance: how to actually file the claim ──────────
+        [
+            'slug' => 'ltc-insurance-claim-playbook',
+            'title' => 'LTC Insurance — How to Actually File the Claim',
+            'subtitle' => 'The 5-step playbook to activate a policy most families never collect on',
+            'description' => "Most LTC insurance policyholders never file the claim — they pay 20+ years of premiums then burn $50-150k of their own money on care the policy would have covered. The barrier is paperwork + clinical documentation. This is the step-by-step play.",
+            'category' => 'financial',
+            'page_count' => 5,
+            'audience' => 'Families with a long-term care policy',
+            'value_props' => [
+                'Find the policy + read the 4 numbers that matter',
+                'Coach the physician to write benefit-eligibility correctly',
+                'Avoid the 4 mistakes that kill claims',
+            ],
+            'hero_panel' => ['eyebrow' => 'Financial', 'title' => 'Activate the Policy'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'Find the policy first', 'page' => 2],
+                ['n' => 2, 'label' => 'The 4 numbers that matter', 'page' => 3],
+                ['n' => 3, 'label' => 'The eligibility threshold (the gate)', 'page' => 4],
+                ['n' => 4, 'label' => 'The 5-step claim process', 'page' => 5],
+                ['n' => 5, 'label' => 'The 4 mistakes that delay claims', 'page' => 6],
+                ['n' => 6, 'label' => 'If you are denied', 'page' => 7],
+            ],
+        ],
+
+        // ── Sundowning & behavior-crisis decision tree ─────────────
+        [
+            'slug' => 'sundowning-behavior-crisis',
+            'title' => 'Sundowning & Behavior-Crisis Decision Tree',
+            'subtitle' => "ER vs psych vs memory care vs hold the line — the in-the-moment triage",
+            'description' => "Your loved one just had a behavioral episode and you're trying to decide between calling 911, driving to the ER, calling the doctor, or holding the line until morning. This guide is the 60-second triage and the longer-term plan.",
+            'category' => 'dementia',
+            'page_count' => 5,
+            'audience' => 'Dementia caregivers + crisis-moment families',
+            'value_props' => [
+                'The 60-second triage: 911 vs on-call vs de-escalate',
+                'Why ER is often the wrong call (and when it is the right one)',
+                'The 30-day "what changed" log that finds the cause',
+            ],
+            'hero_panel' => ['eyebrow' => 'Crisis Mode', 'title' => 'In-the-Moment Triage'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'The 60-second triage', 'page' => 2],
+                ['n' => 2, 'label' => 'Why ER is often the wrong call', 'page' => 3],
+                ['n' => 3, 'label' => 'Sundowning — the common pattern', 'page' => 4],
+                ['n' => 4, 'label' => 'The 6 interventions that work', 'page' => 5],
+                ['n' => 5, 'label' => 'Memory care readiness signals', 'page' => 6],
+                ['n' => 6, 'label' => 'The 30-day "what changed" log', 'page' => 7],
+            ],
+        ],
+
         // ── When Mom Can't Live Alone — 9 trigger signs ─────────────
         [
             'slug' => 'when-mom-cant-live-alone',
