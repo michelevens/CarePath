@@ -79,6 +79,7 @@ const SuperAdminUsersPage = lazy(() => import("@/portals/superadmin/UsersPage").
 const SuperAdminUserDetailPage = lazy(() => import("@/portals/superadmin/UserDetailPage").then(m => ({ default: m.UserDetailPage })))
 const SuperAdminPlansPage = lazy(() => import("@/portals/superadmin/PlansPage").then(m => ({ default: m.PlansPage })))
 const SuperAdminLicensingPage = lazy(() => import("@/portals/superadmin/LicensingPage").then(m => ({ default: m.LicensingPage })))
+const SuperAdminMonetizationPlanPage = lazy(() => import("@/portals/superadmin/MonetizationPlanPage").then(m => ({ default: m.MonetizationPlanPage })))
 const HelpPage = lazy(() => import("@/portals/help/HelpPage").then(m => ({ default: m.HelpPage })))
 const FacilityDataPage = lazy(() => import("@/portals/admin/FacilityDataPage").then(m => ({ default: m.FacilityDataPage })))
 const ManageListingPage = lazy(() => import("@/portals/admin/ManageListingPage").then(m => ({ default: m.ManageListingPage })))
@@ -271,6 +272,7 @@ function App() {
                 <Route path="plans" element={<SuperAdminPlansPage />} />
                 <Route path="licensing" element={<SuperAdminLicensingPage />} />
                 <Route path="facilities/:slug" element={<SuperAdminFacilityDetail />} />
+                <Route path="monetization" element={<SuperAdminMonetizationPlanPage />} />
               </>
             )}
             {path === "admin" && (

@@ -119,6 +119,7 @@ const NAV_CONFIG: Record<Portal, { title: string; items: NavItem[] }> = {
       { to: "/superadmin/subscriptions", label: "Subscriptions", icon: BarChart3 },
       { to: "/superadmin/plans", label: "Plans & pricing", icon: Sliders },
       { to: "/superadmin/sponsored", label: "Sponsored", icon: Sparkles },
+      { to: "/superadmin/monetization", label: "Monetization plan", icon: TrendingUp },
       { to: "/superadmin/master-data", label: "Master data", icon: ClipboardList },
       { to: "/superadmin/audit", label: "Audit log", icon: Shield },
     ],
