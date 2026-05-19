@@ -70,12 +70,25 @@ class PlacementCommissionService
 
         $admittedOn = CarbonImmutable::now()->startOfDay();
 
-        return DB::transaction(function () use ($admission, $advisor, $gross, $platformFee, $advisorPayout, $platformPct, $admittedOn) {
+        // Resolve marketing-side attribution at placement-create time so
+        // /admin/sponsored ROAS + the SuperAdmin placements page can
+        // join straight to the originating click / lead instead of
+        // re-deriving every render. Both nullable — most direct
+        // placements have neither.
+        $leadId = \App\Models\Lead::query()
+            ->where('facility_id', $admission->facility_id)
+            ->whereRaw('lower(email) = lower(?)', [(string) $admission->inquirer_email])
+            ->orderByDesc('created_at')
+            ->value('id');
+
+        return DB::transaction(function () use ($admission, $advisor, $gross, $platformFee, $advisorPayout, $platformPct, $admittedOn, $leadId) {
             $placement = Placement::create([
                 'facility_id' => $admission->facility_id,
                 'admission_id' => $admission->id,
                 'advisor_user_id' => $advisor?->id,
                 'resident_id' => $admission->resident_id ?? null,
+                'lead_id' => $leadId,
+                'sponsored_click_id' => $admission->sponsored_click_id,
                 'gross_fee_cents' => $gross,
                 'platform_fee_cents' => $platformFee,
                 'advisor_payout_cents' => $advisorPayout,

@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Lead extends Model
 {
@@ -55,5 +56,16 @@ class Lead extends Model
     public function admission(): BelongsTo
     {
         return $this->belongsTo(Admission::class);
+    }
+
+    /**
+     * Placements that closed the loop on this marketing Lead — the
+     * actual move-ins our marketing touched. Usually 0 or 1 per lead.
+     * Drives "did this campaign / guide / saved-search actually produce
+     * revenue?" reporting.
+     */
+    public function placements(): HasMany
+    {
+        return $this->hasMany(Placement::class);
     }
 }
