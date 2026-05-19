@@ -158,6 +158,56 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── How to read an F-tag survey report ─────────────────────
+        [
+            'slug' => 'reading-f-tag-survey-reports',
+            'title' => 'How to Read an F-Tag Survey Report',
+            'subtitle' => 'The scope-and-severity grid, the 10 F-tags families should know, the 5-minute read',
+            'description' => "Every Medicare-certified nursing home is inspected annually. The report — public, free, but full of acronyms — is the single best signal of how a facility actually runs. This guide makes it readable.",
+            'category' => 'care_basics',
+            'page_count' => 5,
+            'audience' => 'Families touring SNFs',
+            'value_props' => [
+                'Decode the A-L scope/severity matrix',
+                'The 10 F-tags that matter most',
+                'The 5 findings that should make you walk away',
+            ],
+            'hero_panel' => ['eyebrow' => 'Quality', 'title' => 'Read the Report'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'The 5-section anatomy of a report', 'page' => 2],
+                ['n' => 2, 'label' => 'The Scope + Severity matrix', 'page' => 3],
+                ['n' => 3, 'label' => 'The 10 F-tags families should know', 'page' => 4],
+                ['n' => 4, 'label' => 'Interpret a real report in 5 min', 'page' => 5],
+                ['n' => 5, 'label' => 'What the star rating actually weighs', 'page' => 6],
+                ['n' => 6, 'label' => 'The 5 reasons to walk away', 'page' => 7],
+            ],
+        ],
+        // ── Memory care vs day program vs in-home (comparison) ─────
+        [
+            'slug' => 'memory-care-vs-day-program-vs-in-home',
+            'title' => 'Memory Care vs Day Program vs In-Home',
+            'subtitle' => 'The honest comparison for dementia families looking ahead',
+            'description' => "Your loved one has dementia. They can be at home most of the time, but it's getting harder. This guide compares the three real options — in-home aide, adult day program, memory care — by cost, coverage, stage-fit, and when each stops working.",
+            'category' => 'dementia',
+            'page_count' => 5,
+            'audience' => 'Dementia families considering next step',
+            'value_props' => [
+                'Side-by-side cost + coverage table',
+                'When each option is the right answer',
+                "The 5-stage progression most families actually follow",
+            ],
+            'hero_panel' => ['eyebrow' => 'Dementia', 'title' => 'Three Options, Not Two'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1559757175-7cb6361b4ad7?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'Three options side by side', 'page' => 2],
+                ['n' => 2, 'label' => 'In-home aide', 'page' => 3],
+                ['n' => 3, 'label' => 'Adult day program', 'page' => 4],
+                ['n' => 4, 'label' => 'Memory care', 'page' => 5],
+                ['n' => 5, 'label' => 'The honest cost comparison', 'page' => 6],
+                ['n' => 6, 'label' => 'The 5-stage progression', 'page' => 7],
+            ],
+        ],
         // ── LTC insurance: how to actually file the claim ──────────
         [
             'slug' => 'ltc-insurance-claim-playbook',

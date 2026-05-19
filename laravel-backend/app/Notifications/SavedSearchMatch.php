@@ -36,7 +36,26 @@ class SavedSearchMatch extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        // Respect per-search opt-ins. alerts_push controls the
+        // in-app + database row (the bell icon). alerts_email
+        // controls the actual email. A saved search with only
+        // push enabled won't send email — which is what the
+        // family opted into when they created it.
+        $channels = [];
+        if ($this->search->alerts_push) {
+            $channels[] = 'database';
+        }
+        if ($this->search->alerts_email) {
+            $channels[] = 'mail';
+        }
+        // Belt-and-suspenders: if both flags are somehow off,
+        // still write the database row so the alert isn't lost
+        // entirely (the caller already passed the alerts-on filter
+        // to enqueue this notification).
+        if (empty($channels)) {
+            $channels[] = 'database';
+        }
+        return $channels;
     }
 
     public function toArray(object $notifiable): array

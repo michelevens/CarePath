@@ -278,6 +278,92 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── F-tag survey reports ─────────────── */
+  "reading-f-tag-survey-reports": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Decode the Inspection",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "How to Read an F-Tag Survey Report",
+    coverSubtitle:
+      "Every Medicare-certified nursing home is inspected annually. The report is the single best signal of how the facility actually runs.",
+    valueProps: [
+      "Decode the A-L scope/severity matrix",
+      "The 10 F-tags that matter most",
+      "The 5 findings that should make you walk away",
+    ],
+    heroPanel: {
+      eyebrow: "Quality",
+      title: "Read the Report",
+      body: "Most families never open it. Five minutes with this guide separates 'one bad year' from 'do not place your loved one here.'",
+    },
+    toc: [
+      "The 5-section anatomy",
+      "The Scope + Severity matrix",
+      "The 10 F-tags families should know",
+      "Interpret a real report in 5 minutes",
+      "What the star rating actually weighs",
+      "The 5 reasons to walk away",
+    ],
+    tocFooter: "The public, free document every other site quietly hopes you won't read.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The Scope + Severity Matrix",
+      body: "Every F-tag finding gets a letter A through L. The letter encodes severity (rows) and scope (columns).",
+      bullets: [
+        "J / K / L = Immediate Jeopardy. Even one is a hard pause.",
+        "G / H / I = Actual Harm. Anything more than 1-2 means real care problems.",
+        "D / E / F = Potential for harm. Common in virtually every facility.",
+        "A / B / C = Minor. Not disqualifying.",
+      ],
+      tip: "Skip the prose. Find the summary page and count by category.",
+    },
+    downloadHref: "/guides?download=reading-f-tag-survey-reports",
+    contact: CONTACT_DEFAULT,
+  },
+
+  /* ─────────────── Memory care vs day program vs in-home ─────────────── */
+  "memory-care-vs-day-program-vs-in-home": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "Three Options, Not Two",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "Memory Care vs Day Program vs In-Home",
+    coverSubtitle:
+      "The biggest mistake families make is treating this as a binary home-vs-facility choice. The reality is a 5-step progression.",
+    valueProps: [
+      "Side-by-side cost + coverage table",
+      "When each option is right (and when it stops working)",
+      "The 5-stage progression most families follow",
+    ],
+    heroPanel: {
+      eyebrow: "Dementia",
+      title: "It's Not Home vs Facility",
+      body: "Adult day programs and in-home aides are the in-between steps that buy years of better quality of life.",
+    },
+    toc: [
+      "Three options side by side",
+      "In-home aide",
+      "Adult day program",
+      "Memory care",
+      "The honest cost comparison",
+      "The 5-stage progression",
+    ],
+    tocFooter: "Don't skip the in-between steps just because they're less visible.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The Honest Cost Comparison",
+      body: "For a loved one needing 8 hours/day of supervision — adult day programs are dramatically cheaper per supervision-hour than in-home aides.",
+      bullets: [
+        "In-home aide (8hr × 5d at $35/hr): $6,067/mo",
+        "Adult day program (5 days): $2,000/mo",
+        "Memory care (residential 24/7): $7,500/mo",
+        "Day programs almost always win on both cost AND quality of life",
+      ],
+      tip: "Medicaid HCBS waivers cover day programs in most states. Most families don't ask.",
+    },
+    downloadHref: "/guides?download=memory-care-vs-day-program-vs-in-home",
+    contact: CONTACT_DEFAULT,
+  },
+
   /* ─────────────── LTC insurance claim playbook ─────────────── */
   "ltc-insurance-claim-playbook": {
     ...SECTION_DEFAULT,
