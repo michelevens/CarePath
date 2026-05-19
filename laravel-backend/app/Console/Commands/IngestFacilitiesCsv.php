@@ -117,6 +117,12 @@ class IngestFacilitiesCsv extends Command
             // For single-type sources (FL APD = group_home, CMS =
             // snf), skip the rawType lookup and pull the eligibility
             // row by canonical_type+subtype instead.
+            // $eligibility is the StateLicenseCategory model row that
+            // matches this facility's state + type + subtype. Captured
+            // separately so we can pass its id into the new FK column
+            // (replaces the snapshot-copy pattern with a real join).
+            $eligibility = null;
+
             if ($schema->default_canonical_type) {
                 $eligibility = \App\Models\StateLicenseCategory::query()
                     ->where('state', $state)
@@ -144,6 +150,15 @@ class IngestFacilitiesCsv extends Command
                     $skipped++;
                     continue;
                 }
+                // Resolve the FK after normalization for non-default-type
+                // sources (state files with multiple license categories
+                // in the same CSV, like CCLD / AHCA).
+                $eligibility = \App\Models\StateLicenseCategory::query()
+                    ->where('state', $state)
+                    ->where('canonical_type', $resolved['canonical'])
+                    ->when($resolved['license_subtype'],
+                        fn ($q) => $q->where('license_subtype', $resolved['license_subtype']))
+                    ->first();
             }
 
             $slug = strtolower($state) . '-lic-' . preg_replace('/[^a-z0-9]/i', '', $licenseNo);
@@ -170,6 +185,12 @@ class IngestFacilitiesCsv extends Command
                 'longitude' => $this->numOrNull($data['longitude'] ?? null),
                 'is_active' => true,
                 'data_source' => $source,
+                // New FK columns. Replace the loose-string joins on
+                // data_source / license_category with real references.
+                // Snapshot columns above are kept as denormalized
+                // accelerators (and a fallback if these become null).
+                'data_source_id' => $schema->id,
+                'state_license_category_id' => $eligibility?->id,
             ];
 
             Facility::updateOrCreate(['slug' => $slug], $attrs);

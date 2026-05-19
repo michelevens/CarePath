@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class StateLicenseCategory extends Model
@@ -54,5 +55,24 @@ class StateLicenseCategory extends Model
     public static function normalize(string $raw): string
     {
         return Str::of($raw)->lower()->squish()->toString();
+    }
+
+    /**
+     * Every facility classified under this regulatory bucket. Lets the
+     * SuperAdmin show "All FL APD Group Home (IDD) facilities" with a
+     * single JOIN, and lets a regulator-side reclassification surface
+     * the impacted population instantly.
+     */
+    public function facilities(): HasMany
+    {
+        return $this->hasMany(Facility::class, 'state_license_category_id');
+    }
+
+    /**
+     * Ingest feeds whose default categorization points here.
+     */
+    public function dataSources(): HasMany
+    {
+        return $this->hasMany(DataSourceSchema::class, 'default_state_license_category_id');
     }
 }

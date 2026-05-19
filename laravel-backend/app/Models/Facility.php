@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -63,6 +64,8 @@ class Facility extends Model
         'price_from_cents',
         'is_active',
         'data_source',
+        'data_source_id',
+        'state_license_category_id',
         'cms_synced_at',
         'stripe_customer_id',
         'subscription_tier',
@@ -134,5 +137,26 @@ class Facility extends Model
     public function placements(): HasMany
     {
         return $this->hasMany(Placement::class);
+    }
+
+    /**
+     * The ingest feed this row was produced by (CMS, FL APD, OSM, etc).
+     * Replaces the loose-string facilities.data_source varchar with a
+     * real FK so we can navigate facility → source and source → facilities.
+     */
+    public function dataSource(): BelongsTo
+    {
+        return $this->belongsTo(DataSourceSchema::class, 'data_source_id');
+    }
+
+    /**
+     * The regulatory bucket this facility falls in for its state. Carries
+     * the canonical accepted_populations / payer_programs / funding_authority
+     * metadata. Joining here is preferred over reading the cached snapshot
+     * columns on facilities — joined data reflects the latest classification.
+     */
+    public function stateLicenseCategory(): BelongsTo
+    {
+        return $this->belongsTo(StateLicenseCategory::class, 'state_license_category_id');
     }
 }
