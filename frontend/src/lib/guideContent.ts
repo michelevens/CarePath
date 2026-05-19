@@ -278,6 +278,91 @@ export const GUIDES_BY_SLUG: Record<string, GuideContent> = {
     downloadHref: "/guides?download=choosing-assisted-living",
     contact: CONTACT_DEFAULT,
   },
+  /* ─────────────── When Mom Can't Live Alone ─────────────── */
+  "when-mom-cant-live-alone": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "The Hardest Conversation",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "When Mom Can't Live Alone Anymore",
+    coverSubtitle:
+      "The 9 trigger signs, what each one means, and what to do the week you finally notice.",
+    valueProps: [
+      "The 9 signs in order of severity",
+      "The 1-2-4 rule",
+      "What to do the week you decide to act",
+    ],
+    heroPanel: {
+      eyebrow: "Transition",
+      title: "The Signs Were There",
+      body: "The signs are almost always there a year before the family is ready to admit them. Read them honestly.",
+    },
+    toc: [
+      "The 9 trigger signs",
+      "How many is too many?",
+      "The 4 things to do this week",
+      "The conversation no one wants to have",
+    ],
+    tocFooter: "Acting six months early vs six months late is the entire game.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "The 9 Signs in Order of Severity",
+      body: "Unexplained weight loss is the body's quietest cry for help. Medication mistakes are the #1 preventable cause of ER visits for elders living alone.",
+      bullets: [
+        "Unexplained weight loss",
+        "Medication mistakes",
+        "Hygiene decline",
+        "Any fall (even 'small')",
+        "Repeated stories + lost names",
+        "Bills going unpaid",
+      ],
+      tip: "One sign = watch. Two-three = serious conversation. Four+ = decision week.",
+    },
+    downloadHref: "/guides?download=when-mom-cant-live-alone",
+    contact: CONTACT_DEFAULT,
+  },
+
+  /* ─────────────── 30-day move-in survival ─────────────── */
+  "30-day-move-in-survival-guide": {
+    ...SECTION_DEFAULT,
+    sectionTitle: "The First 30 Days After Move-In",
+    coverEyebrow: "Free Guide · 5 pages",
+    coverTitle: "The 30-Day Move-In Survival Guide",
+    coverSubtitle:
+      "What to expect, what to watch for, what to escalate — week by week from the first night in the new room.",
+    valueProps: [
+      "Know normal disorientation vs real problems",
+      "The 30-day care-plan meeting checklist",
+      "The 4-step escalation ladder",
+    ],
+    heroPanel: {
+      eyebrow: "Transition",
+      title: "Worse Before Better",
+      body: "The first two weeks will feel worse before they feel better. Knowing what's normal vs what's a real problem is the whole point.",
+    },
+    toc: [
+      "Move-in day: bring this, do this",
+      "Days 1-7: the disorientation phase",
+      "Days 7-14: the adjustment phase",
+      "Days 14-30: the new normal",
+      "The 4-step escalation ladder",
+    ],
+    tocFooter: "By day 60 you'll know if this is the right place — and you'll have the data to act either way.",
+    preview: {
+      eyebrow: "Chapter preview",
+      title: "Days 1-7: The Disorientation Phase",
+      body: "Your loved one will want to 'go home' — sometimes constantly. Hold the line; this is normal.",
+      bullets: [
+        "Sleep more (adjustment fatigue) or less (anxiety)",
+        "Eat less initially (new food, new pace, new tablemates)",
+        "Transition delirium is real and clears in 1-2 weeks",
+        "Non-linear: one bad day, then better, then bad again",
+      ],
+      tip: "Visit daily but keep it short (30-60 min). Eating together once helps anchor.",
+    },
+    downloadHref: "/guides?download=30-day-move-in-survival-guide",
+    contact: CONTACT_DEFAULT,
+  },
+
   /* ─────────────── 48-hour discharge playbook ─────────────── */
   "hospital-to-snf-48-hour-playbook": {
     ...SECTION_DEFAULT,

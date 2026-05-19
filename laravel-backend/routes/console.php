@@ -65,3 +65,13 @@ Schedule::command('facilities:refresh-classifications')
     ->withoutOverlapping(60)
     ->runInBackground();
 
+
+// Refresh counties.facility_count from the live join. Cheap (single
+// SQL UPDATE) and keeps the SuperAdmin / county-landing pages
+// honest as new facilities ingest.
+Schedule::command('counties:refresh-counts')
+    ->dailyAt('02:30')
+    ->timezone('UTC')
+    ->withoutOverlapping(60)
+    ->runInBackground();
+

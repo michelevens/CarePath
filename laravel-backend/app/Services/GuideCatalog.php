@@ -158,6 +158,55 @@ class GuideCatalog
                 ['n' => 6, 'label' => 'Read the contract red flags', 'page' => 7],
             ],
         ],
+        // ── When Mom Can't Live Alone — 9 trigger signs ─────────────
+        [
+            'slug' => 'when-mom-cant-live-alone',
+            'title' => "When Mom Can't Live Alone Anymore",
+            'subtitle' => "The 9 trigger signs, what they mean, and what to do the week you finally notice",
+            'description' => "The hardest conversation in the family. This guide is the framework for noticing the signs honestly — nine concrete trigger signs, a 1-2-4 rule for how many means it's time, and the four things to do the week you decide to act.",
+            'category' => 'transition',
+            'page_count' => 5,
+            'audience' => 'Adult children + spouses of declining elders',
+            'value_props' => [
+                "The 9 signs in order of severity",
+                "The 1-2-4 rule (one sign vs three vs four+ is a different conversation)",
+                "The 4 things to do the week you finally admit what you've seen",
+            ],
+            'hero_panel' => ['eyebrow' => 'Transition', 'title' => 'The Hardest Conversation'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'The 9 trigger signs', 'page' => 2],
+                ['n' => 2, 'label' => 'How many is too many?', 'page' => 3],
+                ['n' => 3, 'label' => 'The 4 things to do this week', 'page' => 4],
+                ['n' => 4, 'label' => 'The conversation no one wants to have', 'page' => 5],
+            ],
+        ],
+
+        // ── 30-day move-in survival ─────────────────────────────────
+        [
+            'slug' => '30-day-move-in-survival-guide',
+            'title' => 'The 30-Day Move-In Survival Guide',
+            'subtitle' => 'What to expect, what to watch for, what to escalate — week by week',
+            'description' => "The move-in week is intense. The next 30 days set the tone for the next 30 months. This guide walks day-by-day through the disorientation phase, the adjustment, the new normal, and the 4-step escalation ladder for when something is genuinely wrong.",
+            'category' => 'transition',
+            'page_count' => 5,
+            'audience' => 'Families in the first month of placement',
+            'value_props' => [
+                'Know what is normal disorientation vs what needs escalating',
+                'The 30-day care-plan meeting checklist',
+                'The 4-step ladder: nurse → DON → administrator → ombudsman',
+            ],
+            'hero_panel' => ['eyebrow' => 'Transition', 'title' => 'The First 30 Days'],
+            'hero_image_url' => 'https://images.unsplash.com/photo-1582719188393-bb71ca45dbb9?w=1200&q=80&auto=format&fit=crop',
+            'toc' => [
+                ['n' => 1, 'label' => 'Move-in day: bring this, do this', 'page' => 2],
+                ['n' => 2, 'label' => 'Days 1-7: the disorientation phase', 'page' => 3],
+                ['n' => 3, 'label' => 'Days 7-14: the adjustment phase', 'page' => 4],
+                ['n' => 4, 'label' => 'Days 14-30: the new normal', 'page' => 5],
+                ['n' => 5, 'label' => 'The 4-step escalation ladder', 'page' => 6],
+            ],
+        ],
+
         // ── 48-hour hospital-to-SNF discharge playbook ──────────────
         [
             'slug' => 'hospital-to-snf-48-hour-playbook',
