@@ -54,3 +54,14 @@ Schedule::command('sponsored:bill-month')
     ->timezone('UTC')
     ->withoutOverlapping(180)
     ->runInBackground();
+
+// Refresh the snapshot columns (accepted_populations / payer_programs /
+// funding_authority) on facilities from their joined state_license_category.
+// Belt-and-suspenders sync so anything still reading the snapshots stays
+// current with regulator reclassifications.
+Schedule::command('facilities:refresh-classifications')
+    ->dailyAt('02:00')   // UTC, off-peak
+    ->timezone('UTC')
+    ->withoutOverlapping(60)
+    ->runInBackground();
+

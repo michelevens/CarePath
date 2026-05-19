@@ -170,4 +170,40 @@ class Facility extends Model
     {
         return $this->belongsTo(County::class, 'county_id');
     }
+
+    /**
+     * Read-through accessors that prefer the joined state_license_categories
+     * data over the snapshot columns. Solves the silent-staleness problem
+     * where a regulator reclassifies and our facility rows stay frozen
+     * on the old definition forever. Falls back to the snapshot column
+     * when the FK isn't populated (older OSM rows etc).
+     *
+     * Eloquent only triggers the relation lookup when we explicitly
+     * eager-load with `->with('stateLicenseCategory')` — otherwise
+     * we return the cached snapshot and avoid N+1 queries on listing
+     * pages.
+     */
+    public function getLivePopulationsAttribute(): ?array
+    {
+        if ($this->relationLoaded('stateLicenseCategory') && $this->stateLicenseCategory) {
+            return $this->stateLicenseCategory->accepted_populations;
+        }
+        return $this->accepted_populations;
+    }
+
+    public function getLivePayerProgramsAttribute(): ?array
+    {
+        if ($this->relationLoaded('stateLicenseCategory') && $this->stateLicenseCategory) {
+            return $this->stateLicenseCategory->payer_programs;
+        }
+        return $this->payer_programs;
+    }
+
+    public function getLiveFundingAuthorityAttribute(): ?string
+    {
+        if ($this->relationLoaded('stateLicenseCategory') && $this->stateLicenseCategory) {
+            return $this->stateLicenseCategory->funding_authority;
+        }
+        return $this->funding_authority;
+    }
 }
